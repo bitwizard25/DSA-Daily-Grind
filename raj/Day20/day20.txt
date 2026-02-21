@@ -1,0 +1,71 @@
+﻿# 🗓️ DAY 20 — Topological Sort
+
+> 💡 **Core Insight:** Topological sort only works on DAGs. Build an indegree array. Start with all 0-indegree nodes. If not all nodes are processed → cycle exists.
+
+### Kahn's BFS Template
+```cpp
+vector<int> indegree(n, 0);
+// Build adj and indegree from edges...
+
+queue<int> q;
+for (int i = 0; i < n; i++)
+    if (indegree[i] == 0) q.push(i);
+
+vector<int> order;
+while (!q.empty()) {
+    int node = q.front(); q.pop();
+    order.push_back(node);
+    for (int nb : adj[node])
+        if (--indegree[nb] == 0) q.push(nb);
+}
+// order.size() == n → no cycle
+```
+
+### 🟡 Problem 1: Course Schedule I
+- **Answer:** Can you finish all courses? = Does a valid topological order exist?
+- **Complexity:** O(V+E) time | O(V+E) space
+
+```cpp
+bool canFinish(int n, vector<vector<int>>& prereqs) {
+    vector<vector<int>> adj(n);
+    vector<int> indegree(n, 0);
+    for (auto& e : prereqs) { adj[e[1]].push_back(e[0]); indegree[e[0]]++; }
+    queue<int> q;
+    for (int i = 0; i < n; i++) if (indegree[i] == 0) q.push(i);
+    int count = 0;
+    while (!q.empty()) {
+        int node = q.front(); q.pop(); count++;
+        for (int nb : adj[node]) if (--indegree[nb] == 0) q.push(nb);
+    }
+    return count == n;
+}
+```
+
+### 🟡 Problem 2: Course Schedule II
+- **Answer:** Return the actual topological order, or empty if cycle.
+- **Complexity:** O(V+E) time | O(V+E) space
+
+```cpp
+vector<int> findOrder(int n, vector<vector<int>>& prereqs) {
+    vector<vector<int>> adj(n);
+    vector<int> indegree(n, 0);
+    for (auto& e : prereqs) { adj[e[1]].push_back(e[0]); indegree[e[0]]++; }
+    queue<int> q;
+    for (int i = 0; i < n; i++) if (indegree[i] == 0) q.push(i);
+    vector<int> order;
+    while (!q.empty()) {
+        int node = q.front(); q.pop();
+        order.push_back(node);
+        for (int nb : adj[node]) if (--indegree[nb] == 0) q.push(nb);
+    }
+    return order.size() == n ? order : vector<int>{};
+}
+```
+
+### ✅ Day 20 Checklist
+- [ ] What does indegree represent? Why start with indegree 0?
+- [ ] DFS-based topo sort vs Kahn's BFS — when would you prefer each?
+- [ ] Prove: if order.size() != n, a cycle must exist.
+
+---
+

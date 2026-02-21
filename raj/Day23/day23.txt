@@ -1,0 +1,61 @@
+﻿# 🗓️ DAY 23 — Heaps: Advanced
+
+> 💡 **Core Insight:** Two heaps partition a data stream into two halves. Max-heap holds lower half, min-heap holds upper half. Median = top(s) of the heap(s).
+
+### 🔴 Problem 1: Find Median from Data Stream
+- **Complexity:** O(log N) insert | O(1) findMedian
+
+```cpp
+class MedianFinder {
+    priority_queue<int> lower;                          // max-heap: lower half
+    priority_queue<int, vector<int>, greater<int>> upper; // min-heap: upper half
+public:
+    void addNum(int num) {
+        lower.push(num);
+        upper.push(lower.top()); lower.pop();           // balance
+        if (lower.size() < upper.size()) {
+            lower.push(upper.top()); upper.pop();
+        }
+    }
+    double findMedian() {
+        if (lower.size() > upper.size()) return lower.top();
+        return (lower.top() + upper.top()) / 2.0;
+    }
+};
+```
+
+### 🟡 Problem 2: Task Scheduler
+- **Approach:** Most frequent task determines idle time. Use a max-heap + cooldown queue.
+- **Complexity:** O(N log N) time
+
+```cpp
+int leastInterval(vector<char>& tasks, int n) {
+    unordered_map<char,int> freq;
+    for (char t : tasks) freq[t]++;
+    priority_queue<int> pq;
+    for (auto& [c, f] : freq) pq.push(f);
+
+    int time = 0;
+    queue<pair<int,int>> cooldown; // {freq, available_time}
+    while (!pq.empty() || !cooldown.empty()) {
+        time++;
+        if (!cooldown.empty() && cooldown.front().second <= time) {
+            pq.push(cooldown.front().first);
+            cooldown.pop();
+        }
+        if (!pq.empty()) {
+            int f = pq.top() - 1; pq.pop();
+            if (f > 0) cooldown.push({f, time + n + 1});
+        }
+    }
+    return time;
+}
+```
+
+### ✅ Day 23 Checklist
+- [ ] Why does lower.size() >= upper.size() always hold after addNum?
+- [ ] Trace MedianFinder with inputs: 1, 2, 3
+- [ ] What does the cooldown queue represent in Task Scheduler?
+
+---
+

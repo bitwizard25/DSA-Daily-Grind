@@ -1,0 +1,63 @@
+﻿# 🗓️ DAY 15 — Binary Trees: DFS
+
+> 💡 **Core Insight:** Post-order DFS is the workhorse — compute left/right subtree answers first, then combine at the current node.
+
+### DFS Template
+```cpp
+int solve(TreeNode* root) {
+    if (!root) return 0;              // base case
+    int left  = solve(root->left);
+    int right = solve(root->right);
+    // combine and return to parent
+    return 1 + max(left, right);
+}
+```
+
+### 🟢 Problem 1: Maximum Depth of Binary Tree
+- **Complexity:** O(N) time | O(H) space (call stack)
+
+```cpp
+int maxDepth(TreeNode* root) {
+    if (!root) return 0;
+    return 1 + max(maxDepth(root->left), maxDepth(root->right));
+}
+```
+
+### 🟢 Problem 2: Path Sum
+- **Approach:** Pass remaining sum down. At leaf, check if remaining == 0.
+- **Complexity:** O(N) time | O(H) space
+
+```cpp
+bool hasPathSum(TreeNode* root, int targetSum) {
+    if (!root) return false;
+    if (!root->left && !root->right) return root->val == targetSum;
+    return hasPathSum(root->left,  targetSum - root->val) ||
+           hasPathSum(root->right, targetSum - root->val);
+}
+```
+
+### 🟡 Problem 3: Diameter of Binary Tree
+- **Approach:** For each node, diameter through it = left height + right height. Track global max.
+- **Complexity:** O(N) time | O(H) space
+
+```cpp
+int diameterOfBinaryTree(TreeNode* root) {
+    int maxDiam = 0;
+    function<int(TreeNode*)> height = [&](TreeNode* node) -> int {
+        if (!node) return 0;
+        int l = height(node->left), r = height(node->right);
+        maxDiam = max(maxDiam, l + r);
+        return 1 + max(l, r);
+    };
+    height(root);
+    return maxDiam;
+}
+```
+
+### ✅ Day 15 Checklist
+- [ ] Difference between height and depth of a node?
+- [ ] What order does post-order DFS visit nodes?
+- [ ] Diameter problem: why do we need a global variable?
+
+---
+

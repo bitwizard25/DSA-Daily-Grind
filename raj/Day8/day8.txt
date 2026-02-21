@@ -1,0 +1,60 @@
+﻿# 🗓️ DAY 8 — Linked Lists: Basics
+
+> 💡 **Core Insight:** Always save `next` before overwriting it. Use a dummy head to eliminate edge cases on the head node.
+
+### Essential C++ Setup
+```cpp
+// Dummy head trick
+ListNode* dummy = new ListNode(0);
+dummy->next = head;
+ListNode* curr = dummy;
+
+// Three-pointer reversal
+ListNode *prev = nullptr, *cur = head, *nxt = nullptr;
+while (cur) {
+    nxt = cur->next;
+    cur->next = prev;
+    prev = cur;
+    cur = nxt;
+}
+// prev is new head
+```
+
+### 🟢 Problem 1: Reverse Linked List
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+ListNode* reverseList(ListNode* head) {
+    ListNode *prev = nullptr, *cur = head;
+    while (cur) {
+        ListNode* nxt = cur->next;
+        cur->next = prev;
+        prev = cur;
+        cur = nxt;
+    }
+    return prev;
+}
+```
+
+### 🟢 Problem 2: Middle of the Linked List
+- **Approach:** Fast & slow pointer. When fast reaches end, slow is at middle.
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+ListNode* middleNode(ListNode* head) {
+    ListNode *slow = head, *fast = head;
+    while (fast && fast->next) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+    return slow;
+}
+```
+
+### ✅ Day 8 Checklist
+- [ ] Reverse iteratively AND recursively
+- [ ] What does slow point to when list has even nodes?
+- [ ] Memory: who owns the dummy node? (Clean it up)
+
+---
+

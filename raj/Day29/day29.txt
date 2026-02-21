@@ -1,0 +1,83 @@
+﻿# 🗓️ DAY 29 — System-Level DSA
+
+> 💡 **Core Insight:** These problems test if you can engineer data structures from scratch — a final-round staple. Know WHY each component is needed.
+
+### 🟡 Problem 1: Implement Trie (Prefix Tree)
+- Each node has 26 children (or a map) + `isEnd` flag.
+- **Complexity:** O(L) per operation | O(N×L) total space
+
+```cpp
+struct TrieNode {
+    TrieNode* children[26] = {};
+    bool isEnd = false;
+};
+
+class Trie {
+    TrieNode* root = new TrieNode();
+public:
+    void insert(string word) {
+        auto node = root;
+        for (char c : word) {
+            int idx = c - 'a';
+            if (!node->children[idx])
+                node->children[idx] = new TrieNode();
+            node = node->children[idx];
+        }
+        node->isEnd = true;
+    }
+    bool search(string word) {
+        auto node = root;
+        for (char c : word) {
+            int idx = c - 'a';
+            if (!node->children[idx]) return false;
+            node = node->children[idx];
+        }
+        return node->isEnd;
+    }
+    bool startsWith(string prefix) {
+        auto node = root;
+        for (char c : prefix) {
+            int idx = c - 'a';
+            if (!node->children[idx]) return false;
+            node = node->children[idx];
+        }
+        return true;
+    }
+};
+```
+
+### 🟡 Problem 2: LRU Cache
+- `unordered_map<key, list::iterator>` + `list<pair<key,val>>`
+- **Complexity:** O(1) get and put
+
+```cpp
+class LRUCache {
+    int cap;
+    list<pair<int,int>> lru;
+    unordered_map<int, list<pair<int,int>>::iterator> mp;
+public:
+    LRUCache(int capacity) : cap(capacity) {}
+    int get(int key) {
+        if (!mp.count(key)) return -1;
+        lru.splice(lru.begin(), lru, mp[key]);
+        return mp[key]->second;
+    }
+    void put(int key, int value) {
+        if (mp.count(key)) lru.erase(mp[key]);
+        lru.push_front({key, value});
+        mp[key] = lru.begin();
+        if ((int)lru.size() > cap) {
+            mp.erase(lru.back().first);
+            lru.pop_back();
+        }
+    }
+};
+```
+
+### ✅ Day 29 Checklist
+- [ ] Why use `list` (not `vector`) for LRU? What's special about splice?
+- [ ] What happens to the Trie's memory? Who cleans up TrieNode?
+- [ ] Can you implement Trie with `unordered_map` instead of array? Trade-offs?
+
+---
+

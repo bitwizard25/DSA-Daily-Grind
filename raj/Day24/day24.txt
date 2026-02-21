@@ -1,0 +1,67 @@
+﻿# 🗓️ DAY 24 — Backtracking: Subsets & Combinations
+
+> 💡 **Core Insight:** At each index, make a binary decision: include or exclude. The recursion tree has 2^N leaves. Undo your choice (pop) before the next branch.
+
+### Universal Template
+```cpp
+void backtrack(int start, vector<int>& current, vector<vector<int>>& result,
+               vector<int>& nums) {
+    result.push_back(current);  // collect at every node (subsets)
+    for (int i = start; i < (int)nums.size(); i++) {
+        current.push_back(nums[i]);           // choose
+        backtrack(i + 1, current, result, nums); // explore
+        current.pop_back();                   // unchoose
+    }
+}
+```
+
+### 🟡 Problem 1: Subsets
+- **Complexity:** O(2^N × N) time | O(N) space (recursion)
+
+```cpp
+vector<vector<int>> subsets(vector<int>& nums) {
+    vector<vector<int>> res;
+    vector<int> curr;
+    function<void(int)> bt = [&](int start) {
+        res.push_back(curr);
+        for (int i = start; i < (int)nums.size(); i++) {
+            curr.push_back(nums[i]);
+            bt(i + 1);
+            curr.pop_back();
+        }
+    };
+    bt(0);
+    return res;
+}
+```
+
+### 🟡 Problem 2: Combination Sum
+- **Approach:** Same element can be reused — don't increment `start` when recursing.
+- **Complexity:** O(N^(T/M)) where T=target, M=min element
+
+```cpp
+vector<vector<int>> combinationSum(vector<int>& candidates, int target) {
+    vector<vector<int>> res;
+    vector<int> curr;
+    function<void(int, int)> bt = [&](int start, int rem) {
+        if (rem == 0) { res.push_back(curr); return; }
+        for (int i = start; i < (int)candidates.size(); i++) {
+            if (candidates[i] > rem) break; // prune (sort first)
+            curr.push_back(candidates[i]);
+            bt(i, rem - candidates[i]); // i not i+1 (reuse allowed)
+            curr.pop_back();
+        }
+    };
+    sort(candidates.begin(), candidates.end());
+    bt(0, target);
+    return res;
+}
+```
+
+### ✅ Day 24 Checklist
+- [ ] What does `pop_back()` undo exactly?
+- [ ] Why does Combination Sum pass `i` not `i+1` to allow reuse?
+- [ ] Subsets: how many total subsets for an array of size 4?
+
+---
+

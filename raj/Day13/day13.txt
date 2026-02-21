@@ -1,0 +1,61 @@
+﻿# 🗓️ DAY 13 — Binary Search: Classic
+
+> 💡 **Core Insight:** Halve the search space each step. Always use `mid = lo + (hi - lo) / 2` to prevent overflow.
+
+### Template
+```cpp
+int lo = 0, hi = n - 1;
+while (lo <= hi) {
+    int mid = lo + (hi - lo) / 2;
+    if (arr[mid] == target) return mid;
+    else if (arr[mid] < target) lo = mid + 1;
+    else hi = mid - 1;
+}
+return -1;
+```
+
+### 🟢 Problem 1: Binary Search (Standard)
+- **Complexity:** O(log N) time | O(1) space
+
+```cpp
+int search(vector<int>& nums, int target) {
+    int lo = 0, hi = nums.size() - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (nums[mid] == target) return mid;
+        else if (nums[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}
+```
+
+### 🟡 Problem 2: Search in Rotated Sorted Array
+- **Approach:** One half is always fully sorted. Identify which half and check if target is in it.
+- **Complexity:** O(log N) time | O(1) space
+
+```cpp
+int search(vector<int>& nums, int target) {
+    int lo = 0, hi = nums.size() - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (nums[mid] == target) return mid;
+        if (nums[lo] <= nums[mid]) { // left half sorted
+            if (nums[lo] <= target && target < nums[mid]) hi = mid - 1;
+            else lo = mid + 1;
+        } else {                     // right half sorted
+            if (nums[mid] < target && target <= nums[hi]) lo = mid + 1;
+            else hi = mid - 1;
+        }
+    }
+    return -1;
+}
+```
+
+### ✅ Day 13 Checklist
+- [ ] What overflow does `(lo+hi)/2` cause? When?
+- [ ] Trace rotated array `[4,5,6,7,0,1,2]`, target=0
+- [ ] What if the array has duplicates? Does binary search break?
+
+---
+

@@ -1,0 +1,55 @@
+﻿# 🗓️ DAY 2 — Two Pointers: Converging
+
+> 💡 **Core Insight:** On a sorted array, two indices moving toward each other can find pairs in O(N) instead of O(N²).
+
+### C++ Template
+```cpp
+int left = 0, right = n - 1;
+while (left < right) {
+    int sum = arr[left] + arr[right];
+    if (sum == target)      { /* found */ left++; right--; }
+    else if (sum < target)  left++;
+    else                    right--;
+}
+```
+
+### 🟡 Problem 1: Two Sum II (Input Array Is Sorted)
+- **Approach:** Converging two pointers. Move left if sum < target, right if sum > target.
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+vector<int> twoSum(vector<int>& numbers, int target) {
+    int l = 0, r = numbers.size() - 1;
+    while (l < r) {
+        int s = numbers[l] + numbers[r];
+        if (s == target) return {l+1, r+1};
+        else if (s < target) l++;
+        else r--;
+    }
+    return {};
+}
+```
+
+### 🟡 Problem 2: Container With Most Water
+- **Approach:** Always move the pointer with the **shorter** bar inward. Moving the taller one can never increase the area.
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+int maxArea(vector<int>& height) {
+    int l = 0, r = height.size() - 1, res = 0;
+    while (l < r) {
+        res = max(res, min(height[l], height[r]) * (r - l));
+        if (height[l] < height[r]) l++;
+        else r--;
+    }
+    return res;
+}
+```
+
+### ✅ Day 2 Checklist
+- [ ] Why do we move the shorter bar, not the taller one?
+- [ ] Both problems solved < 25 min combined?
+- [ ] Handled edge: array of size 2?
+
+---
+

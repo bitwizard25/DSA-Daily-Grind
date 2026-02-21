@@ -1,0 +1,43 @@
+﻿# 🗓️ DAY 7 — Hashing: Sets & Week 1 Review
+
+> 💡 **Core Insight:** Only start counting from the **beginning** of a sequence. This turns what looks O(N²) into O(N).
+
+### 🟡 Problem 1: Longest Consecutive Sequence
+- **Approach:** Hash set of all numbers. Only count from `num` if `num-1` is NOT in set.
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+int longestConsecutive(vector<int>& nums) {
+    unordered_set<int> s(nums.begin(), nums.end());
+    int maxLen = 0;
+    for (int num : s) {
+        if (!s.count(num - 1)) { // start of sequence
+            int cur = num, len = 1;
+            while (s.count(cur + 1)) { cur++; len++; }
+            maxLen = max(maxLen, len);
+        }
+    }
+    return maxLen;
+}
+```
+
+### 📚 Week 1 Revision Session
+Go back through Days 1–6. For each pattern, answer:
+- What is the core insight in one sentence?
+- What is the time/space complexity?
+- What edge case almost tripped you?
+
+| Pattern | One-Line Core Insight |
+|---------|----------------------|
+| Prefix Sum | Precompute → O(1) range query |
+| Two Pointers | Sorted array → converge to eliminate pairs |
+| Sliding Window | Expand right, shrink left, never restart |
+| Hashing | Pay O(N) space to get O(1) lookup |
+
+### ✅ Day 7 Checklist
+- [ ] Longest Consecutive Sequence without looking at notes
+- [ ] Re-solve one problem from Days 1–5 you felt shaky on
+- [ ] Write all 4 pattern insights from memory
+
+---
+

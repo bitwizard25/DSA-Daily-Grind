@@ -1,0 +1,49 @@
+﻿# 🗓️ DAY 9 — Linked Lists: Advanced
+
+> 💡 **Core Insight:** For cycle detection — if two runners ever meet, there's a loop. Reset one to head, walk both at speed 1 to find the cycle start.
+
+### 🟢 Problem 1: Linked List Cycle (Floyd's)
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+bool hasCycle(ListNode* head) {
+    ListNode *slow = head, *fast = head;
+    while (fast && fast->next) {
+        slow = slow->next;
+        fast = fast->next->next;
+        if (slow == fast) return true;
+    }
+    return false;
+}
+```
+
+### 🔴 Problem 2: Merge K Sorted Lists
+- **Approach:** Min-heap of `(value, node_ptr)`. Extract min, push its next child.
+- **Complexity:** O(N log K) time | O(K) space
+
+```cpp
+ListNode* mergeKLists(vector<ListNode*>& lists) {
+    using T = pair<int, ListNode*>;
+    priority_queue<T, vector<T>, greater<T>> pq;
+    for (auto* node : lists)
+        if (node) pq.push({node->val, node});
+
+    ListNode dummy(0);
+    ListNode* tail = &dummy;
+    while (!pq.empty()) {
+        auto [val, node] = pq.top(); pq.pop();
+        tail->next = node;
+        tail = tail->next;
+        if (node->next) pq.push({node->next->val, node->next});
+    }
+    return dummy.next;
+}
+```
+
+### ✅ Day 9 Checklist
+- [ ] Prove Floyd's algorithm works (why does meeting imply cycle?)
+- [ ] What if `lists` contains nullptr entries? Handled?
+- [ ] Time complexity: why log K and not log N?
+
+---
+

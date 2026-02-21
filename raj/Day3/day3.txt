@@ -1,0 +1,61 @@
+﻿# 🗓️ DAY 3 — Two Pointers: Advanced
+
+> 💡 **Core Insight:** Sort first to enable pointer movement decisions. Skip duplicates explicitly to avoid repeated answers.
+
+### 🔴 Problem 1: 3Sum
+- **Approach:** Sort. For each index `i`, run converging two-pointer on the rest.
+- **Complexity:** O(N²) time | O(1) extra space
+- **Key Trick:** Skip duplicate pivots with `while (arr[i] == arr[i-1]) i++`
+
+```cpp
+vector<vector<int>> threeSum(vector<int>& nums) {
+    sort(nums.begin(), nums.end());
+    vector<vector<int>> res;
+    for (int i = 0; i < (int)nums.size() - 2; i++) {
+        if (i > 0 && nums[i] == nums[i-1]) continue; // skip dup pivot
+        int l = i+1, r = nums.size()-1;
+        while (l < r) {
+            int s = nums[i] + nums[l] + nums[r];
+            if (s == 0) {
+                res.push_back({nums[i], nums[l], nums[r]});
+                while (l < r && nums[l] == nums[l+1]) l++;
+                while (l < r && nums[r] == nums[r-1]) r--;
+                l++; r--;
+            } else if (s < 0) l++;
+            else r--;
+        }
+    }
+    return res;
+}
+```
+
+### 🔴 Problem 2: Trapping Rain Water
+- **Approach:** `water[i] = min(maxLeft, maxRight) - height[i]`. Use two pointers to maintain running max from each side.
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+int trap(vector<int>& height) {
+    int l = 0, r = height.size()-1;
+    int maxL = 0, maxR = 0, water = 0;
+    while (l < r) {
+        if (height[l] <= height[r]) {
+            maxL = max(maxL, height[l]);
+            water += maxL - height[l];
+            l++;
+        } else {
+            maxR = max(maxR, height[r]);
+            water += maxR - height[r];
+            r--;
+        }
+    }
+    return water;
+}
+```
+
+### ✅ Day 3 Checklist
+- [ ] Explain why 3Sum is O(N²) not O(N³)
+- [ ] Trace Trapping Rain Water on `[0,1,0,2,1,0,1,3,2,1,2,1]`
+- [ ] Handle edge: all same numbers in 3Sum → should return empty
+
+---
+

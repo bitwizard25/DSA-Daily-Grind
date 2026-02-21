@@ -1,0 +1,144 @@
+﻿# 🗓️ DAY 30 — Mock Interview Day
+
+> **NO notes. NO hints. NO peeking at previous solutions.**
+
+### Setup
+- Pick **4 random UNSEEN** Medium/Hard problems
+- Set a timer: **35 minutes per problem**
+- Talk out loud for the ENTIRE session — every thought
+
+### The Protocol (Per Problem)
+
+| Time | What To Do |
+|------|-----------|
+| 0–3 min | Read twice. Clarify constraints. State input/output clearly. |
+| 3–8 min | State the brute force and its complexity out loud. |
+| 8–15 min | Identify the pattern — name the week/technique. State optimized complexity. |
+| 15–30 min | Code it while narrating every line and decision. |
+| 30–35 min | Dry-run 2 test cases (normal + edge). Fix bugs verbally before typing. |
+
+### Post-Problem Self-Assessment
+
+| Check | Did you? |
+|-------|---------|
+| ✅ | Define time & space complexity before starting? |
+| ✅ | Handle empty input / null / single element? |
+| ✅ | Avoid integer overflow (used `long` where needed)? |
+| ✅ | Explain the key insight, not just the code? |
+| ✅ | Finish within 35 minutes? |
+
+### Scoring Rubric
+
+| Score | Criteria |
+|-------|---------|
+| 5/5 | Optimal solution, clean code, all edge cases, < 25 min |
+| 4/5 | Optimal solution, minor code issues, < 35 min |
+| 3/5 | Correct but suboptimal, or correct but no edge cases |
+| 2/5 | On the right track but incomplete |
+| 1/5 | Brute force only |
+
+### Recommended Mock Sources
+- LeetCode Weekly Contest (simulate under pressure)
+- NeetCode 150 — Hard problems shuffled
+- Pramp.com — Real peer mock interviews
+- InterviewBit — Timed problem sets
+
+---
+
+# 📊 APPENDIX
+
+## Pattern Recognition Flowchart
+
+```
+What type of problem is it?
+│
+├── Array / subarray
+│   ├── Range sum query?                  → Prefix Sum
+│   ├── Find pair in sorted array?        → Two Pointers (converging)
+│   └── Longest/shortest substring?       → Sliding Window
+│
+├── Lookup / grouping
+│   └── Frequency, existence, index map?  → HashMap / HashSet
+│
+├── Linked list
+│   ├── Reverse / modify?                 → Three-pointer trick
+│   └── Cycle / middle?                   → Fast & Slow Pointers
+│
+├── Stack / queue
+│   ├── Matching brackets, undo?          → Stack
+│   ├── Next greater/smaller?             → Monotonic Stack
+│   └── Sliding window max/min?           → Monotonic Deque
+│
+├── Search
+│   ├── Sorted array?                     → Binary Search
+│   └── Search for answer in a range?     → Binary Search on Answer Space
+│
+├── Tree
+│   ├── Height / diameter / path?         → DFS Post-order
+│   ├── Level-by-level?                   → BFS
+│   └── BST validate / find?              → Bounds-based DFS
+│
+├── Graph
+│   ├── Connectivity / flood fill?        → DFS / BFS
+│   ├── Shortest path (unweighted)?       → BFS
+│   ├── Shortest path (weighted)?         → Dijkstra's
+│   ├── Ordering with dependencies?       → Topological Sort
+│   └── Dynamic groups / merge?           → Union-Find
+│
+├── K-th / Top-K / Scheduling?            → Heap / Priority Queue
+├── All combinations / explore choices?   → Backtracking
+├── Optimal substructure + overlapping?   → Dynamic Programming
+├── Prefix search / autocomplete?         → Trie
+└── O(1) cache / recency tracking?        → HashMap + Doubly Linked List
+```
+
+---
+
+## Complexity Cheat Sheet
+
+| Algorithm | Time | Space |
+|-----------|------|-------|
+| Prefix Sum | O(N) | O(N) |
+| Two Pointers | O(N) | O(1) |
+| Sliding Window | O(N) | O(K) |
+| Hash Map ops | O(1) avg | O(N) |
+| Binary Search | O(log N) | O(1) |
+| DFS/BFS Tree | O(N) | O(H) |
+| DFS/BFS Graph | O(V+E) | O(V) |
+| Dijkstra's | O(E log V) | O(V) |
+| Topo Sort (Kahn's) | O(V+E) | O(V) |
+| Union-Find | O(α(N)) | O(N) |
+| Heap push/pop | O(log N) | O(N) |
+| DP 1D | O(N) | O(1)–O(N) |
+| DP 2D | O(M×N) | O(M×N) |
+| Backtracking | O(2^N) or O(N!) | O(N) |
+| Trie ops | O(L) | O(N×L) |
+
+---
+
+## C++ STL Pitfalls
+
+```cpp
+// ❌ Overflow in binary search
+int mid = (lo + hi) / 2;      // BAD — overflow if lo+hi > INT_MAX
+int mid = lo + (hi - lo) / 2; // ✅ GOOD
+
+// ❌ Accessing non-existent map key creates it
+if (mp[key] > 0) { ... }       // BAD — inserts key with value 0
+if (mp.count(key) && mp[key] > 0) { ... } // ✅ GOOD
+
+// ❌ Iterator invalidation
+for (auto& p : mp) mp.erase(p.first); // BAD — undefined behavior
+// ✅ Collect keys first, then erase
+
+// ❌ INT_MAX + 1 overflows
+if (dp[i-coin] != INT_MAX) dp[i] = min(dp[i], dp[i-coin] + 1); // ✅ Guard first
+
+// ❌ BST bounds overflow
+bool valid(node, int lo, int hi) // BAD — INT_MIN - 1 overflows
+bool valid(node, long lo, long hi) // ✅ Use long
+```
+
+---
+
+*30 days. 1 pattern at a time. You've got this.*

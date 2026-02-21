@@ -1,0 +1,71 @@
+﻿# 🗓️ DAY 19 — Graph: Clone & Multi-Source
+
+> 💡 **Core Insight:** Clone Graph requires a map from original node → clone to handle cycles. Pacific Atlantic requires multi-source BFS from both coasts simultaneously.
+
+### 🟡 Problem 1: Clone Graph
+- **Approach:** BFS + hash map `original → clone`.
+- **Complexity:** O(V+E) time | O(V) space
+
+```cpp
+Node* cloneGraph(Node* node) {
+    if (!node) return nullptr;
+    unordered_map<Node*, Node*> cloned;
+    queue<Node*> q;
+    q.push(node);
+    cloned[node] = new Node(node->val);
+    while (!q.empty()) {
+        Node* cur = q.front(); q.pop();
+        for (Node* nb : cur->neighbors) {
+            if (!cloned.count(nb)) {
+                cloned[nb] = new Node(nb->val);
+                q.push(nb);
+            }
+            cloned[cur]->neighbors.push_back(cloned[nb]);
+        }
+    }
+    return cloned[node];
+}
+```
+
+### 🟡 Problem 2: Pacific Atlantic Water Flow
+- **Approach:** Multi-source BFS. Start from Pacific border, then Atlantic border. Answer = intersection.
+- **Complexity:** O(M×N) time | O(M×N) space
+
+```cpp
+vector<vector<int>> pacificAtlantic(vector<vector<int>>& heights) {
+    int m = heights.size(), n = heights[0].size();
+    vector<vector<bool>> pac(m, vector<bool>(n, false));
+    vector<vector<bool>> atl(m, vector<bool>(n, false));
+    auto bfs = [&](queue<pair<int,int>>& q, vector<vector<bool>>& visited) {
+        int dr[] = {0,0,1,-1}, dc[] = {1,-1,0,0};
+        while (!q.empty()) {
+            auto [r, c] = q.front(); q.pop();
+            for (int d = 0; d < 4; d++) {
+                int nr = r+dr[d], nc = c+dc[d];
+                if (nr<0||nr>=m||nc<0||nc>=n||visited[nr][nc]) continue;
+                if (heights[nr][nc] >= heights[r][c]) {
+                    visited[nr][nc] = true;
+                    q.push({nr, nc});
+                }
+            }
+        }
+    };
+    queue<pair<int,int>> pq, aq;
+    for (int i = 0; i < m; i++) { pac[i][0]=true; pq.push({i,0}); atl[i][n-1]=true; aq.push({i,n-1}); }
+    for (int j = 0; j < n; j++) { pac[0][j]=true; pq.push({0,j}); atl[m-1][j]=true; aq.push({m-1,j}); }
+    bfs(pq, pac); bfs(aq, atl);
+    vector<vector<int>> res;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++)
+            if (pac[i][j] && atl[i][j]) res.push_back({i,j});
+    return res;
+}
+```
+
+### ✅ Day 19 Checklist
+- [ ] Why does the Clone Graph map prevent infinite loops?
+- [ ] In Pacific Atlantic, why search BACKWARDS from the borders?
+- [ ] What is multi-source BFS and when do you use it?
+
+---
+

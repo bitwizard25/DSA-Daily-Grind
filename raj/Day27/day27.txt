@@ -1,0 +1,47 @@
+﻿# 🗓️ DAY 27 — DP: Strings & Subsequences
+
+> 💡 **Core Insight:** For subsequence problems on two strings, the DP table is 2D. `dp[i][j]` captures the relationship between the first i chars of s1 and first j chars of s2.
+
+### 🟡 Problem 1: Longest Increasing Subsequence
+- `dp[i]` = length of LIS ending at index i
+- Recurrence: `dp[i] = max(dp[j]+1)` for all j < i where `nums[j] < nums[i]`
+- **O(N²) approach**, then O(N log N) with patience sort.
+
+```cpp
+// O(N log N) — patience sort with binary search
+int lengthOfLIS(vector<int>& nums) {
+    vector<int> tails;
+    for (int num : nums) {
+        auto it = lower_bound(tails.begin(), tails.end(), num);
+        if (it == tails.end()) tails.push_back(num);
+        else *it = num;
+    }
+    return tails.size();
+}
+```
+
+### 🟡 Problem 2: Longest Common Subsequence
+- `dp[i][j]` = LCS of first i chars of text1 and first j chars of text2
+- Recurrence: if chars match → `dp[i-1][j-1] + 1`, else `max(dp[i-1][j], dp[i][j-1])`
+- **Complexity:** O(M×N) time | O(M×N) space
+
+```cpp
+int longestCommonSubsequence(string t1, string t2) {
+    int m = t1.size(), n = t2.size();
+    vector<vector<int>> dp(m+1, vector<int>(n+1, 0));
+    for (int i = 1; i <= m; i++)
+        for (int j = 1; j <= n; j++)
+            dp[i][j] = (t1[i-1] == t2[j-1])
+                ? dp[i-1][j-1] + 1
+                : max(dp[i-1][j], dp[i][j-1]);
+    return dp[m][n];
+}
+```
+
+### ✅ Day 27 Checklist
+- [ ] What does `tails` represent in the patience sort LIS?
+- [ ] Trace LCS for "abcde" and "ace" — expected 3
+- [ ] Can you reduce LCS to O(N) space? How?
+
+---
+

@@ -1,0 +1,69 @@
+﻿# 🗓️ DAY 5 — Sliding Window: Variable Size
+
+> 💡 **Core Insight:** Expand `right` freely. Shrink `left` until the window is valid again. The window never needs to restart.
+
+### C++ Template — Variable Window
+```cpp
+unordered_map<char, int> freq;
+int left = 0, result = 0;
+
+for (int right = 0; right < n; right++) {
+    freq[s[right]]++;                           // expand
+    while (/* window invalid */) {
+        freq[s[left]]--;
+        if (freq[s[left]] == 0) freq.erase(s[left]);
+        left++;                                 // shrink
+    }
+    result = max(result, right - left + 1);     // update answer
+}
+```
+
+### 🟡 Problem 1: Longest Substring Without Repeating Characters
+- **Approach:** Variable window + `unordered_set`. Shrink left while duplicate exists.
+- **Complexity:** O(N) time | O(min(N, 26)) space
+
+```cpp
+int lengthOfLongestSubstring(string s) {
+    unordered_set<char> window;
+    int left = 0, maxLen = 0;
+    for (int right = 0; right < (int)s.size(); right++) {
+        while (window.count(s[right]))
+            window.erase(s[left++]);
+        window.insert(s[right]);
+        maxLen = max(maxLen, right - left + 1);
+    }
+    return maxLen;
+}
+```
+
+### 🔴 Problem 2: Minimum Window Substring
+- **Approach:** Track `have` vs `need`. When satisfied, shrink left greedily to minimize window.
+- **Complexity:** O(N + M) time | O(1) space (26 chars)
+
+```cpp
+string minWindow(string s, string t) {
+    unordered_map<char,int> need, have_map;
+    for (char c : t) need[c]++;
+    int have = 0, total = need.size();
+    int l = 0, minLen = INT_MAX, start = 0;
+    for (int r = 0; r < (int)s.size(); r++) {
+        have_map[s[r]]++;
+        if (need.count(s[r]) && have_map[s[r]] == need[s[r]]) have++;
+        while (have == total) {
+            if (r - l + 1 < minLen) { minLen = r - l + 1; start = l; }
+            have_map[s[l]]--;
+            if (need.count(s[l]) && have_map[s[l]] < need[s[l]]) have--;
+            l++;
+        }
+    }
+    return minLen == INT_MAX ? "" : s.substr(start, minLen);
+}
+```
+
+### ✅ Day 5 Checklist
+- [ ] Explain the `have` / `need` logic in your own words
+- [ ] What does "window valid" mean for each problem?
+- [ ] Both solved < 40 min combined?
+
+---
+

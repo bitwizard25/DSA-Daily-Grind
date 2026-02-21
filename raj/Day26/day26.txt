@@ -1,0 +1,59 @@
+﻿# 🗓️ DAY 26 — Dynamic Programming: 1D Foundations
+
+> 💡 **Core Insight:** DP Framework: (1) Define state. (2) Write recurrence. (3) Set base cases. (4) Fill in bottom-up order.
+
+### 🟢 Problem 1: Climbing Stairs
+- `dp[i]` = number of ways to reach step i
+- Recurrence: `dp[i] = dp[i-1] + dp[i-2]`
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+int climbStairs(int n) {
+    if (n <= 2) return n;
+    int a = 1, b = 2;
+    for (int i = 3; i <= n; i++) { int c = a + b; a = b; b = c; }
+    return b;
+}
+```
+
+### 🟡 Problem 2: House Robber
+- `dp[i]` = max money robbing from houses 0..i
+- Recurrence: `dp[i] = max(dp[i-1], dp[i-2] + nums[i])`
+- **Complexity:** O(N) time | O(1) space
+
+```cpp
+int rob(vector<int>& nums) {
+    int prev2 = 0, prev1 = 0;
+    for (int n : nums) {
+        int cur = max(prev1, prev2 + n);
+        prev2 = prev1;
+        prev1 = cur;
+    }
+    return prev1;
+}
+```
+
+### 🟡 Problem 3: Coin Change
+- `dp[i]` = min coins to make amount i
+- Recurrence: `dp[i] = min(dp[i], dp[i-coin] + 1)` for each coin
+- **Complexity:** O(N × amount) time | O(amount) space
+
+```cpp
+int coinChange(vector<int>& coins, int amount) {
+    vector<int> dp(amount + 1, INT_MAX);
+    dp[0] = 0;
+    for (int i = 1; i <= amount; i++)
+        for (int coin : coins)
+            if (i >= coin && dp[i - coin] != INT_MAX)
+                dp[i] = min(dp[i], dp[i - coin] + 1);
+    return dp[amount] == INT_MAX ? -1 : dp[amount];
+}
+```
+
+### ✅ Day 26 Checklist
+- [ ] What DP pattern do Climbing Stairs and House Robber share?
+- [ ] Why initialize `dp[i] = INT_MAX` in Coin Change?
+- [ ] All three problems solved from memory?
+
+---
+

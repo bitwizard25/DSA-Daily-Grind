@@ -1,0 +1,59 @@
+﻿# 🗓️ DAY 25 — Backtracking: Permutations & Grid
+
+> 💡 **Core Insight:** Permutations use a `used[]` array to track which elements are taken. Grid DFS marks cells in-place to simulate the "used" state.
+
+### 🟡 Problem 1: Permutations
+- **Complexity:** O(N! × N) time
+
+```cpp
+vector<vector<int>> permute(vector<int>& nums) {
+    vector<vector<int>> res;
+    vector<int> curr;
+    vector<bool> used(nums.size(), false);
+    function<void()> bt = [&]() {
+        if (curr.size() == nums.size()) { res.push_back(curr); return; }
+        for (int i = 0; i < (int)nums.size(); i++) {
+            if (used[i]) continue;
+            used[i] = true;
+            curr.push_back(nums[i]);
+            bt();
+            curr.pop_back();
+            used[i] = false;
+        }
+    };
+    bt();
+    return res;
+}
+```
+
+### 🟡 Problem 2: Word Search
+- **Approach:** DFS on grid. Mark cell `'#'` before recursing, restore after.
+- **Complexity:** O(M×N×4^L) time | O(L) space
+
+```cpp
+bool exist(vector<vector<char>>& board, string word) {
+    int m = board.size(), n = board[0].size();
+    function<bool(int,int,int)> dfs = [&](int r, int c, int idx) -> bool {
+        if (idx == (int)word.size()) return true;
+        if (r<0||r>=m||c<0||c>=n||board[r][c]!=word[idx]) return false;
+        char tmp = board[r][c];
+        board[r][c] = '#';
+        bool found = dfs(r+1,c,idx+1)||dfs(r-1,c,idx+1)||
+                     dfs(r,c+1,idx+1)||dfs(r,c-1,idx+1);
+        board[r][c] = tmp;  // restore
+        return found;
+    };
+    for (int r = 0; r < m; r++)
+        for (int c = 0; c < n; c++)
+            if (dfs(r, c, 0)) return true;
+    return false;
+}
+```
+
+### ✅ Day 25 Checklist
+- [ ] Why restore `board[r][c]` in Word Search after DFS?
+- [ ] How many permutations does an array of 4 elements have?
+- [ ] How would you handle duplicate numbers in Permutations?
+
+---
+

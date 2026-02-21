@@ -1,0 +1,53 @@
+﻿# 🗓️ DAY 6 — Hashing: Maps
+
+> 💡 **Core Insight:** Use a hash map to remember what you've seen. Check "complement exists in map" before inserting.
+
+### C++ Essentials
+```cpp
+unordered_map<int,int> mp;
+mp[key]++;              // auto-initializes to 0
+mp.count(key);          // safe existence check
+mp.find(key) != mp.end(); // also valid
+```
+
+### 🟢 Problem 1: Two Sum
+- **Approach:** For each element, check if `target - element` is already in map. Insert **after** checking.
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+vector<int> twoSum(vector<int>& nums, int target) {
+    unordered_map<int,int> seen;
+    for (int i = 0; i < (int)nums.size(); i++) {
+        int comp = target - nums[i];
+        if (seen.count(comp)) return {seen[comp], i};
+        seen[nums[i]] = i;
+    }
+    return {};
+}
+```
+
+### 🟡 Problem 2: Group Anagrams
+- **Approach:** Sort each string → canonical key → group in map.
+- **Complexity:** O(N × K log K) time | O(N × K) space
+
+```cpp
+vector<vector<string>> groupAnagrams(vector<string>& strs) {
+    unordered_map<string, vector<string>> mp;
+    for (auto& s : strs) {
+        string key = s;
+        sort(key.begin(), key.end());
+        mp[key].push_back(s);
+    }
+    vector<vector<string>> res;
+    for (auto& [k, v] : mp) res.push_back(v);
+    return res;
+}
+```
+
+### ✅ Day 6 Checklist
+- [ ] Why insert after checking in Two Sum?
+- [ ] Alternative key for Group Anagrams without sorting?
+- [ ] What if `target - nums[i] == nums[i]`? Does your code handle it?
+
+---
+

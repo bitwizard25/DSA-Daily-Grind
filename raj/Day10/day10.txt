@@ -1,0 +1,49 @@
+﻿# 🗓️ DAY 10 — Stacks
+
+> 💡 **Core Insight:** Stack = LIFO. When you need to "undo" or "match" the most recent thing, reach for a stack first.
+
+### 🟢 Problem 1: Valid Parentheses
+- **Approach:** Push opening brackets. On closing, check if top matches.
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+bool isValid(string s) {
+    stack<char> stk;
+    unordered_map<char,char> match = {{')', '('}, {']', '['}, {'}', '{'}};
+    for (char c : s) {
+        if (c == '(' || c == '[' || c == '{') stk.push(c);
+        else {
+            if (stk.empty() || stk.top() != match[c]) return false;
+            stk.pop();
+        }
+    }
+    return stk.empty();
+}
+```
+
+### 🟡 Problem 2: Min Stack
+- **Approach:** Two stacks — one regular, one tracking current minimum at each level.
+- **Complexity:** O(1) all operations | O(N) space
+
+```cpp
+class MinStack {
+    stack<int> stk, minStk;
+public:
+    void push(int val) {
+        stk.push(val);
+        int m = minStk.empty() ? val : min(val, minStk.top());
+        minStk.push(m);
+    }
+    void pop() { stk.pop(); minStk.pop(); }
+    int top() { return stk.top(); }
+    int getMin() { return minStk.top(); }
+};
+```
+
+### ✅ Day 10 Checklist
+- [ ] What happens if you pop from an empty stack? Defend your code.
+- [ ] Why does `minStk` always push a value, not just on new minimums?
+- [ ] Edge case: `"(]"` — expected false. Trace it.
+
+---
+

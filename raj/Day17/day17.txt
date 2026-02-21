@@ -1,0 +1,69 @@
+﻿# 🗓️ DAY 17 — BST
+
+> 💡 **Core Insight:** BST invariant applies to ALL ancestors, not just the parent. Pass bounds `(minVal, maxVal)` down via recursion.
+
+### 🟡 Problem 1: Validate Binary Search Tree
+- **Complexity:** O(N) time | O(H) space
+
+```cpp
+bool isValidBST(TreeNode* root) {
+    function<bool(TreeNode*, long, long)> valid =
+        [&](TreeNode* node, long lo, long hi) -> bool {
+        if (!node) return true;
+        if (node->val <= lo || node->val >= hi) return false;
+        return valid(node->left,  lo, node->val) &&
+               valid(node->right, node->val, hi);
+    };
+    return valid(root, LONG_MIN, LONG_MAX);
+}
+```
+
+### 🟡 Problem 2: Lowest Common Ancestor of BST
+- **Approach:** Use BST property: if both targets < node, go left. If both > node, go right. Else current is LCA.
+- **Complexity:** O(H) time | O(1) space (iterative)
+
+```cpp
+TreeNode* lowestCommonAncestor(TreeNode* root, TreeNode* p, TreeNode* q) {
+    while (root) {
+        if (p->val < root->val && q->val < root->val)
+            root = root->left;
+        else if (p->val > root->val && q->val > root->val)
+            root = root->right;
+        else return root;
+    }
+    return nullptr;
+}
+```
+
+### 🔴 Problem 3: Serialize and Deserialize Binary Tree
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+string serialize(TreeNode* root) {
+    if (!root) return "#,";
+    return to_string(root->val) + "," +
+           serialize(root->left) + serialize(root->right);
+}
+
+TreeNode* deserialize(string data) {
+    istringstream ss(data);
+    function<TreeNode*()> build = [&]() -> TreeNode* {
+        string val;
+        getline(ss, val, ',');
+        if (val == "#") return nullptr;
+        auto node = new TreeNode(stoi(val));
+        node->left  = build();
+        node->right = build();
+        return node;
+    };
+    return build();
+}
+```
+
+### ✅ Day 17 Checklist
+- [ ] Why use `LONG_MIN`/`LONG_MAX` instead of `INT_MIN`/`INT_MAX` for BST validation?
+- [ ] What is the time complexity of BST operations on a skewed tree?
+- [ ] Trace serialize/deserialize on a 3-node tree
+
+---
+

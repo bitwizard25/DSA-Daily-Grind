@@ -1,0 +1,53 @@
+﻿# 🗓️ DAY 22 — Heaps: Top K Patterns
+
+> 💡 **Core Insight:** To find K largest elements, keep a MIN-heap of size K. The smallest in the heap is the Kth largest overall.
+
+### C++ Heap Quick Reference
+```cpp
+priority_queue<int> maxHeap;                           // default max
+priority_queue<int, vector<int>, greater<int>> minHeap; // min-heap
+priority_queue<pair<int,int>, vector<pair<int,int>>, greater<>> pq; // pairs min
+```
+
+### 🟡 Problem 1: Kth Largest Element in an Array
+- **Approach:** Min-heap of size K. If size > K, pop the min.
+- **Complexity:** O(N log K) time | O(K) space
+
+```cpp
+int findKthLargest(vector<int>& nums, int k) {
+    priority_queue<int, vector<int>, greater<int>> minHeap;
+    for (int num : nums) {
+        minHeap.push(num);
+        if ((int)minHeap.size() > k) minHeap.pop();
+    }
+    return minHeap.top();
+}
+```
+
+### 🟡 Problem 2: Top K Frequent Elements
+- **Approach:** Frequency map + min-heap on `(freq, element)` of size K.
+- **Complexity:** O(N log K) time | O(N) space
+
+```cpp
+vector<int> topKFrequent(vector<int>& nums, int k) {
+    unordered_map<int,int> freq;
+    for (int n : nums) freq[n]++;
+    using P = pair<int,int>;
+    priority_queue<P, vector<P>, greater<P>> pq; // min-heap by freq
+    for (auto& [val, cnt] : freq) {
+        pq.push({cnt, val});
+        if ((int)pq.size() > k) pq.pop();
+    }
+    vector<int> res;
+    while (!pq.empty()) { res.push_back(pq.top().second); pq.pop(); }
+    return res;
+}
+```
+
+### ✅ Day 22 Checklist
+- [ ] Why a min-heap to find K LARGEST? (Counterintuitive — explain it)
+- [ ] Bucket sort alternative for Top K Frequent — implement it O(N)
+- [ ] What if K == N? What degenerates?
+
+---
+

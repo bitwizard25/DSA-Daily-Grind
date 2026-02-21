@@ -1,0 +1,66 @@
+﻿# 🗓️ DAY 1 — Array Basics & Prefix Sums
+
+> 💡 **Core Insight:** Pre-compute running totals so any range-sum query becomes O(1) instead of O(N).
+
+### Concepts
+- Arrays are contiguous in memory — cache-friendly. Know pointer arithmetic.
+- `prefix[i] = prefix[i-1] + arr[i-1]` with `prefix[0] = 0`
+- Range sum: `sum(L, R) = prefix[R+1] - prefix[L]`
+
+### C++ Pattern
+```cpp
+vector<int> prefix(n + 1, 0);
+for (int i = 0; i < n; i++)
+    prefix[i + 1] = prefix[i] + arr[i];
+
+int rangeSum = prefix[r + 1] - prefix[l]; // O(1) query
+```
+
+### 🟡 Problem 1: Product of Array Except Self
+- **Approach:** Left-product pass forward, right-product pass backward in-place. No division.
+- **Complexity:** O(N) time | O(1) extra space (output array doesn't count)
+- **Key Trick:** Running right-product is a single variable, not an array.
+
+```cpp
+vector<int> productExceptSelf(vector<int>& nums) {
+    int n = nums.size();
+    vector<int> res(n, 1);
+    // Left pass
+    for (int i = 1; i < n; i++)
+        res[i] = res[i-1] * nums[i-1];
+    // Right pass
+    int right = 1;
+    for (int i = n-1; i >= 0; i--) {
+        res[i] *= right;
+        right *= nums[i];
+    }
+    return res;
+}
+```
+
+### 🟡 Problem 2: Subarray Sum Equals K
+- **Approach:** Prefix sum + hash map. If `prefix[j] - prefix[i] = k`, a valid subarray exists.
+- **Complexity:** O(N) time | O(N) space
+- **Key Trick:** Initialize map with `{0: 1}` to handle subarrays starting at index 0.
+
+```cpp
+int subarraySum(vector<int>& nums, int k) {
+    unordered_map<int,int> prefixCount;
+    prefixCount[0] = 1;
+    int sum = 0, count = 0;
+    for (int num : nums) {
+        sum += num;
+        count += prefixCount[sum - k];
+        prefixCount[sum]++;
+    }
+    return count;
+}
+```
+
+### ✅ Day 1 Checklist
+- [ ] Write prefix sum array from memory
+- [ ] Explain why Product of Array needs no division
+- [ ] Trace through Subarray Sum with example `[1,2,3], k=3`
+
+---
+

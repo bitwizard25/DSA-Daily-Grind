@@ -1,0 +1,59 @@
+﻿# 🗓️ DAY 28 — DP: 2D & Knapsack
+
+> 💡 **Core Insight:** 0/1 Knapsack iterates weights BACKWARDS to prevent using the same item twice within the same pass.
+
+### 🟡 Problem 1: 0/1 Knapsack
+- **Complexity:** O(N×W) time | O(W) space (1D optimization)
+
+```cpp
+int knapsack(vector<int>& weights, vector<int>& values, int W) {
+    int n = weights.size();
+    vector<int> dp(W + 1, 0);
+    for (int i = 0; i < n; i++)
+        for (int w = W; w >= weights[i]; w--)  // BACKWARDS!
+            dp[w] = max(dp[w], dp[w - weights[i]] + values[i]);
+    return dp[W];
+}
+```
+
+### 🟡 Problem 2: Unique Paths
+- `dp[i][j]` = number of paths to reach cell (i, j)
+- Recurrence: `dp[i][j] = dp[i-1][j] + dp[i][j-1]`
+- **Complexity:** O(M×N) time | O(N) space
+
+```cpp
+int uniquePaths(int m, int n) {
+    vector<int> dp(n, 1);
+    for (int i = 1; i < m; i++)
+        for (int j = 1; j < n; j++)
+            dp[j] += dp[j - 1];
+    return dp[n - 1];
+}
+```
+
+### 🔴 Problem 3: Edit Distance
+- `dp[i][j]` = min edits to convert s1[0..i] to s2[0..j]
+- **Complexity:** O(M×N) time | O(M×N) space
+
+```cpp
+int minDistance(string w1, string w2) {
+    int m = w1.size(), n = w2.size();
+    vector<vector<int>> dp(m+1, vector<int>(n+1));
+    for (int i = 0; i <= m; i++) dp[i][0] = i;
+    for (int j = 0; j <= n; j++) dp[0][j] = j;
+    for (int i = 1; i <= m; i++)
+        for (int j = 1; j <= n; j++)
+            dp[i][j] = (w1[i-1] == w2[j-1])
+                ? dp[i-1][j-1]
+                : 1 + min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});
+    return dp[m][n];
+}
+```
+
+### ✅ Day 28 Checklist
+- [ ] Why iterate weights backwards in Knapsack?
+- [ ] Three operations in Edit Distance — what are they?
+- [ ] Reduce Edit Distance to O(N) space.
+
+---
+

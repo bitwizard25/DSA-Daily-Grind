@@ -1,0 +1,66 @@
+﻿# 🗓️ DAY 11 — Monotonic Stacks
+
+> 💡 **Core Insight:** Maintain sorted order in a stack by popping anything that violates the invariant before pushing. Each element enters and exits the stack exactly once → O(N).
+
+### Template — Next Greater Element
+```cpp
+stack<int> stk; // stores indices
+vector<int> result(n, -1);
+for (int i = 0; i < n; i++) {
+    while (!stk.empty() && arr[stk.top()] < arr[i]) {
+        result[stk.top()] = arr[i];
+        stk.pop();
+    }
+    stk.push(i);
+}
+```
+
+### 🟡 Problem 1: Daily Temperatures
+- **Approach:** Monotonic decreasing stack of indices. When current temp is hotter, resolve all colder waiting entries.
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+vector<int> dailyTemperatures(vector<int>& T) {
+    int n = T.size();
+    vector<int> res(n, 0);
+    stack<int> stk; // indices
+    for (int i = 0; i < n; i++) {
+        while (!stk.empty() && T[stk.top()] < T[i]) {
+            res[stk.top()] = i - stk.top();
+            stk.pop();
+        }
+        stk.push(i);
+    }
+    return res;
+}
+```
+
+### 🔴 Problem 2: Largest Rectangle in Histogram
+- **Approach:** Monotonic increasing stack. Add **sentinel** bars of height 0 at both ends to flush the stack.
+- **Complexity:** O(N) time | O(N) space
+
+```cpp
+int largestRectangleArea(vector<int>& heights) {
+    heights.insert(heights.begin(), 0); // left sentinel
+    heights.push_back(0);               // right sentinel
+    stack<int> stk;
+    int maxArea = 0;
+    for (int i = 0; i < (int)heights.size(); i++) {
+        while (!stk.empty() && heights[stk.top()] > heights[i]) {
+            int h = heights[stk.top()]; stk.pop();
+            int w = i - stk.top() - 1;
+            maxArea = max(maxArea, h * w);
+        }
+        stk.push(i);
+    }
+    return maxArea;
+}
+```
+
+### ✅ Day 11 Checklist
+- [ ] Why does each element get pushed/popped exactly once?
+- [ ] Trace Histogram on `[2,1,5,6,2,3]` — expected 10
+- [ ] What does the width formula `i - stk.top() - 1` compute?
+
+---
+

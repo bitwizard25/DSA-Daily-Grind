@@ -1,0 +1,73 @@
+﻿# 🗓️ DAY 16 — Binary Trees: BFS & Views
+
+> 💡 **Core Insight:** Level-order BFS processes all nodes at depth d before depth d+1. Use queue size to separate levels.
+
+### BFS Template
+```cpp
+queue<TreeNode*> q;
+q.push(root);
+while (!q.empty()) {
+    int levelSize = q.size();           // nodes at current level
+    for (int i = 0; i < levelSize; i++) {
+        auto node = q.front(); q.pop();
+        // process node
+        if (node->left)  q.push(node->left);
+        if (node->right) q.push(node->right);
+    }
+}
+```
+
+### 🟡 Problem 1: Binary Tree Level Order Traversal
+- **Complexity:** O(N) time | O(W) space (max width)
+
+```cpp
+vector<vector<int>> levelOrder(TreeNode* root) {
+    if (!root) return {};
+    vector<vector<int>> res;
+    queue<TreeNode*> q;
+    q.push(root);
+    while (!q.empty()) {
+        int sz = q.size();
+        vector<int> level;
+        for (int i = 0; i < sz; i++) {
+            auto node = q.front(); q.pop();
+            level.push_back(node->val);
+            if (node->left)  q.push(node->left);
+            if (node->right) q.push(node->right);
+        }
+        res.push_back(level);
+    }
+    return res;
+}
+```
+
+### 🟡 Problem 2: Binary Tree Right Side View
+- **Approach:** Level-order BFS. Last node at each level is visible from the right.
+- **Complexity:** O(N) time | O(W) space
+
+```cpp
+vector<int> rightSideView(TreeNode* root) {
+    if (!root) return {};
+    vector<int> res;
+    queue<TreeNode*> q;
+    q.push(root);
+    while (!q.empty()) {
+        int sz = q.size();
+        for (int i = 0; i < sz; i++) {
+            auto node = q.front(); q.pop();
+            if (i == sz - 1) res.push_back(node->val); // last in level
+            if (node->left)  q.push(node->left);
+            if (node->right) q.push(node->right);
+        }
+    }
+    return res;
+}
+```
+
+### ✅ Day 16 Checklist
+- [ ] BFS vs DFS — when do you choose each for trees?
+- [ ] What is the maximum queue size during BFS on a complete binary tree?
+- [ ] How would you get the LEFT side view instead?
+
+---
+

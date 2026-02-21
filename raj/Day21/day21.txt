@@ -1,0 +1,57 @@
+﻿# 🗓️ DAY 21 — Dijkstra's & Union-Find
+
+> 💡 **Core Insight:** Dijkstra = greedy shortest path with a min-heap. Union-Find = near O(1) dynamic connectivity with path compression + union by rank.
+
+### 🟡 Problem 1: Network Delay Time (Dijkstra's)
+- **Complexity:** O(E log V) time | O(V+E) space
+
+```cpp
+int networkDelayTime(vector<vector<int>>& times, int n, int k) {
+    vector<vector<pair<int,int>>> adj(n+1);
+    for (auto& t : times) adj[t[0]].push_back({t[1], t[2]});
+
+    vector<int> dist(n+1, INT_MAX);
+    priority_queue<pair<int,int>, vector<pair<int,int>>, greater<>> pq;
+    dist[k] = 0; pq.push({0, k});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (d > dist[u]) continue;
+        for (auto [v, w] : adj[u])
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.push({dist[v], v});
+            }
+    }
+    int ans = *max_element(dist.begin()+1, dist.end());
+    return ans == INT_MAX ? -1 : ans;
+}
+```
+
+### 🟡 Problem 2: Accounts Merge (Union-Find)
+- **Approach:** Union all emails belonging to the same account. Group by root.
+- **Complexity:** O(N α(N)) ≈ O(N) time
+
+```cpp
+// Union-Find (Path Compression + Union by Rank)
+vector<int> parent, rnk;
+int find(int x) {
+    if (parent[x] != x) parent[x] = find(parent[x]);
+    return parent[x];
+}
+void unite(int x, int y) {
+    int px = find(x), py = find(y);
+    if (px == py) return;
+    if (rnk[px] < rnk[py]) swap(px, py);
+    parent[py] = px;
+    if (rnk[px] == rnk[py]) rnk[px]++;
+}
+```
+
+### ✅ Day 21 Checklist
+- [ ] Why do we skip stale Dijkstra entries with `if (d > dist[u]) continue`?
+- [ ] What is α(N) (inverse Ackermann)? Why is it "almost O(1)"?
+- [ ] What is the difference between path compression and union by rank?
+
+---
+
