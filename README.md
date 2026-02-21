@@ -1,182 +1,282 @@
-# ⚙️ DSA Daily Grind — Build Your Streak, Build Your Mind
+# 🧠 DSA Daily Grind — 30-Day C++ Interview Prep
 
-Welcome to **DSA Daily Grind** — not just a repository, but a *habit system* designed to help you **master DSA consistently and effortlessly**.
+> *"Consistency beats intensity — every single time."*
 
-We’ll be following the **[Striver’s A2Z DSA Course Sheet](https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2)** — a beginner-to-advanced roadmap that covers every essential topic step-by-step.
-
-Think of this as your **fitness tracker for your coding brain** — every solved problem strengthens your mental muscle.
+A structured **30-day DSA habit system** for C++ developers targeting **FAANG & top MNC interviews** — built around pattern recognition, daily accountability, and the [Striver's A2Z DSA Sheet](https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2).
 
 ---
 
-## 🧭 What This Repository Does
+## ⚡ The Core Philosophy
 
-This isn’t about finishing the syllabus fast.
-It’s about **showing up daily**, tracking your journey, and building unstoppable momentum — together.
+This repo is not a problem dump. It's a **habit system**.
 
-Each participant keeps their own DSA journal (via folders & daily logs) — creating visible streaks and shared accountability.
+- **Pattern recognition > memorization** — understand *why* a solution works, not just *how*
+- **Show up daily** — even 30 minutes beats a 5-hour cramming weekend
+- **Reflect & share** — public accountability turns practice into identity
 
 ---
 
-## 🧠 The DSA Habit Loop
+## 📋 Global Rules
 
-This system follows a **4-Step Daily Flow** to make consistency automatic and rewarding:
+| Rule | Detail |
+|------|--------|
+| 🗣️ **Talk out loud** | Narrate every thought — simulate the real interview |
+| ⏱️ **Complexity first** | State Time & Space complexity **before** writing any code |
+| 🔄 **Stuck > 45 min** | Read the optimal approach → close it → recode from memory |
+| 📝 **Pattern note** | After every problem: write a 2-sentence insight in your own words |
+| ⚠️ **Edge cases always** | Empty input, single element, `INT_MIN`/`INT_MAX` overflow |
+| 🛠️ **Use STL** | Prefer `vector`, `unordered_map`, `priority_queue` — know their internals |
 
-### **1️⃣ PLAN (Morning / Start of Day)**
+---
 
-Set your intent. Open your folder for today (e.g., `2025-11-04`), create a `README.md`, and write:
+## 🗓️ The 30-Day Roadmap
 
-```markdown
-## Today’s Plan
-🎯 Topic: [From Striver’s Sheet – e.g., Arrays Level 1]
-🕒 Study Time: [Your time target – e.g., 1 hour]
-💭 Why: [Why this topic matters or where you got stuck before]
+### Week 1 — Primitives, Pointers & Windows
+*Master O(N) single-pass techniques. No nested loops.*
+
+| Day | Topic | Problems |
+|-----|-------|----------|
+| **1** | Array Basics & Prefix Sums | Product of Array Except Self · Subarray Sum Equals K |
+| **2** | Two Pointers — Converging | Two Sum II · Container With Most Water |
+| **3** | Two Pointers — Advanced | 3Sum · Trapping Rain Water |
+| **4** | Sliding Window — Fixed | Maximum Average Subarray I · Max Sum Subarray of Size K |
+| **5** | Sliding Window — Variable | Longest Substring Without Repeating · Minimum Window Substring |
+| **6** | Hashing — Maps | Two Sum · Group Anagrams |
+| **7** | Hashing — Sets & Review | Longest Consecutive Sequence · Week 1 Full Revision |
+
+---
+
+### Week 2 — Structures & Memory
+*Manage state with LIFO/FIFO and pointer reassignment.*
+
+| Day | Topic | Problems |
+|-----|-------|----------|
+| **8** | Linked Lists — Basics | Reverse Linked List · Middle of the Linked List |
+| **9** | Linked Lists — Advanced | Linked List Cycle (Floyd's) · Merge K Sorted Lists |
+| **10** | Stacks | Valid Parentheses · Min Stack |
+| **11** | Monotonic Stacks | Daily Temperatures · Largest Rectangle in Histogram |
+| **12** | Queues & Deques | Implement Queue using Stacks · Sliding Window Maximum |
+| **13** | Binary Search — Classic | Binary Search · Search in Rotated Sorted Array |
+| **14** | Binary Search — Answer Space | Koko Eating Bananas · Find Minimum in Rotated Sorted Array |
+
+---
+
+### Week 3 — Trees, Graphs & Hierarchies
+*Recursive thinking and traversing complex networks.*
+
+| Day | Topic | Problems |
+|-----|-------|----------|
+| **15** | Binary Trees — DFS | Max Depth · Path Sum · Diameter of Binary Tree |
+| **16** | Binary Trees — BFS & Views | Level Order Traversal · Right Side View |
+| **17** | BST | Validate BST · LCA of BST · Serialize & Deserialize |
+| **18** | Graph — BFS/DFS Basics | Number of Islands · Max Area of Island |
+| **19** | Graph — Clone & Multi-Source | Clone Graph · Pacific Atlantic Water Flow |
+| **20** | Graph — Topological Sort | Course Schedule I · Course Schedule II |
+| **21** | Graph — Dijkstra & Union-Find | Network Delay Time · Accounts Merge |
+
+---
+
+### Week 4 — Optimization & Simulation
+*Explore state spaces and make optimal choices.*
+
+| Day | Topic | Problems |
+|-----|-------|----------|
+| **22** | Heaps — Top K Patterns | Kth Largest Element · Top K Frequent Elements |
+| **23** | Heaps — Advanced | Find Median from Data Stream · Task Scheduler |
+| **24** | Backtracking — Subsets & Combos | Subsets · Combination Sum |
+| **25** | Backtracking — Permutations & Grid | Permutations · Word Search |
+| **26** | DP — 1D Foundations | Climbing Stairs · House Robber · Coin Change |
+| **27** | DP — Strings & Subsequences | Longest Increasing Subsequence · LCS |
+| **28** | DP — 2D & Knapsack | 0/1 Knapsack · Unique Paths · Edit Distance |
+
+---
+
+### The Gauntlet — Integration
+*Build from scratch. Perform under pressure.*
+
+| Day | Topic | Problems |
+|-----|-------|----------|
+| **29** | System-Level DSA | Implement Trie · LRU Cache |
+| **30** | 🎯 Mock Interview Day | 4 random unseen Medium/Hard problems · 35 min each |
+
+---
+
+## 🗺️ Pattern Recognition Cheatsheet
+
+```
+What you see in the problem          →   Pattern to reach for
+─────────────────────────────────────────────────────────────
+Range sum / subarray query           →   Prefix Sum
+Find pair in sorted array            →   Two Pointers (converging)
+Longest / shortest substring         →   Sliding Window
+Frequency, grouping, lookup          →   HashMap / HashSet
+Linked list cycle / middle           →   Fast & Slow Pointers
+Next greater / smaller element       →   Monotonic Stack
+Search in sorted / rotated array     →   Binary Search
+Minimize the maximum (answer range)  →   Binary Search on Answer Space
+Tree height / path / diameter        →   DFS Post-order
+Level-by-level tree traversal        →   BFS
+Shortest path (unweighted graph)     →   BFS
+Shortest path (weighted graph)       →   Dijkstra's
+Ordering with dependencies / cycle   →   Topological Sort (Kahn's)
+Dynamic connectivity / group merge   →   Union-Find (DSU)
+K-th largest / Top-K / median        →   Heap / Priority Queue
+All combinations / permutations      →   Backtracking
+Optimal substructure + overlapping   →   Dynamic Programming
+Prefix lookup / autocomplete         →   Trie
+O(1) cache with recency eviction     →   HashMap + Doubly Linked List
 ```
 
-> 💡 *Tip:* Keep your target small and clear. You can always do more once you start — the key is *starting*.
-
 ---
 
-### **2️⃣ GRIND (Do the Work)**
-
-Now, study or solve problems from the **Striver’s DSA Sheet** in order.
-Refer to the sheet → pick the exact question/topic → solve → reflect.
-
-Keep notes, patterns, or code snippets in your daily folder.
-
-Optional helper file:
-
-* `Progress.md` – list the problems solved today or a few key takeaways.
-
----
-
-### **3️⃣ REFLECT (End of the Day)**
-
-Once done, update your daily `README.md`:
-
-```markdown
-## Reflection
-✅ What I achieved today:  
-😓 Challenges I faced:  
-💡 New insights or patterns I learned:  
-```
-
-> 🧩 Reflection locks in learning and releases the “I did it!” dopamine your brain craves — making it easier to return tomorrow.
-
----
-
-### **4️⃣ SHARE (Accountability Boost)**
-
-#### a. **Commit & Push to GitHub**
-
-* Push your changes each day.
-* Watch your contribution graph fill up — your **DSA streak** visualizes your effort.
-
-#### b. **Optional: LinkedIn Accountability Post**
-
-* Post a short update:
-
-  > “Day 5 of #DSADailyGrind — Solved 3 Array problems from Striver’s Sheet today 💪 Progress > Perfection.”
-* Add your repo link.
-* Paste the LinkedIn post link in your daily log:
-
-```markdown
-🔗 LinkedIn Update: [Your post link]
-```
-
-> 💬 *Public commitment turns practice into pride — others will cheer you on.*
-
----
-
-## 📁 Folder Structure (Your Personal Grind Space)
+## 📁 Folder Structure
 
 ```
-📦 DSA-Daily-Grind
+📦 DSA-Daily-Grind/
  ┣ 📂 your-github-username/
- ┃ ┣ 📂 2025-11-01/
- ┃ ┃ ┗ 📜 README.md
- ┃ ┣ 📂 2025-11-02/
- ┃ ┃ ┗ 📜 README.md
- ┃ ┗ 📜 streak-log.md  ← optional progress tracker or summary
+ ┃ ┣ 📂 day-01/
+ ┃ ┃ ┣ 📜 README.md          ← daily plan + reflection
+ ┃ ┃ ┣ 📜 product_except_self.cpp
+ ┃ ┃ ┗ 📜 subarray_sum_k.cpp
+ ┃ ┣ 📂 day-02/
+ ┃ ┃ ┗ ...
+ ┃ ┗ 📜 streak-log.md        ← running progress tracker
+ ┗ 📜 README.md              ← this file
 ```
 
 ---
 
-## 🧩 The Striver Sheet Roadmap (Your Guiding Path)
+## 📆 Daily Workflow
 
-We’ll progress through the **A2Z DSA Sheet** in this order:
-
-1. **Basics + Arrays**
-2. **Sorting + Binary Search**
-3. **Strings + Recursion**
-4. **Linked List + Stack + Queue**
-5. **Trees + Graphs**
-6. **Dynamic Programming + Advanced Topics**
-
-📘 *Full Reference:* [Striver’s A2Z DSA Course Sheet →](https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2)
-
-You can tick off topics inside your `streak-log.md`:
+### 1️⃣ PLAN — Start of Day
+Create `day-XX/README.md` and write your intent:
 
 ```markdown
-### ✅ My Striver Sheet Progress
+## Day XX — [Topic Name]
+
+### Plan
+- 🎯 Topic: [e.g., Sliding Window — Variable]
+- 🕒 Time Target: [e.g., 1.5 hours]
+- 💭 Focus: [What concept or pattern you're drilling today]
+```
+
+### 2️⃣ GRIND — Do the Work
+- Pick the day's problems from the roadmap above
+- **State complexity before coding**
+- Write clean C++ using STL idioms
+- Add your solution files to the day's folder
+
+### 3️⃣ REFLECT — End of Day
+Update your `README.md`:
+
+```markdown
+### Reflection
+- ✅ What I solved today:
+- 💡 Key pattern/insight I learned:
+- 😓 What tripped me up:
+- ⏱️ Time taken per problem:
+```
+
+### 4️⃣ COMMIT — Lock In Your Streak
+```bash
+git add .
+git commit -m "Day XX — [Topic]: solved [Problem1], [Problem2]"
+git push
+```
+
+> Watch your contribution graph fill up. Your **DSA streak** is visible proof of your discipline.
+
+---
+
+## 📊 Streak Log Template
+
+Track your progress in `your-username/streak-log.md`:
+
+```markdown
+# My DSA Streak Log
+
+| Day | Date | Topic | Problems Solved | Time | Streak |
+|-----|------|-------|-----------------|------|--------|
+| 1   | YYYY-MM-DD | Prefix Sums | Product of Array, Subarray Sum K | 90 min | 🔥 1 |
+| 2   | YYYY-MM-DD | Two Pointers | Two Sum II, Container With Most Water | 75 min | 🔥 2 |
+...
+
+## Striver A2Z Progress
 - [x] Arrays Level 1
 - [x] Arrays Level 2
-- [ ] Strings Level 1
-- [ ] Recursion Basics
+- [ ] Binary Search
+- [ ] Strings
+- [ ] Recursion
 - [ ] Linked List
-...
+- [ ] Stack & Queue
+- [ ] Trees
+- [ ] Graphs
+- [ ] Dynamic Programming
 ```
 
 ---
 
-## 🤝 Community Power-Ups
+## ✅ End-of-Day Checklist
 
-| Action                    | Why It Matters                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| **Browse Peers’ Folders** | See how others solve and structure their DSA journey — learn by example.        |
-| **Engage & Comment**      | Help others debug or improve their approach — teaching reinforces your mastery. |
-| **Celebrate Milestones**  | Weekly wins keep energy high — share when you finish a new topic or level.      |
+Before you commit, make sure:
 
-> 🌱 *We grow faster when we grow together.*
-
----
-
-## 🔥 The Rules of the Grind
-
-| Rule                          | Meaning                                                        |
-| ----------------------------- | -------------------------------------------------------------- |
-| 🟢 **Never break the chain**  | Even 10 minutes counts — missing one day breaks your momentum. |
-| 🧩 **Follow Striver’s order** | Trust the roadmap — it’s designed for progression.             |
-| ✍️ **Reflect daily**          | Reflection doubles retention.                                  |
-| 📢 **Share weekly**           | Public progress builds accountability and recognition.         |
-| 🤝 **Support others**         | Helping someone else helps you master the concept.             |
+- [ ] Defined time & space complexity before writing code?
+- [ ] Handled edge cases (null, empty, single element, overflow)?
+- [ ] Wrote a 2-sentence pattern note in your own words?
+- [ ] Can re-solve the problem from scratch without looking?
 
 ---
 
-## 🎯 Why This System Works
+## 🤝 Community Rules
 
-* **Micro goals** → Easy daily wins = sustained motivation
-* **Public accountability** → External validation fuels consistency
-* **Reflection** → Reinforces memory & understanding
-* **Visible streak** → Gamified progress satisfaction
-* **Peer network** → Shared discipline and dopamine loops
+| Action | Why |
+|--------|-----|
+| Browse peers' folders | See different approaches — learn by example |
+| Comment & help debug | Teaching a concept locks it in for you |
+| Celebrate milestones | Week completions, first Hard solved, full streak |
+| Share on LinkedIn | Public commitment becomes public accountability |
 
-> You’re not just solving problems — you’re *building the identity of a consistent coder.*
-
----
-
-## 🚀 Getting Started in 3 Steps
-
-1. **Fork or clone** this repo.
-2. **Create your root folder** with your GitHub username.
-3. **Start Day 1 today** — pick the first topic from Striver’s A2Z DSA Sheet and begin.
+**LinkedIn post template:**
+> "Day X of #DSADailyGrind 🔥 — Solved [Problem] using [Pattern] in C++. Key insight: [one sentence]. Streak: X days 💪 [repo link]"
 
 ---
 
-## 💬 Motto
+## 🚀 Getting Started
 
-> “Consistency beats intensity — every single time.”
+```bash
+# 1. Fork this repo
+# 2. Clone it
+git clone https://github.com/YOUR_USERNAME/DSA-Daily-Grind.git
 
-Welcome to **DSA Daily Grind** —
-Your journey from beginner to advanced starts *today*.
+# 3. Create your folder
+mkdir your-github-username
+cd your-github-username
 
-Let’s build your **DSA streak muscle** together. 🔥
+# 4. Start Day 1
+mkdir day-01
+# Create your README.md, write your plan, start grinding
+```
+
+---
+
+## 📚 Resources
+
+| Resource | Link |
+|----------|------|
+| Striver's A2Z DSA Sheet | [takeuforward.org →](https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2) |
+| LeetCode | [leetcode.com →](https://leetcode.com) |
+| C++ STL Reference | [cppreference.com →](https://cppreference.com) |
+| NeetCode 150 | [neetcode.io →](https://neetcode.io) |
+| Pramp Mock Interviews | [pramp.com →](https://pramp.com) |
+
+---
+
+<div align="center">
+
+**30 days. 1 pattern at a time.**
+
+*You're not just solving problems — you're building the identity of a consistent engineer.*
+
+⭐ Star this repo if it helps you stay consistent
+
+</div>
