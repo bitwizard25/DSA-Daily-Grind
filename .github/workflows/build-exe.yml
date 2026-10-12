@@ -2,24 +2,37 @@ name: build-exe
 on:
   workflow_dispatch:
   push:
-    paths: ["google-swe-prep/**"]
+    paths: ["google-swe-prep/**", ".github/workflows/build-exe.yml"]
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: google-swe-prep
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -e ".[dev]"
-      - run: pytest -q
-      - run: python build_exe.py
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - run: python build.py
+      - name: Smoke-test the executable
+        env:
+          GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home
+        run: |
+          EXE=dist/google-prep
+          if [ -f dist/google-prep.exe ]; then EXE=dist/google-prep.exe; fi
+          "$EXE" --version
+          "$EXE" roadmap < /dev/null
+          "$EXE" today < /dev/null
+          "$EXE" problems --topic graphs < /dev/null
       - uses: actions/upload-artifact@v4
         with:
-          name: google-swe-prep-${{ matrix.os }}
+          name: google-prep-${{ runner.os }}
           path: google-swe-prep/dist/*

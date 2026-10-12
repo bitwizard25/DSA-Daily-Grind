@@ -1,0 +1,22 @@
+{
+  "Ambiguity": [
+    "Tell me about a time you had to deliver with unclear or changing requirements.",
+    "Describe a decision you made without all the data you wanted.",
+    "Tell me about a project where the goal itself was unclear. How did you define success?"
+  ],
+  "Ownership": [
+    "Tell me about a time you took ownership of a problem outside your direct responsibility.",
+    "Describe a production incident you drove to resolution.",
+    "Tell me about something you shipped that you pushed for on your own initiative."
+  ],
+  "Collaboration": [
+    "Tell me about a time you disagreed with a teammate or lead. What happened?",
+    "Describe working with a difficult stakeholder or another team with different priorities.",
+    "Tell me about a time you helped a teammate succeed."
+  ],
+  "Humility": [
+    "Tell me about a mistake you made and what you changed afterwards.",
+    "Describe critical feedback you received and how you acted on it.",
+    "Tell me about a time you had to learn a new technology quickly."
+  ]
+}

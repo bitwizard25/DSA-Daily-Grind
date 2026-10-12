@@ -1,0 +1,122 @@
+[
+  {
+    "id": "P-01",
+    "name": "Two Pointers",
+    "cue": "Sorted array, pairs/triplets, palindromes, in-place partitioning",
+    "template": "l, r = 0, n-1\nwhile l < r:\n    if good(l, r): record\n    move the side that cannot improve",
+    "complexity": "O(N)",
+    "vault_file": "01_two_pointers.md"
+  },
+  {
+    "id": "P-02",
+    "name": "Sliding Window",
+    "cue": "Contiguous subarray/substring with a 'longest/shortest/at most K' constraint",
+    "template": "for r in range(n):\n    add(a[r])\n    while invalid(): remove(a[l]); l += 1\n    best = max(best, r - l + 1)",
+    "complexity": "O(N)",
+    "vault_file": "02_sliding_window.md"
+  },
+  {
+    "id": "P-03",
+    "name": "Prefix Sums + Hashing",
+    "cue": "Subarray sums with negatives, 'count subarrays equal to K'",
+    "template": "seen = {0: 1}; run = 0\nfor x in a:\n    run += x\n    ans += seen.get(run - k, 0)\n    seen[run] = seen.get(run, 0) + 1",
+    "complexity": "O(N)",
+    "vault_file": null
+  },
+  {
+    "id": "P-04",
+    "name": "Monotonic Stack",
+    "cue": "Next greater/smaller element, histogram areas, spans",
+    "template": "for i, x in enumerate(a):\n    while st and a[st[-1]] < x:\n        j = st.pop(); ans[j] = i - j\n    st.append(i)",
+    "complexity": "O(N)",
+    "vault_file": null
+  },
+  {
+    "id": "P-05",
+    "name": "Binary Search on Answer",
+    "cue": "'Minimum X such that feasible(X)', monotonic predicate",
+    "template": "lo, hi = low, high\nwhile lo < hi:\n    mid = (lo + hi) // 2\n    if feasible(mid): hi = mid\n    else: lo = mid + 1",
+    "complexity": "O(log R * cost)",
+    "vault_file": "07_binary_search_range.md"
+  },
+  {
+    "id": "P-06",
+    "name": "Intervals / Sweep Line",
+    "cue": "Overlaps, rooms, merging, free time",
+    "template": "sort by start (or events by time)\nscan, comparing with last kept end\nmin-heap of end times for concurrency",
+    "complexity": "O(N log N)",
+    "vault_file": null
+  },
+  {
+    "id": "P-07",
+    "name": "Heap / Top-K",
+    "cue": "K largest/closest/frequent, merging K sorted sources, running median",
+    "template": "keep a size-K min-heap\npush; if len > K: pop\nroot is the K-th largest",
+    "complexity": "O(N log K)",
+    "vault_file": "06_heaps_priority_queue.md"
+  },
+  {
+    "id": "P-08",
+    "name": "Tree DFS (post-order)",
+    "cue": "Answer depends on both subtrees: height, diameter, path sums, LCA",
+    "template": "def dfs(n):\n    if not n: return base\n    L, R = dfs(n.left), dfs(n.right)\n    update global with L, R, n\n    return combine(L, n)",
+    "complexity": "O(N)",
+    "vault_file": null
+  },
+  {
+    "id": "P-09",
+    "name": "BFS (graphs and grids)",
+    "cue": "Shortest path in unweighted graphs, levels, multi-source spread",
+    "template": "q = deque(sources); seen = set(sources)\nwhile q:\n    u = q.popleft()\n    for v in adj(u):\n        if v not in seen: seen.add(v); q.append(v)",
+    "complexity": "O(V + E)",
+    "vault_file": "03_graphs_bfs_dfs.md"
+  },
+  {
+    "id": "P-10",
+    "name": "Topological Sort",
+    "cue": "Dependencies, ordering, cycle detection in directed graphs",
+    "template": "indegree all nodes; queue zeros\npop, append to order, decrement neighbours\nlen(order) < V means a cycle",
+    "complexity": "O(V + E)",
+    "vault_file": "04_topological_sort.md"
+  },
+  {
+    "id": "P-11",
+    "name": "Union-Find",
+    "cue": "Dynamic connectivity, grouping, redundant edges, merging accounts",
+    "template": "def find(x):\n    while p[x] != x: p[x] = p[p[x]]; x = p[x]\n    return x\nunion by size",
+    "complexity": "~O(1) per op",
+    "vault_file": "05_union_find.md"
+  },
+  {
+    "id": "P-12",
+    "name": "Dijkstra / Weighted Shortest Path",
+    "cue": "Non-negative weighted shortest path, network delay",
+    "template": "pq = [(0, src)]\nwhile pq:\n    d, u = heappop(pq)\n    if d > dist[u]: continue\n    relax edges, push improved",
+    "complexity": "O(E log V)",
+    "vault_file": "03_graphs_bfs_dfs.md"
+  },
+  {
+    "id": "P-13",
+    "name": "Backtracking",
+    "cue": "All combinations/permutations/placements, constraint search",
+    "template": "def go(state):\n    if done: record; return\n    for choice in options:\n        if valid: apply; go(); undo",
+    "complexity": "Exponential",
+    "vault_file": null
+  },
+  {
+    "id": "P-14",
+    "name": "Trie",
+    "cue": "Prefix queries, word search on boards, autocomplete",
+    "template": "node = root\nfor ch in word:\n    node = node.children.setdefault(ch, Node())\nnode.end = True",
+    "complexity": "O(L) per word",
+    "vault_file": "08_trie_prefix_trees.md"
+  },
+  {
+    "id": "P-15",
+    "name": "Dynamic Programming",
+    "cue": "Overlapping subproblems: count ways, min/max cost, string alignment",
+    "template": "1. define state  2. transition\n3. base cases     4. iteration order\nthen compress space",
+    "complexity": "Varies",
+    "vault_file": "09_dynamic_programming.md"
+  }
+]
