@@ -449,3 +449,29 @@ def test_terminal_app_never_overwrites_an_unfinished_window_session(api):
     result = CliRunner().invoke(app, ["recall"], input="q")  # shown the unfinished session; quit
     assert result.exit_code == 0 and "SESSION RESTORED" in result.output
     assert api.state()["session"]["problem_id"] == pid and api.state()["session"]["submitted"]
+
+
+# ---- learner-friendly lessons -------------------------------------------------------------------
+def test_language_mode_switches_and_persists(api):
+    assert api.state()["settings"]["language"] == "standard"  # the learner's chosen default
+    assert api.set_language("simple") == {"language": "simple"}
+    assert api.state()["settings"]["language"] == "simple"
+    assert api.fasttrack()["language"] == "simple"
+    with pytest.raises(ApiError):
+        api.set_language("klingon")
+    api.settings_save(language="standard")
+    assert api.state()["settings"]["language"] == "standard"
+
+
+def test_unclear_steps_are_kept_for_review(api):
+    step = api.fasttrack()["days"][0]["sections"][2]["id"]
+    assert api.lesson_unclear(step, True)["unclear"] == [step]
+    assert api.fasttrack()["unclear"] == [step]
+    assert api.lesson_unclear(step, False)["unclear"] == []
+    with pytest.raises(ApiError):
+        api.lesson_unclear("d9-s99", True)
+
+
+def test_hints_are_served(api):
+    hints = api.hints()["hints"]
+    assert isinstance(hints, dict)

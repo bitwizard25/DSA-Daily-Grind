@@ -11,6 +11,7 @@ from google_prep.core import scheduler
 from google_prep.models import LessonProgress
 
 DAYS = (1, 2)
+LANGUAGES = ("standard", "simple")  # standard: technical English, explained; simple: plain English + Hindi hints
 
 
 def load_day(day: int) -> dict:
@@ -19,6 +20,42 @@ def load_day(day: int) -> dict:
 
 def load_days() -> list[dict]:
     return [load_day(d) for d in DAYS]
+
+
+def load_hints() -> dict[str, str]:
+    """English term -> short Hinglish hint, shown in simple mode the first time a term appears on a page."""
+    try:
+        return db.load_json("hindi_hints.json").get("hints", {})
+    except (OSError, ValueError):
+        return {}
+
+
+def text(item: dict, key: str, language: str):
+    """A lesson field in the learner's language mode (simple falls back to standard)."""
+    if language == "simple" and item.get(f"{key}_simple"):
+        return item[f"{key}_simple"]
+    return item.get(key, "")
+
+
+def language(session: Session) -> str:
+    mode = scheduler.get_setting(session, "language", "standard")
+    return mode if mode in LANGUAGES else "standard"
+
+
+def mark_unclear(session: Session, section_id: str, unclear: bool, now: datetime) -> None:
+    """'I did not get this step': kept as a list to review again."""
+    item_id = f"{section_id}-unclear"
+    row = session.get(LessonProgress, item_id)
+    if unclear and row is None:
+        session.add(LessonProgress(item_id=item_id, kind="unclear", correct=None, updated_at=now))
+    elif not unclear and row is not None:
+        session.delete(row)
+    session.commit()
+
+
+def unclear_steps(session: Session) -> list[str]:
+    rows = session.exec(select(LessonProgress).where(LessonProgress.kind == "unclear")).all()
+    return sorted(r.item_id.removesuffix("-unclear") for r in rows)
 
 
 def exercise(day: dict, exercise_id: str) -> dict:
@@ -43,6 +80,7 @@ def answer(session: Session, exercise_id: str, choice: int, now: datetime) -> di
     session.merge(LessonProgress(item_id=exercise_id, kind="exercise", correct=correct, updated_at=now))
     session.commit()
     return {"correct": correct, "answer": ex["answer"], "explanation": ex["explanation"],
+            "explanation_simple": ex.get("explanation_simple") or ex["explanation"],
             "output": run_snippet(ex["code"])}
 
 
@@ -98,49 +136,57 @@ def inline_markup(text: str) -> str:
 
 
 def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
-    """One section per screen, then the exercises; Enter moves on, 1-3 answers, q stops."""
+    """One step per screen: example, what happened, remember, C++ hint, watch out, quick check.
+    Enter moves on, 1-3 answers, q stops. Uses the learner's language mode (standard or simple)."""
     import time
 
-    from rich.console import Group
     from rich.syntax import Syntax
-    from rich.table import Table
     from rich.text import Text
 
     from google_prep.ui import keys
     from google_prep.ui.formatters import banner, card, crumbs, keys as key_bar, nav, show
 
     lesson = load_day(day_no)
+    mode = language(session)
+    glossary = {g["key"]: g for g in lesson.get("glossary", [])}
+    ex_for = {e.get("section"): e for e in lesson["exercises"]}
     started = time.monotonic()
     base = scheduler.breadcrumb(session, now.date(), f"Fast-Track Day {day_no}")
-
-    def code_pair(cpp: str, python: str) -> Table:
-        grid = Table.grid(expand=True, padding=(0, 2))
-        grid.add_column(ratio=1)
-        grid.add_column(ratio=1)
-        grid.add_row(Text("C++", style="muted"), Text("Python", style="accent"))
-        grid.add_row(Syntax(cpp, "cpp", theme="ansi_dark", word_wrap=True),
-                     Syntax(python, "python", theme="ansi_dark", word_wrap=True))
-        return grid
-
-    sections = lesson["sections"]
-    for i, s in enumerate(sections, 1):
-        show(Text(""), crumbs(f"{base} > {s['title']}"), nav("Fast-Track", with_keys=False),
-             banner(f"PYTHON FAST-TRACK · DAY {day_no}", f"Section {i}/{len(sections)} · {s['title']}",
-                    lesson["title"]),
-             Text.from_markup("\n".join(f"  • {inline_markup(p)}" for p in s["points"])), Text(""),
-             code_pair(s["cpp"], s["python"]),
-             card("GOTCHA", [inline_markup(s["gotcha"])], style="#FBBC05"),
-             key_bar(("Enter", "Next"), ("q", "Stop")))
-        if keys.choose({"enter", "space", "q"}) == "q":
-            return {"done": False}
-
+    core = [s for s in lesson["sections"] if not s.get("optional")]
     right = 0
-    exercises = lesson["exercises"]
-    for i, e in enumerate(exercises, 1):
-        show(Text(""), crumbs(f"{base} > Exercise {i}/{len(exercises)}"), nav("Fast-Track", with_keys=False),
-             banner(f"PYTHON FAST-TRACK · DAY {day_no}", f"Exercise {i}/{len(exercises)} · {e['topic']}",
-                    f"{right} correct"),
-             Text.from_markup(f"  [header]{inline_markup(e['prompt'])}[/header]"),
+    for i, s in enumerate(lesson["sections"], 1):
+        label = "Optional extra" if s.get("optional") else f"Step {i}/{len(core)}"
+        words = [f"[accent]{glossary[w]['term']}[/accent] = {inline_markup(text(glossary[w], 'meaning', mode))}"
+                 for w in s.get("new_words", []) if w in glossary]
+        parts = [Text(""), crumbs(f"{base} > {text(s, 'title', mode)}"), nav("Fast-Track", with_keys=False),
+                 banner(f"PYTHON FAST-TRACK · DAY {day_no}", f"{label} · {text(s, 'title', mode)}",
+                        text(lesson, "title", mode))]
+        if words:
+            parts.append(Text.from_markup("  New words: " + "   ".join(words)))
+        parts += [Text.from_markup("\n  [header]Try it[/header]"),
+                  Syntax(s["python"], "python", theme="ansi_dark", word_wrap=True),
+                  Text.from_markup("  [header]What happened[/header]\n"
+                                   + "\n".join(f"  • {inline_markup(p)}" for p in text(s, "points", mode))),
+                  card("REMEMBER", [inline_markup(text(s, "summary", mode))])]
+        if s.get("bridge"):
+            parts.append(Text.from_markup("  [muted]Coming from C++:[/muted]\n" + "\n".join(
+                f"    {b['cpp']}  →  [accent]{b['python']}[/accent]" for b in s["bridge"])))
+        parts += [card("WATCH OUT", [inline_markup(text(s, "gotcha", mode))], style="#FBBC05"),
+                  key_bar(("Enter", "Quick check" if s["id"] in ex_for else "Next"), ("a", "Explain another way"),
+                          ("q", "Stop"))]
+        show(*parts)
+        key = keys.choose({"enter", "space", "a", "q"})
+        if key == "q":
+            return {"done": False}
+        if key == "a":
+            show(card("ANOTHER WAY TO SEE IT", [inline_markup(text(s, "analogy", mode))], style="#81C995"),
+                 key_bar(("Enter", "Next")))
+            if keys.choose({"enter", "space", "q"}) == "q":
+                return {"done": False}
+        e = ex_for.get(s["id"])
+        if e is None:
+            continue
+        show(Text.from_markup(f"\n  [header]Quick check · {inline_markup(e['prompt'])}[/header]"),
              Syntax(e["code"], "python", theme="ansi_dark", line_numbers=False, word_wrap=True),
              key_bar(*[(str(k + 1), opt) for k, opt in enumerate(e["options"])], ("q", "Stop")))
         pick = keys.choose({"1", "2", "3", "q"})
@@ -150,10 +196,12 @@ def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
         right += result["correct"]
         verdict = "[ok]✓ Correct[/ok]" if result["correct"] else \
             f"[danger]✗ Not quite[/danger] · answer: [header]{e['options'][result['answer']]}[/header]"
-        show(Group(Text.from_markup(f"  {verdict}   [muted]real output:[/muted] {inline_markup(result['output'])}"),
-                   Text.from_markup(f"  {inline_markup(result['explanation'])}")),
-             key_bar(("Enter", "Next")))
-        keys.choose({"enter", "space", "q"})
+        explanation = result["explanation_simple"] if mode == "simple" else result["explanation"]
+        show(Text.from_markup(f"  {verdict}   [muted]Python prints:[/muted] {inline_markup(result['output'])}"),
+             Text.from_markup(f"  {inline_markup(explanation)}"), key_bar(("Enter", "Next step")))
+        if keys.choose({"enter", "space", "q"}) == "q":
+            return {"done": False}
+    exercises = lesson["exercises"]
     minutes = max(1, round((time.monotonic() - started) / 60))
     complete(session, day_no, now, minutes)
     show(card(f"DAY {day_no} COMPLETE", [f"{right}/{len(exercises)} correct · {minutes} min · counted for the streak",

@@ -64,6 +64,7 @@ class Api:
                     "target": scheduler.get_setting(s, "target", "Google SWE II"),
                     "start_date": scheduler.start_date(s, t.date()).isoformat(),
                     "interview_date": scheduler.interview_date(s).isoformat(),
+                    "language": fasttrack.language(s),
                 },
                 "fasttrack": {"unfinished": fasttrack.unfinished(s),
                               "pending": fasttrack.pending_day(s, day)},
@@ -409,6 +410,12 @@ class Api:
             day = scheduler.day_number(s, t.date())
             comps = [("Pattern Mastery", "pattern_mastery", 40), ("Mock Speed", "mock_speed", 30),
                      ("Dry-Run Accuracy", "dry_run", 15), ("STAR Stories", "star", 15)]
+            explain = {  # what each score means, in plain words (shown under it)
+                "pattern_mastery": "How much of the problem bank and the drills you have under control.",
+                "mock_speed": "Last 5 mocks: solved, and coded by minute 35 of 45.",
+                "dry_run": "Last 10 solves: when you traced your code by hand, did it match?",
+                "star": "Behaviour stories ready: 2 for each of 4 topics.",
+            }
             phases = []
             for num, (name, first, last) in scheduler.PHASES.items():
                 span = last - first + 1
@@ -420,7 +427,8 @@ class Api:
             return {
                 "crumbs": _crumbs(s, t.date(), "Roadmap"),
                 "index": round(r.index, 1), "day": day, "plan_days": scheduler.PLAN_DAYS,
-                "components": [{"name": n, "key": k, "weight": w, "value": round(getattr(r, k), 4)} for n, k, w in comps],
+                "components": [{"name": n, "key": k, "weight": w, "value": round(getattr(r, k), 4), "explain": explain[k]}
+                               for n, k, w in comps],
                 "formula": " + ".join(f"{w / 100:.2f}×{getattr(r, k) * 100:.0f}%" for _, k, w in comps)
                            + f" = {r.index:.0f}%",
                 "history": [round(v, 1) for v in readiness.history(s, t.date())],
@@ -491,16 +499,39 @@ class Api:
             days = []
             for lesson in fasttrack.load_days():
                 days.append({
-                    **{k: lesson[k] for k in ("day", "title", "subtitle", "minutes", "vault")},
+                    **{k: lesson.get(k) for k in ("day", "title", "title_simple", "subtitle", "subtitle_simple",
+                                                  "minutes", "vault")},
+                    "glossary": lesson.get("glossary", []),
                     "sections": lesson["sections"],
-                    "exercises": [{**{k: e[k] for k in ("id", "topic", "prompt", "code", "options")},
+                    "exercises": [{**{k: e.get(k) for k in ("id", "section", "topic", "prompt", "code", "options")},
                                    "result": answered.get(e["id"])}  # right/wrong so far; answers stay on the server
                                   for e in lesson["exercises"]],
                     "progress": fasttrack.progress(s, lesson),
                 })
             pending = fasttrack.pending_day(s, day_no)
             return {"days": days, "current": pending or (fasttrack.unfinished(s) or [1])[0], "plan_day": day_no,
+                    "unclear": fasttrack.unclear_steps(s), "language": fasttrack.language(s),
                     "crumbs": _crumbs(s, t.date(), "Fast-Track")}
+
+    def lesson_unclear(self, section_id: str, unclear: bool = True) -> dict:
+        """'I did not get this step yet': listed again at the end of the day and on Today."""
+        known = {sec["id"] for lesson in fasttrack.load_days() for sec in lesson["sections"]}
+        if section_id not in known:
+            raise ApiError(f"Unknown step {section_id}")
+        with get_session() as s:
+            fasttrack.mark_unclear(s, section_id, bool(unclear), self.now())
+            return {"unclear": fasttrack.unclear_steps(s)}
+
+    def set_language(self, mode: str) -> dict:
+        """Standard (technical English, every term explained) or simple (plain English + Hindi hints)."""
+        if mode not in fasttrack.LANGUAGES:
+            raise ApiError("Language must be standard or simple")
+        with get_session() as s:
+            scheduler.set_setting(s, "language", mode)
+        return {"language": mode}
+
+    def hints(self) -> dict:
+        return {"hints": fasttrack.load_hints()}
 
     def fasttrack_answer(self, exercise_id: str, choice: int) -> dict:
         with get_session() as s:
@@ -549,7 +580,10 @@ class Api:
         return {"ok": True}
 
     # ---- settings -------------------------------------------------------------------------
-    def settings_save(self, name: str = "", target: str = "", interview_date: str = "", start_date: str = "") -> dict:
+    def settings_save(self, name: str = "", target: str = "", interview_date: str = "", start_date: str = "",
+                      language: str = "") -> dict:
+        if language:
+            self.set_language(language)
         for label, value in (("Interview date", interview_date), ("Plan start", start_date)):
             if value:
                 try:

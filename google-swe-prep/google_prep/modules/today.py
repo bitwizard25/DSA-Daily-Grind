@@ -99,8 +99,9 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
         lesson = fasttrack.load_day(fast_day)
         return {**out, "kind": "fasttrack", "day": fast_day, "minutes": lesson["minutes"],
                 "title": f"Python fast-track · Day {fast_day} of 2 · {lesson['minutes']} min",
-                "bullets": [f"{len(lesson['sections'])} short sections: C++ next to Python, one trap each",
-                            f"{len(lesson['exercises'])} predict-the-output exercises · 3 choices each",
+                "bullets": [f"{sum(not s.get('optional') for s in lesson['sections'])} short steps: "
+                            "a tiny example, what happened, one line to remember",
+                            "One quick check after each step · new words come a few at a time",
                             lesson["subtitle"]],
                 "cta": f"Start Day {fast_day}: {lesson['title']}", "action": "fasttrack"}
     if day_no <= fasttrack.DAYS[-1]:

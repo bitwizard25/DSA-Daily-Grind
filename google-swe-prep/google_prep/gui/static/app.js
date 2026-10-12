@@ -63,13 +63,78 @@ function rich(text) {
   let m;
   text = String(text ?? "");
   while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m.index > last) out.push(hintify(text.slice(last, m.index)));
     out.push(m[1] != null ? h("b", null, rich(m[1])) : h("code", { class: "inline" }, m[2]));
     last = re.lastIndex;
   }
-  if (last < text.length) out.push(text.slice(last));
+  if (last < text.length) out.push(hintify(text.slice(last)));
   return out;
 }
+
+// ---------------------------------------------------------------- language mode and Hindi hints
+// standard = technical English, every term explained; simple = plain English + a short Hinglish hint the
+// first time a technical word appears on the page, e.g. "overflow (limit se bada ho jaana)".
+const HINTS = { map: {}, re: null };
+function loadHints(map) {
+  HINTS.map = Object.fromEntries(Object.entries(map || {}).map(([k, v]) => [k.toLowerCase(), v]));
+  const keys = Object.keys(HINTS.map).filter((k) => /^[a-z]/.test(k)).sort((a, b) => b.length - a.length);
+  HINTS.re = keys.length ? new RegExp(`(?<![\\w-])(${keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\w-])`, "gi") : null;
+}
+function resetHints() { S.hintSeen = new Set(); }
+function hintify(str) {
+  if (S.lang !== "simple" || !HINTS.re || !str) return str;
+  const out = [];
+  let last = 0;
+  let m;
+  HINTS.re.lastIndex = 0;
+  while ((m = HINTS.re.exec(str))) {
+    const key = m[0].toLowerCase();
+    if (S.hintSeen.has(key) || !HINTS.map[key]) continue;
+    S.hintSeen.add(key);
+    const end = m.index + m[0].length;
+    out.push(str.slice(last, end), h("span", { class: "hint", lang: "hi-Latn" }, ` (${HINTS.map[key]})`));
+    last = end;
+  }
+  if (!out.length) return str;
+  out.push(str.slice(last));
+  return out;
+}
+/** Hints inside rendered HTML (vault notes): text outside code, first time per page. */
+function hintifyTree(root) {
+  if (S.lang !== "simple" || !HINTS.re) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.parentElement.closest("code, pre, a, .hint") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const parts = hintify(node.nodeValue);
+    if (Array.isArray(parts)) node.replaceWith(...parts.flat(Infinity).map((x) => (x instanceof Node ? x : document.createTextNode(x))));
+  }
+}
+const L = (obj, key) => (S.lang === "simple" && obj && obj[`${key}_simple`] ? obj[`${key}_simple`] : obj ? obj[key] : "");
+function languageToggle() {
+  const simple = S.lang === "simple";
+  return h("div", { class: "lang-toggle", role: "group", "aria-label": "Language" },
+    h("button", { type: "button", "aria-pressed": String(!simple), onclick: () => setLanguage("standard"), title: "Technical English, every term explained" }, "Standard"),
+    h("button", { type: "button", "aria-pressed": String(simple), onclick: () => setLanguage("simple"), "data-test": "lang-simple", title: "Plain English with Hindi hints" }, "Simple + Hindi hints"));
+}
+async function setLanguage(mode) {
+  if (mode === S.lang) return;
+  try {
+    await api("set_language", { mode });
+    S.lang = mode;
+    if (S.state) S.state.settings.language = mode;
+    if (current && current.rerender) current.rerender();
+    else if (["today", "vault", "fasttrack", "roadmap"].includes(S.routeName)) route();
+    $$(".lang-toggle").forEach((el) => el.replaceWith(languageToggle()));
+    toast(mode === "simple" ? "Simple English with Hindi hints." : "Standard: technical English, every term explained.");
+  } catch (err) { toast(err.message, true); }
+}
+const store = {
+  get(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } },
+};
 
 // Small syntax colouring for lessons and notes (the whiteboard stays plain, like a real interview).
 const KEYWORDS = {
@@ -180,7 +245,7 @@ const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
 const icon = (name) => svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
   svg("path", { d: ICONS[name] }));
 
-const S = { state: null, boardStart: null };
+const S = { state: null, boardStart: null, lang: "standard", hintSeen: new Set() };
 
 function buildNav() {
   $("#nav").replaceChildren(...SECTIONS.map((x) => h("button", {
@@ -210,6 +275,7 @@ function setCrumbs(parts, ctx) {
 async function refreshState() {
   const st = await api("state");
   S.state = st;
+  S.lang = st.settings.language || "standard";
   const ready = st.readiness / 100;
   $("#mini").replaceChildren(
     ring(ready, { size: 54, stroke: 6, label: `${Math.round(st.readiness)}`, color: COLORS.blue }),
@@ -295,6 +361,10 @@ async function openSettings() {
     h("label", { for: `set-${name}` }, label), h("input", { id: `set-${name}`, name, type, value: value || "" }));
   const form = h("form", { class: "settings-form", onsubmit: (e) => e.preventDefault() },
     field("Your name", "name", st.settings.name), field("Target role", "target", st.settings.target),
+    h("div", { class: "field" }, h("label", { for: "set-language" }, "Lesson language"),
+      h("select", { id: "set-language", name: "language" },
+        h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard: technical English, every term explained"),
+        h("option", { value: "simple", selected: S.lang === "simple" || null }, "Simple English + Hindi hints"))),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
       field("Interview date", "interview_date", st.settings.interview_date, "date")),
     h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
@@ -305,6 +375,7 @@ async function openSettings() {
   const data = Object.fromEntries(new FormData(form).entries());
   try {
     await api("settings_save", data);
+    S.lang = data.language || S.lang;
     toast("Settings saved.");
     await refreshState();
     if (!["board", "recall", "star"].includes(S.routeName)) route(); // never restart in-progress work
@@ -339,6 +410,7 @@ async function route() {
   const view = $("#view");
   view.classList.toggle("board-mode", name === "board");
   const ctx = { parts, query: new URLSearchParams(qs || ""), alive: () => seq === navSeq };
+  resetHints();
   try {
     const handle = await ROUTES[name](ctx);
     if (seq !== navSeq) { if (handle && handle.cleanup) handle.cleanup(); return; }
@@ -452,129 +524,228 @@ ROUTES.fasttrack = async (ctx) => {
   const data = await api("fasttrack");
   const dayNo = Number(ctx.parts[1]) || data.current;
   const lesson = data.days.find((x) => x.day === dayNo) || data.days[0];
-  setCrumbs([...data.crumbs, `Day ${lesson.day}: ${lesson.title}`], ctx);
+  setCrumbs([...data.crumbs, `Day ${lesson.day}`], ctx);
   const started = performance.now();
+  const sections = lesson.sections;
+  const glossary = Object.fromEntries((lesson.glossary || []).map((g) => [g.key, g]));
+  const exFor = Object.fromEntries(lesson.exercises.map((e) => [e.section, e]));
   const results = Object.fromEntries(lesson.exercises.map((e) => [e.id, e.result]));
-  const fresh = new Set(); // exercises answered during this visit
-  const exNodes = {};
+  const answers = {}; // exercise id -> the server's answer, this visit
+  const unclear = new Set(data.unclear || []);
+  const stepKey = `ft-step-${lesson.day}`;
+  const last = sections.length + 1; // 0 = how today works, 1..N = steps, N+1 = finish
+  let step = Math.max(0, Math.min(last, Number(ctx.query.get("step")) || Number(store.get(stepKey)) || 0));
+  let showOther = false; // "Explain another way" is open
+  let finished = lesson.progress.done;
 
-  const answeredCount = () => Object.values(results).filter((v) => v !== null && v !== undefined).length;
-  const rightCount = () => Object.values(results).filter((v) => v === true).length;
+  const core = sections.filter((s) => !s.optional);
+  const answeredCount = () => lesson.exercises.filter((e) => results[e.id] != null).length;
+  const rightCount = () => lesson.exercises.filter((e) => results[e.id] === true).length;
+  const wordsUntil = (k) => sections.slice(0, k).flatMap((s) => s.new_words || []).filter((w) => glossary[w]);
 
   const daytabs = h("div", { class: "daytabs", role: "tablist" }, data.days.map((x) => {
-    const p = x.progress;
-    const status = p.done ? `Done · ${p.correct}/${p.total} right` : p.answered ? `${p.answered}/${p.total} answered` : `${x.minutes} min · not started`;
+    const pr = x.progress;
+    const status = pr.done ? `Done · ${pr.correct}/${pr.total} right` : pr.answered ? `${pr.answered}/${pr.total} checks done` : `${x.minutes} min · not started`;
     return h("button", { type: "button", role: "tab", "aria-selected": String(x.day === lesson.day), onclick: () => go(`#/fasttrack/${x.day}`) },
-      h("span", { class: "t" }, `Day ${x.day} · ${x.title}`), h("span", { class: "s" }, status));
+      h("span", { class: "t" }, `Day ${x.day} · ${L(x, "title")}`), h("span", { class: "s" }, status));
   }));
+  const tocSlot = h("nav", { class: "toc", "aria-label": "Steps" });
+  const cardSlot = h("div", { class: "lesson-col" });
 
-  const sectionCards = lesson.sections.map((sec, i) => h("section", { class: "card lesson", id: `sec-${sec.id}` },
-    h("div", { class: "kicker" }, `Section ${i + 1} of ${lesson.sections.length}`),
-    h("h3", null, sec.title),
-    h("ul", { class: "bullets" }, sec.points.map((pt) => h("li", null, rich(pt)))),
-    h("div", { class: "pair" },
-      h("div", { class: "pane cpp" }, h("div", { class: "head" }, h("span", null, "C++ (what you know)")), codeBlock(sec.cpp, "cpp")),
-      h("div", { class: "pane py" }, h("div", { class: "head" }, h("span", null, "Python (what to write)")), codeBlock(sec.python, "python"))),
-    sec.gotcha ? h("div", { class: "gotcha" }, h("b", null, "Gotcha"), h("div", null, rich(sec.gotcha))) : null));
+  const wordChip = (key, dim = false) => {
+    const g = glossary[key];
+    return h("span", { class: `word ${dim ? "dim" : ""}`.trim(), title: L(g, "meaning") },
+      h("code", null, g.term), h("span", null, " ", rich(L(g, "meaning"))));
+  };
 
-  const exCards = lesson.exercises.map((ex, i) => {
-    const feedback = h("div", { class: "feedback-slot" });
+  function renderToc() {
+    const known = wordsUntil(step === last ? sections.length : Math.max(0, step - 1) + (step > 0 ? 1 : 0));
+    tocSlot.replaceChildren();
+    addKids(tocSlot, [
+      h("h4", null, "Steps"),
+      h("button", { type: "button", "aria-current": step === 0 ? "step" : null, onclick: () => goStep(0) },
+        h("span", { class: "n" }, "i"), h("span", null, "How today works")),
+      sections.map((s, i) => {
+        const ex = exFor[s.id];
+        const r = ex ? results[ex.id] : null;
+        const cls = r === true ? "ok" : r === false ? "bad" : unclear.has(s.id) ? "unclear" : "";
+        return h("button", { type: "button", "aria-current": step === i + 1 ? "step" : null, onclick: () => goStep(i + 1) },
+          h("span", { class: `n ${cls}`.trim() }, s.optional ? "+" : String(i + 1)),
+          h("span", null, L(s, "title"), unclear.has(s.id) ? h("span", { class: "flag" }, " · unclear") : null));
+      }),
+      h("button", { type: "button", "aria-current": step === last ? "step" : null, onclick: () => goStep(last) },
+        h("span", { class: "n" }, "✓"), h("span", null, "Finish the day")),
+      h("h4", null, `Words you know · ${known.length}`),
+      known.length ? h("div", { class: "words-known" }, known.map((k) => wordChip(k)))
+        : h("p", { class: "muted small pad" }, "New words collect here as you go.")]);
+  }
+
+  function goStep(k) {
+    step = Math.max(0, Math.min(last, k));
+    store.set(stepKey, String(step));
+    showOther = false;
+    render();
+    $("#view").scrollTop = 0;
+  }
+
+  function nav(nextLabel = "Next", nextKey = "Enter") {
+    const s = sections[step - 1];
+    return h("div", { class: "step-nav" },
+      step > 0 ? btn("Back", () => goStep(step - 1), { cls: "ghost", key: "←" }) : h("span"),
+      s ? btn(unclear.has(s.id) ? "Marked as unclear" : "I did not get this", () => toggleUnclear(s), {
+        cls: `ghost ${unclear.has(s.id) ? "flagged" : ""}`.trim(), key: "u", test: "unclear",
+        title: "Keeps this step on a list to review again",
+      }) : h("span"),
+      step < last ? btn(nextLabel, () => goStep(step + 1), { cls: "primary", primary: true, key: nextKey, test: "next" }) : h("span"));
+  }
+
+  function introCard() {
+    const words = Object.keys(glossary);
+    return h("section", { class: "card step-card" },
+      h("div", { class: "kicker" }, `Day ${lesson.day} · about ${lesson.minutes} minutes`),
+      h("h2", { class: "step-title" }, L(lesson, "title")),
+      h("p", { class: "lead" }, rich(L(lesson, "subtitle"))),
+      h("ol", { class: "how" },
+        h("li", null, h("b", null, "Try it:"), " a tiny example and what it prints."),
+        h("li", null, h("b", null, "What happened:"), " the idea in 1 to 3 short lines."),
+        h("li", null, h("b", null, "Remember:"), " one line to keep. Not clear? Press ", h("b", null, "Explain another way"), "."),
+        h("li", null, h("b", null, "Quick check:"), " one question, so you know you got it.")),
+      h("p", { class: "muted small" }, `${core.length} steps${sections.length > core.length ? " + 1 optional" : ""}. New words come a few at a time. `,
+        "Use ", h("b", null, "I did not get this"), " on any step: it goes on a list to review again."),
+      words.length ? [h("h3", { class: "sub" }, "Words you will meet today"), h("div", { class: "words-known" }, words.map((k) => wordChip(k, true)))] : null,
+      nav(step === 0 && answeredCount() === 0 ? "Start" : "Next"));
+  }
+
+  function stepCard(s, index) {
+    const ex = exFor[s.id];
+    const other = h("div", { class: "analogy", hidden: !showOther, "data-test": "analogy" },
+      h("b", null, "Another way to see it: "), rich(L(s, "analogy")));
+    const otherBtn = btn(showOther ? "Hide the other explanation" : "Explain another way", () => {
+      showOther = !showOther;
+      other.hidden = !showOther;
+      otherBtn.firstChild.textContent = showOther ? "Hide the other explanation" : "Explain another way";
+    }, { cls: "ghost small", key: "e", test: "explain" });
+    return h("section", { class: "card step-card", "data-test": "step" },
+      h("div", { class: "row" }, h("span", { class: "kicker" }, s.optional ? "Optional extra" : `Step ${index} of ${core.length}`),
+        dots(index)),
+      h("h2", { class: "step-title" }, L(s, "title")),
+      (s.new_words || []).length ? h("div", { class: "new-words" }, h("span", { class: "label" }, "New words"),
+        (s.new_words || []).filter((w) => glossary[w]).map((w) => wordChip(w))) : null,
+      h("h3", { class: "sub" }, "Try it"),
+      codeBlock(s.python, "python"),
+      h("h3", { class: "sub" }, "What happened"),
+      h("ul", { class: "bullets" }, (L(s, "points") || []).map((pt) => h("li", null, rich(pt)))),
+      h("div", { class: "remember" }, h("b", null, "Remember: "), rich(L(s, "summary"))),
+      h("div", { class: "row" }, otherBtn), other,
+      (s.bridge || []).length ? [h("h3", { class: "sub" }, "Coming from C++"), h("table", { class: "bridge" }, h("tbody", null,
+        s.bridge.map((b) => h("tr", null, h("td", null, h("code", null, b.cpp)), h("td", { class: "arrow", "aria-hidden": "true" }, "→"),
+          h("td", null, h("code", null, b.python)), h("td", { class: "muted small" }, b.note ? rich(b.note) : null)))))] : null,
+      h("div", { class: "gotcha" }, h("b", null, "Watch out"), h("div", null, rich(L(s, "gotcha")))),
+      ex ? quickCheck(ex) : null,
+      nav());
+  }
+
+  function dots(index) {
+    return h("div", { class: "dots", "aria-hidden": "true" }, core.map((_, i) => h("i", { class: i + 1 < index ? "done" : i + 1 === index ? "now" : null })));
+  }
+
+  function quickCheck(ex) {
+    const res = answers[ex.id];
     const opts = ex.options.map((opt, j) => h("button", {
-      type: "button", class: "option", "data-choice": String(j), onclick: () => answer(ex, j),
+      type: "button", class: `option ${res ? (j === res.answer ? "right" : j === res.choice ? "wrong" : "") : ""}`.trim(),
+      disabled: Boolean(res), "data-choice": String(j), onclick: () => answer(ex, j),
     }, kbd(String(j + 1)), h("span", null, opt)));
-    const before = ex.result == null ? null : h("p", { class: `small ${ex.result ? "ok-t" : "warn-t"}` },
-      ex.result ? "You got this right before. Again for speed?" : "Missed last time. Try again.");
-    const node = h("div", { class: "exercise", id: `ex-${ex.id}`, "data-test": "exercise" },
-      h("div", { class: "row" }, h("span", { class: "chip blue" }, ex.topic), h("span", { class: "muted small" }, `Exercise ${i + 1} of ${lesson.exercises.length}`)),
+    const before = !res && results[ex.id] != null ? h("p", { class: `small ${results[ex.id] ? "ok-t" : "warn-t"}` },
+      results[ex.id] ? "You got this right before. Again?" : "Missed last time. Try again.") : null;
+    const feedback = res ? h("div", { class: `feedback ${res.correct ? "right" : "wrong"}`, "data-test": "feedback" },
+      h("p", null, h("b", { class: res.correct ? "ok-t" : "bad-t" }, res.correct ? "Correct." : `Not quite. The answer is ${ex.options[res.answer]}.`)),
+      h("p", null, rich(S.lang === "simple" ? res.explanation_simple : res.explanation)),
+      res.output ? [h("div", { class: "muted small" }, "Python really prints:"), h("pre", { class: "code out" }, res.output)] : null) : null;
+    return h("div", { class: "quick", "data-test": "exercise" },
+      h("h3", { class: "sub" }, "Quick check"),
       h("p", { class: "ex-prompt" }, rich(ex.prompt)), codeBlock(ex.code, "python"), before,
       h("div", { class: "options" }, opts), feedback);
-    exNodes[ex.id] = { node, opts, feedback };
-    return node;
-  });
-
-  const finishSlot = h("div", null);
-  const tocExercises = h("div", { class: "toc-ex" });
-  const counter = h("span", { class: "chip" });
-
-  function renderProgress() {
-    const answered = answeredCount();
-    counter.textContent = `${answered}/${lesson.exercises.length} answered · ${rightCount()} right`;
-    tocExercises.replaceChildren(...lesson.exercises.map((ex, i) => {
-      const r = results[ex.id];
-      return h("button", { type: "button", onclick: () => exNodes[ex.id].node.scrollIntoView({ behavior: "smooth", block: "center" }) },
-        h("span", { class: `n ${r === true ? "ok" : r === false ? "bad" : ""}`.trim() }, String(i + 1)), h("span", null, ex.topic));
-    }));
-    const all = answered === lesson.exercises.length;
-    const done = lesson.progress.done;
-    finishSlot.replaceChildren(h("section", { class: `card finish ${done ? "done" : ""}`.trim() },
-      h("h3", null, done ? `Day ${lesson.day} is done` : `Finish Day ${lesson.day}`),
-      h("p", { class: "muted" }, all ? `${rightCount()} of ${lesson.exercises.length} right. Finishing logs today as a full study day (streak safe).`
-        : `Answer the remaining ${lesson.exercises.length - answered} exercise${lesson.exercises.length - answered === 1 ? "" : "s"} first. Use 1, 2, 3.`),
-      h("div", { class: "row" },
-        done ? null : btn(`Finish Day ${lesson.day}`, finish, { cls: "primary", primary: all, disabled: !all, key: all ? "Enter" : null, test: "finish" }),
-        btn("Open the full note in the Vault", () => go(`#/vault/${encodeURIComponent(lesson.vault)}`), { cls: "ghost" }))));
   }
 
   async function answer(ex, choice) {
-    const slot = exNodes[ex.id];
-    if (fresh.has(ex.id)) return;
+    if (answers[ex.id]) return;
     let res;
     try { res = await api("fasttrack_answer", { exercise_id: ex.id, choice }); } catch (err) { toast(err.message, true); return; }
-    fresh.add(ex.id);
+    answers[ex.id] = { ...res, choice };
     results[ex.id] = res.correct;
-    slot.opts.forEach((b, j) => {
-      b.disabled = true;
-      if (j === res.answer) b.classList.add("right");
-      else if (j === choice) b.classList.add("wrong");
-    });
-    slot.feedback.replaceChildren(h("div", { class: `feedback ${res.correct ? "right" : "wrong"}`, "data-test": "feedback" },
-      h("p", null, h("b", { class: res.correct ? "ok-t" : "bad-t" }, res.correct ? "Correct." : `Not quite. Answer: ${ex.options[res.answer]}`)),
-      h("p", null, rich(res.explanation)),
-      res.output ? [h("div", { class: "muted small" }, "Python actually prints:"), h("pre", { class: "code out" }, res.output)] : null));
-    renderProgress();
-    const next = lesson.exercises.find((x) => !fresh.has(x.id));
-    if (next) setTimeout(() => exNodes[next.id].node.scrollIntoView({ behavior: "smooth", block: "center" }), 900);
-    else setTimeout(() => finishSlot.scrollIntoView({ behavior: "smooth", block: "center" }), 900);
+    render();
+    const fb = $('[data-test="feedback"]');
+    if (fb) fb.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function toggleUnclear(s) {
+    try {
+      const res = await api("lesson_unclear", { section_id: s.id, unclear: !unclear.has(s.id) });
+      unclear.clear();
+      res.unclear.forEach((x) => unclear.add(x));
+      toast(unclear.has(s.id) ? "Saved to review again. Keep going: it often clicks later." : "Removed from the review list.");
+      render();
+    } catch (err) { toast(err.message, true); }
+  }
+
+  function finishCard() {
+    const todo = core.filter((s) => exFor[s.id] && results[exFor[s.id].id] == null);
+    const flagged = sections.filter((s) => unclear.has(s.id));
+    const all = todo.length === 0;
+    return h("section", { class: `card step-card ${finished ? "done" : ""}`.trim(), "data-test": "finish-card" },
+      h("div", { class: "kicker" }, finished ? "Done" : "Last step"),
+      h("h2", { class: "step-title" }, finished ? `Day ${lesson.day} is done` : `Finish Day ${lesson.day}`),
+      h("p", null, `Quick checks: ${answeredCount()} of ${lesson.exercises.length} done, ${rightCount()} right.`),
+      todo.length ? h("div", null, h("p", { class: "muted" }, "Still to do:"), h("div", { class: "row" },
+        todo.map((s) => btn(L(s, "title"), () => goStep(sections.indexOf(s) + 1), { cls: "ghost small" })))) : null,
+      flagged.length ? h("div", null, h("p", { class: "muted" }, "You marked these as unclear. Look at them once more:"), h("div", { class: "row" },
+        flagged.map((s) => btn(L(s, "title"), () => goStep(sections.indexOf(s) + 1), { cls: "ghost small" })))) : null,
+      h("p", { class: "muted small" }, finished ? "Come back any time: the steps stay here." : "Finishing logs today as a full study day (streak safe)."),
+      h("div", { class: "row" },
+        finished ? null : btn(`Finish Day ${lesson.day}`, finish, { cls: "primary", primary: all, disabled: !all, key: all ? "Enter" : null, test: "finish" }),
+        btn("Open the one-page summary", () => go(`#/vault/${encodeURIComponent(lesson.vault)}`), { cls: "ghost" }),
+        btn("Back", () => goStep(step - 1), { cls: "ghost", key: "←" })));
   }
 
   async function finish() {
     const minutes = Math.max(1, Math.round((performance.now() - started) / 60000));
     try {
       const res = await api("fasttrack_complete", { day: lesson.day, minutes });
+      finished = true;
       lesson.progress.done = true;
       await refreshState();
       const next = data.days.find((x) => x.day > lesson.day && !x.progress.done);
-      openModal(`Day ${lesson.day} done`, h("div", null,
+      const choice = await openModal(`Day ${lesson.day} done`, h("div", null,
         h("p", null, `${rightCount()} of ${lesson.exercises.length} right · streak ${plural(res.streak, "day")}.`),
-        h("p", { class: "muted" }, next ? `Day ${next.day} (${next.title}) is next. It opens on Today tomorrow, or start it now.` : "The Google problem bank starts on Day 3. Today will show your first warmup.")),
-      [{ label: "Back to Today", value: "today", primary: true, key: "Enter" }, next ? { label: `Start Day ${next.day} now`, value: "next" } : null].filter(Boolean))
-        .then((v) => { if (v === "next") go(`#/fasttrack/${next.day}`); else go("#/today"); });
+        h("p", { class: "muted" }, next ? `Day ${next.day} (${L(next, "title")}) is next. It opens on Today tomorrow, or start it now.` : "The Google problem bank starts on Day 3. Today will show your first warmup.")),
+      [{ label: "Back to Today", value: "today", primary: true, key: "Enter" }, next ? { label: `Start Day ${next.day} now`, value: "next" } : null].filter(Boolean));
+      if (choice === "next") go(`#/fasttrack/${next.day}`); else go("#/today");
     } catch (err) { toast(err.message, true); }
   }
 
-  const toc = h("nav", { class: "toc", "aria-label": "Lesson contents" },
-    h("h4", null, "Sections"),
-    lesson.sections.map((sec, i) => h("button", { type: "button", onclick: () => $(`#sec-${sec.id}`).scrollIntoView({ behavior: "smooth" }) },
-      h("span", { class: "n" }, String(i + 1)), h("span", null, sec.title))),
-    h("h4", null, "Exercises"), tocExercises);
+  function render() {
+    resetHints();
+    cardSlot.replaceChildren(step === 0 ? introCard() : step === last ? finishCard() : stepCard(sections[step - 1], step));
+    renderToc();
+  }
 
-  renderProgress();
+  render();
   mount(ctx, h("div", { class: "page wide" },
-    pageTitle(`Day ${lesson.day} · ${lesson.title}`, lesson.subtitle, counter),
+    pageTitle(`Day ${lesson.day} · ${L(lesson, "title")}`, null, languageToggle()),
     daytabs,
-    h("div", { class: "ft" }, toc, h("div", { class: "lesson-col" }, sectionCards,
-      h("section", { class: "card", id: "exercises" }, h("h2", null, "Predict the output"),
-        h("p", { class: "muted" }, "Read the code, pick what Python prints. Each answer shows the real output from running it."),
-        h("div", { class: "ex-list" }, exCards)),
-      finishSlot))));
+    h("div", { class: "ft" }, tocSlot, cardSlot)));
   return {
+    rerender: render,
     onKey(e, typing) {
-      if (typing || e.ctrlKey || e.altKey || e.metaKey || !["1", "2", "3"].includes(e.key)) return false;
-      const ex = lesson.exercises.find((x) => !fresh.has(x.id));
-      if (!ex) return false;
-      exNodes[ex.id].node.scrollIntoView({ behavior: "smooth", block: "center" });
-      answer(ex, Number(e.key) - 1);
-      return true;
+      if (typing || e.ctrlKey || e.altKey || e.metaKey) return false;
+      const s = sections[step - 1];
+      const ex = s && exFor[s.id];
+      if (ex && !answers[ex.id] && ["1", "2", "3"].includes(e.key)) { answer(ex, Number(e.key) - 1); return true; }
+      if (e.key === "ArrowRight") { if (step < last) goStep(step + 1); return true; }
+      if (e.key === "ArrowLeft") { if (step > 0) goStep(step - 1); return true; }
+      if (e.key === "e" && s) { $('[data-test="explain"]').click(); return true; }
+      if (e.key === "u" && s) { toggleUnclear(s); return true; }
+      return false;
     },
   };
 };
@@ -1169,8 +1340,9 @@ function showResult(ctx, res, B, data) {
 ROUTES.roadmap = async (ctx) => {
   const r = await api("roadmap");
   setCrumbs(r.crumbs, ctx);
-  const comps = h("div", null, r.components.map((c) => h("div", { class: "meter" },
-    h("span", null, c.name, h("span", { class: "muted small" }, ` · ${c.weight}%`)), bar(c.value, toneFor(c.value)), h("span", { class: "val" }, `${Math.round(c.value * 100)}%`))));
+  const comps = h("div", null, r.components.map((c) => [h("div", { class: "meter" },
+    h("span", null, c.name, h("span", { class: "muted small" }, ` · ${c.weight}%`)), bar(c.value, toneFor(c.value)), h("span", { class: "val" }, `${Math.round(c.value * 100)}%`)),
+    h("div", { class: "meter-help" }, rich(c.explain))]));
   const change = r.weekly_change;
   const gauge = h("section", { class: "card gauge-card" },
     ring(r.index / 100, { size: 210, stroke: 16, label: `${Math.round(r.index)}%`, sub: "readiness", color: r.index >= 70 ? COLORS.green : r.index >= 40 ? COLORS.yellow : COLORS.blue }),
@@ -1326,6 +1498,8 @@ ROUTES.vault = async (ctx) => {
   setCrumbs(note.crumbs, ctx);
   const body = h("article", { class: "card md", "data-test": "note" });
   body.innerHTML = note.html; // rendered server-side by markdown-it with raw HTML disabled
+  resetHints();
+  hintifyTree(body);
   for (const codeEl of $$("pre > code", body)) {
     const lang = (/language-([\w+]+)/.exec(codeEl.className) || [])[1] || "";
     if (/^(py|python|cpp|c\+\+|cc)$/.test(lang)) codeEl.replaceChildren(highlight(codeEl.textContent, lang.startsWith("c") ? "cpp" : "python"));
@@ -1341,7 +1515,7 @@ ROUTES.vault = async (ctx) => {
   const side = h("nav", { class: "toc", "aria-label": "Notes" }, h("h4", null, "Notes"), list.notes.map((n) => h("button", {
     type: "button", "aria-current": n.file === file ? "step" : null, onclick: () => go(`#/vault/${encodeURIComponent(n.file)}`),
   }, h("span", { class: "n" }, n.file.slice(0, 2)), h("span", null, n.title.replace(/^\d+\s*[·:.-]?\s*/, "")))));
-  mount(ctx, h("div", { class: "page wide" }, pageTitle("Concept vault", "C++ next to Python, complexity tables and traps for each pattern."),
+  mount(ctx, h("div", { class: "page wide" }, pageTitle("Concept vault", "One page per pattern: the idea, a Python template, and the usual mistakes.", languageToggle()),
     h("div", { class: "vault" }, side, body)));
   return {};
 };
@@ -1393,7 +1567,10 @@ async function boot() {
     $("#view").replaceChildren(h("div", { class: "page" }, h("div", { class: "empty" }, "Open this window from the Google SWE II OS app.")));
     return;
   }
-  try { await refreshState(); } catch (err) {
+  try {
+    await refreshState();
+    loadHints((await api("hints")).hints);
+  } catch (err) {
     $("#view").replaceChildren(h("div", { class: "page" }, h("div", { class: "empty" }, err.message)));
     return;
   }
