@@ -368,7 +368,7 @@ class BadKey:                                # every key collides
     def __eq__(self, other):
         return isinstance(other, BadKey) and self.v == other.v
 
-d = {BadKey(i): i for i in range(300)}       # each insert scans the collision chain: O(N^2) total
+d = {BadKey(i): i for i in range(300)}       # each insert re-walks the same probe sequence: O(N^2) total
 assert len(d) == 300 and d[BadKey(299)] == 299
 ```
 
@@ -486,7 +486,7 @@ int main() {
 ## In the Google bank
 
 - **G-347 Top K Frequent Elements**: `Counter` + bucket sort (O(N)), or `most_common(k)`.
-- **G-621 Task Scheduler**: `Counter(tasks)`; the answer depends on the max frequency and how many tasks share it.
+- **G-621 Task Scheduler**: `Counter(tasks)`; answer is `max(len(tasks), (max_f - 1) * (n + 1) + ties_at_max_f)`.
 - **G-133 Clone Graph**: `old node -> copy` dict; nodes hash by identity.
 - **G-863 All Nodes Distance K in Binary Tree**: `child -> parent` dict keyed by node, then BFS.
 - **G-105 Construct Binary Tree from Preorder and Inorder Traversal**: `value -> inorder index` dict for O(1) splits.

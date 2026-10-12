@@ -235,6 +235,19 @@ else:
 assert broke
 
 
+def silent_best(root):
+    best = 0
+
+    def go(node):
+        best = node.val              # no error: binds a NEW local; the outer best is untouched
+
+    go(root)
+    return best
+
+
+assert silent_best(TreeNode(7)) == 0   # wrong answer, no exception: also fixed by `nonlocal best`
+
+
 def lca(root, p, q):                 # G-236: p and q are nodes in the tree
     if root is None or root is p or root is q:
         return root
@@ -456,19 +469,21 @@ assert kth_smallest(build_tree([5, 3, 6, 2, 4, None, None, 1]), 3) == 3
 
 
 def bst_insert(root, val):           # iterative, ignores duplicates
-    new = TreeNode(val)
     if root is None:
-        return new
+        return TreeNode(val)
     node = root
-    while True:
-        if val == node.val:
-            return root
-        side = "left" if val < node.val else "right"
-        child = getattr(node, side)
-        if child is None:
-            setattr(node, side, new)
-            return root
-        node = child
+    while node.val != val:
+        if val < node.val:
+            if node.left is None:
+                node.left = TreeNode(val)
+                return root
+            node = node.left
+        else:
+            if node.right is None:
+                node.right = TreeNode(val)
+                return root
+            node = node.right
+    return root
 
 
 def bst_search(root, val):           # O(H)
@@ -601,18 +616,21 @@ int main() {
 |---|---|---|
 | DFS (any order), recursive or iterative | O(N) | O(H) stack |
 | BFS level order | O(N) | O(W), W = widest level |
-| Height H | balanced: O(log N) | skewed: O(N) |
 | BST search / insert / delete | O(H) | O(1) iterative |
-| Validate BST (bounds or in-order) | O(N) | O(H) |
+| Validate BST with bounds | O(N) | O(H) |
+| Validate BST via a stored in-order list | O(N) | O(N) for the list |
 | K-th smallest in a BST | O(H + k) | O(H) |
 | Diameter, max path sum, height | O(N) | O(H) |
 | LCA by post-order | O(N) per query | O(H) |
 | Binary lifting build | O(N log N) | O(N log N) |
 | Binary lifting k-th ancestor / LCA query | O(log N) | O(1) |
 
+- **H** (tree height) is O(log N) when the tree is balanced and O(N) when it is skewed.
+
 ## Gotchas for C++ developers
 
-- Assigning to an outer variable inside a nested function raises **UnboundLocalError**. Add `nonlocal`.
+- Assigning to an outer name inside a nested function makes it **local** to that function. Add `nonlocal`.
+- Without it, `count += 1` raises **UnboundLocalError**, and `best = x` fails silently: outer `best` never changes.
 - Mutating an outer list (`out.append`) needs no `nonlocal`; rebinding a name (`best = ...`) does.
 - Recursion limit is **1000**: a skewed tree of 10^4 nodes raises RecursionError. Use a stack or BFS.
 - `sys.setrecursionlimit` raises the cap, but recursion through C code such as `@cache` can still fail.

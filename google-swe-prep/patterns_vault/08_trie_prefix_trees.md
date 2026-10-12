@@ -191,7 +191,7 @@ class AutocompleteSystem:            # G-642
             del node.hot[self.K:]    # counts only grow, so a dropped sentence never returns
                                      # unless its own count grows, which re-adds it here
 
-    def input(self, c):              # LeetCode's name; it shadows the builtin only in the class
+    def input(self, c):              # LeetCode's name; methods still see the builtin input()
         if c == "#":
             self._add("".join(self.typed), 1)
             self.typed = []
@@ -307,9 +307,9 @@ int main() {
 | Build from words | O(total chars) | O(total chars) nodes |
 | Word Search II | O(R * C * 4 * 3^(L-1)) worst case | O(total chars) + O(L) stack |
 | Autocomplete keystroke (cached `hot`) | O(1) step + O(K) copy | |
-| Autocomplete `#` (record a sentence) | O(L * K log K) | O(L * K) cached strings |
+| Autocomplete `#` (record a sentence) | O(L * K log K) | O(L) new nodes; each node keeps at most K references |
 | Autocomplete without a cache | O(subtree size + m log K) per keystroke | m = matches |
-| Sorted list + `bisect` instead of a trie | O(L log N + matches * L) per query | O(N) insert into the list |
+| Sorted list + `bisect` instead of a trie | O(L log N + matches * L) per query, O(N) per insert | O(total chars) |
 
 ## Gotchas for C++ developers
 

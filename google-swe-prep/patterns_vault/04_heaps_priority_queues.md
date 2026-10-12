@@ -129,7 +129,7 @@ int main() {
 import heapq
 
 
-class ListNode:                      # defines no "<": two nodes cannot be compared
+class ListNode:                      # defines no "<": two nodes cannot be ordered
     def __init__(self, val=0, next=None):
         self.val = val
         self.next = next
@@ -374,7 +374,7 @@ assert get_order([[7, 10], [7, 12], [7, 5], [7, 4], [7, 2]]) == [4, 3, 2, 0, 1]
 - Tuples compare field by field. A tie falls through to the next field; an unorderable one raises **TypeError**.
 - Fix: put a unique index before the object, as in `(val, i, node)`.
 - No decrease-key and no erase. Push a new entry and skip stale ones on pop (**lazy deletion**).
-- Changing `h[i]` in place breaks the heap invariant. Call `heapify(h)` again (O(N)).
+- Changing `h[i]` in place can break the heap invariant. Call `heapify(h)` again (O(N)).
 - `heapreplace` returns the old min even when the new item is smaller. `heappushpop` returns the smaller of the two.
 - Meeting rooms: decide if `[s, e)` touching intervals overlap. `ends[0] <= start` means they do not.
 

@@ -381,7 +381,7 @@ int main() {
 
 - `st.pop()` **returns** the value. No `top()` then `pop()` pair; `st.top()` does not exist.
 - `st[-1]` on an empty list raises `IndexError`. Write `while st and a[st[-1]] < x:`; `and` short-circuits.
-- Store **indexes** when you need a distance or width (G-739, G-84). Store values only when the answer is a value.
+- Store **indexes** to fill `ans[popped]` or a width (G-739, G-84). Store values only if pops write nothing (G-1944).
 - `<` vs `<=` in the pop condition decides how **duplicates** behave. Test `[2, 2]` and `[1, 1]`.
 - `heights.append(0)` as a sentinel mutates the caller's list. Use an `i == n` check, or `heights + [0]` (an O(N) copy).
 - Default recursion limit is 1000 frames. `sys.setrecursionlimit` raises it, but very deep recursion can still crash.

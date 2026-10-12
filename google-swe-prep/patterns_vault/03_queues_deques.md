@@ -479,7 +479,7 @@ int main() {
 
 - `list.pop(0)` is **O(N)**. A BFS that uses a list as its queue can degrade to O(V^2). Use `deque.popleft()`.
 - **Mark on push.** Marking on pop still gives correct distances, but a node can be queued once per incoming edge.
-- Marking on pop also breaks counters such as `fresh -= 1` in G-994: the same cell is counted twice.
+- Marking on pop also breaks counters such as `fresh -= 1` in G-994: a cell queued twice can be counted twice.
 - `deque.pop()` removes the **right** end. `std::queue::pop()` removes the front; the Python twin is `popleft()`.
 - No `.front()`, `.back()`, `.top()` or `.empty()`. Use `dq[0]`, `dq[-1]`, `not dq`.
 - `dq[0]` on an empty deque raises `IndexError`: write `while dq and nums[dq[-1]] <= x:`.
@@ -499,8 +499,8 @@ int main() {
 - **G-127 Word Ladder**: level-order BFS; words in a `set`, mark on push.
 - **G-126 Word Ladder II**: BFS layer by layer building a parent map, then backtrack every path.
 - **G-815 Bus Routes**: BFS where the nodes are routes; each route is visited once.
-- **G-787 Cheapest Flights Within K Stops**: BFS by stops, at most K + 1 levels.
-- **G-2045 Second Minimum Time to Reach Destination**: BFS keeping two distinct arrival counts per node.
+- **G-787 Cheapest Flights Within K Stops**: K + 1 BFS levels; no visited set, re-push a city when its cost drops.
+- **G-2045 Second Minimum Time to Reach Destination**: BFS keeping the two smallest distinct edge counts per node.
 - **G-863 All Nodes Distance K in Binary Tree**: parent map, then BFS K levels from the target.
 - **G-199 Binary Tree Right Side View**: level order; take the last node of each level.
 - **G-103 Binary Tree Zigzag Level Order Traversal**: level order; `appendleft` on odd levels.

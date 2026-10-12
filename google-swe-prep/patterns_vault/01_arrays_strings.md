@@ -235,8 +235,8 @@ assert find_duplicate([3, 1, 3, 4, 2]) == 3
 
 ### Sliding window: variable size
 
-- Grow `r` every step. **Shrink** `l` while the window is invalid. Each index enters once and leaves once: O(N).
-- Needs **monotonic validity**: shrinking must only ever help. Counts and sums of non-negative numbers qualify.
+- Grow `r` each step. **Shrink** `l` while invalid (longest) or still valid (shortest). Each index enters and leaves once: O(N).
+- Needs **monotonic validity**: growing only ever breaks it, or only ever fixes it. Counts and sums of non-negatives qualify.
 
 ```python
 import math
@@ -300,7 +300,7 @@ assert min_window("a", "aa") == ""
 
 ### Exactly K = atMost(K) - atMost(K - 1)
 
-- "**Exactly K**" is not monotonic: shrinking can break it either way. "**At most K**" is.
+- "**Exactly K**" is not monotonic: growing **and** shrinking can both break it. "**At most K**" is.
 - In an at-most window, every subarray ending at `r` and starting in `[l, r]` is valid: add `r - l + 1`.
 
 ```python
@@ -403,6 +403,7 @@ C++ side by side:
 #include <algorithm>
 #include <cassert>
 #include <string>
+#include <utility>
 #include <vector>
 
 int longestUnique(const std::string& s) {
