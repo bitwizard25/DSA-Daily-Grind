@@ -64,8 +64,8 @@ for _ in range(200):
 ### Top-down: `@cache` vs `@lru_cache`
 
 - `@functools.cache` (3.9+) equals `@lru_cache(maxsize=None)`: unbounded, never evicts.
-- Bare `@lru_cache` has **maxsize=128** and evicts states. LCS of two 200-char strings: 28 thousand calls
-  with `@cache`, over 18 million with bare `@lru_cache` (measured).
+- Bare `@lru_cache` has **maxsize=128** and evicts states. LCS of two random 200-char strings over `abcd`:
+  about 28 thousand calls with `@cache`, 19 to 30 million with bare `@lru_cache` (measured).
 - Arguments are the key: they must be **hashable**. Cache on indices, not on lists or slices.
 
 ```python
@@ -360,7 +360,7 @@ def can_partition_wrong(nums):       # BUG: upward loop
 assert can_partition([1, 5, 11, 5])
 assert not can_partition([1, 2, 3, 5])
 assert not can_partition([1, 2, 5])              # sum 8: no subset makes 4
-assert can_partition_wrong([1, 2, 5])            # wrong: 2 + 2 uses the 2 twice
+assert can_partition_wrong([1, 2, 5])            # wrong: 1 + 1 + 1 + 1 reuses the 1
 
 
 def can_partition_bits(nums):        # a Python int as a growable bitset
@@ -649,16 +649,29 @@ int main() {
 | `dp[i]` reads | Keep | Example |
 |---|---|---|
 | `dp[i-1]`, `dp[i-2]` | two variables | House Robber, Decode Ways |
-| the previous row only | two rows `prev`, `cur` | LCS, Unique Paths |
-| previous row + the diagonal | one row + a `diag` variable | Edit Distance |
+| up and left only | one row, ascending: `row[c] += row[c - 1]` | Unique Paths |
+| up, left and the up-left diagonal | two rows `prev`, `cur`, or one row + a `diag` variable | LCS, Edit Distance |
 | previous row, each item once | one row, loop **descending** | 0/1 knapsack |
 
 - Put the **shorter** string on the row: O(min(M, N)) space.
 - A compressed table cannot rebuild the answer path. Keep the full table if you must print it.
 
 ```python
+import math
 import random
 from functools import cache
+
+
+def unique_paths_one_row(m, n):      # row[c] still holds "up" until we add "left"
+    row = [1] * n
+    for _ in range(1, m):
+        for c in range(1, n):
+            row[c] += row[c - 1]
+    return row[-1]
+
+
+assert unique_paths_one_row(3, 7) == 28 == math.comb(8, 2)
+assert unique_paths_one_row(1, 1) == 1
 
 
 def lcs_two_rows(a, b):
@@ -727,10 +740,11 @@ for _ in range(300):
 | Recursion style | Default limit (1000) | After `sys.setrecursionlimit(10**6)` (measured) |
 |---|---|---|
 | plain recursion, dict memo | RecursionError near depth 1000 | works; tested to 200,000 on 3.11, 3.12, 3.13 |
-| `@cache` / `@lru_cache` | RecursionError near depth 1000 | 3.12.3, 3.13.16: RecursionError near 3,300 |
-| `@cache` / `@lru_cache` | RecursionError near depth 1000 | 3.11: segfault (crashed at 20,000) |
+| `@cache` / `@lru_cache` on 3.12, 3.13 | RecursionError near depth 1000 | RecursionError near depth 3,300 |
+| `@cache` / `@lru_cache` on 3.11 | RecursionError near depth **500** | segfault (crashed at 20,000) |
 
 - The `@cache` wrapper is C code. 3.12+ caps C-level recursion on its own; 3.11 can overflow the C stack.
+- On 3.11 the C call through the wrapper also counts toward the limit: 2 per level, so about 500 levels.
 - Recursing inside `max(gen)` or `sum(gen)` also passes through C: a similar cap of a few thousand levels.
 
 ```python

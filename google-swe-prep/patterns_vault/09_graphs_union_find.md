@@ -117,7 +117,7 @@ assert num_islands([list("11000"), list("11000"), list("00100"), list("00011")])
 assert num_islands([list("1" * 3000)]) == 1          # deep island, no recursion
 
 
-def fill_recursive(grid, r, c):      # the textbook version: one frame per cell
+def fill_recursive(grid, r, c):      # textbook version: 2 frames per cell (call + genexpr)
     if not (0 <= r < len(grid) and 0 <= c < len(grid[0])) or grid[r][c] != "1":
         return 0
     grid[r][c] = "0"
@@ -351,7 +351,7 @@ def minimum_effort_path(heights):                     # G-1631: path cost = larg
                 if ne < best[nr][nc]:
                     best[nr][nc] = ne
                     heapq.heappush(heap, (ne, nr, nc))
-    return -1                                         # unreachable: the target is always reachable
+    return -1                                         # never runs: every cell is reachable
 
 
 assert minimum_effort_path([[1, 2, 2], [3, 8, 2], [5, 3, 5]]) == 2
@@ -771,7 +771,7 @@ assert find_itinerary([["JFK", "KUL"], ["JFK", "NRT"], ["NRT", "JFK"]]) == \
 | `vector<vector<int>> adj(n)` | `adj = [[] for _ in range(n)]` | O(N) |
 | `unordered_map<string, vector<string>> adj` | `adj = defaultdict(list)` | average O(1) per append |
 | `adj.count(u)` (no insert) | `u in adj`, `adj.get(u, [])` | average O(1) |
-| `vector<bool> seen(n)` / `unordered_set` | `[False] * n` / `set()` | O(1) / average O(1) |
+| `vector<bool> seen(n)` / `unordered_set` | `[False] * n` / `set()` | O(N) to build; check O(1) / average O(1) |
 | `vector<vector<bool>> seen(r, vector<bool>(c))` | `[[False] * c for _ in range(r)]` | O(R * C) |
 | `int dr[4], dc[4]` | `DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))` | O(1) |
 | `queue<int>`: `front()`, `pop()` | `deque`: `q[0]`, `q.popleft()` | O(1) |
@@ -793,7 +793,7 @@ assert find_itinerary([["JFK", "KUL"], ["JFK", "NRT"], ["NRT", "JFK"]]) == \
 | DFS / BFS (R x C grid) | O(R * C) | O(R * C) |
 | Kahn / DFS 3-colour topological sort | O(V + E) | O(V) |
 | Dijkstra with `heapq` + stale skip | O((V + E) log V) | O(V + E) heap |
-| Bellman-Ford limited to K + 1 rounds | O((K + 1) * E) | O(V) |
+| Bellman-Ford limited to K + 1 rounds | O((K + 1) * (V + E)): `dist[:]` is O(V) per round | O(V) |
 | Full Bellman-Ford | O(V * E) | O(V) |
 | Union-find: compression + union by size | O(α(N)) amortized per op | O(N) |
 | Union-find: path compression only | O(log N) amortized per op | O(N) |
@@ -825,7 +825,8 @@ assert find_itinerary([["JFK", "KUL"], ["JFK", "NRT"], ["NRT", "JFK"]]) == \
 - **Flood fill / components:** G-200 Number of Islands, G-547 Number of Provinces, G-133 Clone Graph.
 - **Flood fill variants:** G-417 Pacific Atlantic Water Flow, G-827 Making A Large Island.
 - **BFS shortest path:** G-994 Rotting Oranges, G-127 Word Ladder, G-126 Word Ladder II, G-815 Bus Routes.
-- **BFS with extra state:** G-2045 Second Minimum Time to Reach Destination, G-2812 Find the Safest Path in a Grid.
+- **BFS with extra state:** G-2045 Second Minimum Time to Reach Destination (2 best times per node).
+- **Multi-source BFS + max-min path:** G-2812 Find the Safest Path in a Grid.
 - **Topological sort:** G-207 Course Schedule, G-210 Course Schedule II, G-269 Alien Dictionary.
 - **Topological variants:** G-444 Sequence Reconstruction, G-310 Minimum Height Trees (leaf peeling).
 - **DAG longest path (DFS + memo):** G-329 Longest Increasing Path in a Matrix.
