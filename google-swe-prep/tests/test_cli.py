@@ -151,7 +151,8 @@ def test_setup_remind_version_hot_add():
     out = run("setup", "--name", "Raj", "--interview-date", "2026-11-30", "--target", "Google Hyderabad SWE II").output
     assert "Interview: 2026-11-30" in out
     assert "49 days to interview" in run("today").output
-    assert "google-prep today" in run("remind").output
+    reminders = run("remind").output  # Windows quotes the exe path: cmd /k "google-prep" today
+    assert "google-prep" in reminders and " today" in reminders
     assert runner.invoke(app, ["remind", "--morning", "7am"]).exit_code == 2
     assert "1.0.0" in run("--version").output
     assert "Run: google-prep sync" in run("hot").output
