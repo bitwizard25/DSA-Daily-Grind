@@ -211,3 +211,145 @@ def test_window_handoff_falls_back_to_heartbeat(monkeypatch):
     monkeypatch.setattr(launcher, "HEARTBEAT_TIMEOUT", 0)
     assert launcher.main([]) == 0
     assert calls == ["wait"]
+
+
+# ---- review fixes: sessions are never silently lost ---------------------------------------------
+def _submitted_mock(api):
+    pid = api.mock_target()["problem"]["id"]
+    api.mock_start(pid, practice=True)
+    api.mock_scorecard(pid, True, 60, 1500.0, [False] * 4, -1)
+    return pid
+
+
+def test_starting_drills_never_overwrites_an_unfinished_mock(api):
+    pid = _submitted_mock(api)
+    res = api.recall_start("warmup", 3)  # e.g. Enter on Today's warmup card
+    assert "scorecard not finished" in res["conflict"]["text"]
+    assert api.state()["session"]["problem_id"] == pid  # untouched
+    assert api.mock_start(resume=True)["submitted"]  # still resumable straight into the scorecard
+    started = api.recall_start("warmup", 3, discard=True)  # the user chose to discard it
+    assert started["drills"] and api.state()["session"]["kind"] == "recall"
+
+
+def test_starting_a_mock_never_overwrites_unfinished_drills(api):
+    first = api.recall_start("warmup", 3)["drills"][0]["id"]
+    api.recall_grade(first, "2", 10.0)
+    assert "conflict" in api.mock_start(api.mock_target()["problem"]["id"])
+    assert api.recall_start(resume=True)["index"] == 1
+
+
+def test_same_problem_resumes_instead_of_conflicting(api):
+    pid = api.mock_target()["problem"]["id"]
+    api.mock_start(pid)
+    api.mock_save(pid, False, 45, 300.0, [True, False, False, False], -1)
+    again = api.mock_start(pid)  # picked the same problem again from the bank
+    assert again["elapsed"] == 300.0 and again["ticks"][0]
+
+
+def test_grading_a_drill_credits_the_day_at_once(api, session):
+    from google_prep.core import scheduler
+    from conftest import NOW
+
+    drill = api.recall_start("warmup", 3)["drills"][0]["id"]
+    api.recall_grade(drill, "3", 5.0)  # then the window is closed: no recall_finish
+    assert scheduler.schedule_for(session, NOW.date()).morning_completed
+
+
+def test_discard_keeps_credit_for_graded_drills(api, session):
+    from google_prep.core import scheduler
+    from conftest import NOW
+
+    drill = api.recall_start("warmup", 3)["drills"][0]["id"]
+    api.recall_grade(drill, "2", 30.0)
+    api.session_discard()
+    assert api.state()["session"] is None
+    assert scheduler.schedule_for(session, NOW.date()).morning_completed
+
+
+def test_micro_mode_does_not_stick_for_the_whole_day(api):
+    from conftest import NOW
+
+    late = Api(now=lambda: NOW.replace(hour=19, minute=30))
+    start = late.recall_start("micro")
+    for d in start["drills"]:
+        late.recall_grade(d["id"], "2", 10.0)
+    late.recall_finish("micro", {"1": 0, "2": len(start["drills"]), "3": 0}, 300)
+    assert late.today()["kind"] == "deep"  # the evening solve is still offered
+    assert late.today("full")["kind"] == "deep"
+
+
+def test_a_mock_that_runs_past_midnight_counts_for_the_day_it_began(home):
+    from datetime import datetime
+
+    from google_prep.core import scheduler
+    from google_prep.db import get_session
+    from google_prep.models import Attempt
+    from sqlmodel import select
+
+    clock = {"t": datetime(2026, 10, 12, 23, 20)}
+    api = Api(now=lambda: clock["t"])
+    pid = api.mock_target()["problem"]["id"]
+    api.mock_start(pid, practice=True)
+    clock["t"] = datetime(2026, 10, 13, 0, 25)
+    api.mock_scorecard(pid, True, 60, 3600.0, [False] * 4, -1)
+    api.mock_grade(pid, True, 60, 3600.0, "2", {"dry_run_passed": True}, None, -1)
+    with get_session() as s:
+        assert scheduler.schedule_for(s, datetime(2026, 10, 12).date()).evening_completed
+        assert not scheduler.schedule_for(s, datetime(2026, 10, 13).date()).evening_completed
+        assert {a.day for a in s.exec(select(Attempt)).all()} == {"2026-10-12"}
+
+
+def test_mock_grade_rejects_an_unknown_outcome(api):
+    pid = api.mock_target()["problem"]["id"]
+    with pytest.raises(ApiError):
+        api.mock_grade(pid, False, 45, 100.0, "9", {}, None, -1)
+
+
+# ---- review fixes: server and launcher ----------------------------------------------------------
+def test_static_types_do_not_depend_on_the_os_registry(server, monkeypatch):
+    import mimetypes
+
+    monkeypatch.setattr(mimetypes, "guess_type", lambda *a, **k: ("text/plain", None))  # a broken Windows registry
+    res, _ = _request(server, "GET", "/app.js")
+    assert res.getheader("Content-Type") == "text/javascript; charset=utf-8"
+    assert _request(server, "GET", "/app.css")[0].getheader("Content-Type") == "text/css; charset=utf-8"
+
+
+def test_old_commands_open_the_window_on_their_screen(monkeypatch):
+    urls = []
+
+    class Quick:
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(launcher, "open_window", lambda url: urls.append(url) or Quick())
+    monkeypatch.setattr(launcher, "HEARTBEAT_TIMEOUT", 0)
+    assert launcher.main(["today"]) == 0  # what old reminders run
+    assert launcher.main(["recall"]) == 0
+    assert "#/" not in urls[0] and urls[1].endswith("#/recall")
+    with pytest.raises(SystemExit) as exc:
+        launcher.main(["add", "two-sum"])  # terminal-only commands get a clear message
+    assert exc.value.code == 2
+
+
+def test_selftest_reports_failure_instead_of_raising(monkeypatch, tmp_path, home):
+    from google_prep.gui import server as server_mod
+
+    monkeypatch.setattr(server_mod, "STATIC", tmp_path)  # a bundle without its static files
+    assert launcher.selftest() == 1
+    assert "Traceback" in (home / "selftest.log").read_text()
+
+
+def test_reminders_open_the_window_when_installed(monkeypatch, tmp_path):
+    import sys
+
+    from google_prep.modules import remind
+
+    cli = tmp_path / "google-prep-cli.exe"
+    gui = tmp_path / "google-prep.exe"
+    cli.write_bytes(b"")
+    gui.write_bytes(b"")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(cli))
+    line = remind.commands("07:30", "19:30", "windows")[0]
+    assert str(gui) in line and "cmd /k" not in line

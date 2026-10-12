@@ -196,7 +196,8 @@ function markNav(name) {
     else b.removeAttribute("aria-current");
   }
 }
-function setCrumbs(parts) {
+function setCrumbs(parts, ctx) {
+  if (ctx && !ctx.alive()) return; // a slow, abandoned page must not relabel the one you moved to
   const nodes = [];
   (parts || []).forEach((p, i) => {
     if (i) nodes.push(h("span", { class: "sep", "aria-hidden": "true" }, "›"));
@@ -242,6 +243,7 @@ function openModal(title, body, buttons) {
     const prev = document.activeElement;
     const close = (value) => {
       $("#modal-root").replaceChildren();
+      $(".app").inert = false;
       modalState = null;
       if (prev && prev.focus && document.contains(prev)) prev.focus();
       resolve(value);
@@ -254,21 +256,32 @@ function openModal(title, body, buttons) {
       h("h2", null, title), body, h("div", { class: "row" }, h("div", { class: "spacer" }), nodes));
     const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(null); } }, box);
     $("#modal-root").replaceChildren(bg);
+    $(".app").inert = true; // focus and clicks cannot reach the page behind the dialog
     modalState = { close, buttons, box };
     const focus = nodes[buttons.findIndex((b) => b.primary)] || nodes[0];
     if (focus) focus.focus();
   });
 }
-const confirmBox = (title, text, yes, no = "Cancel", danger = false) => openModal(title, h("p", { class: "muted" }, text), [
-  { label: no, value: false, key: "Esc" },
-  { label: yes, value: true, primary: !danger, danger, key: "Enter" },
-]);
+const confirmBox = (title, text, yes, no = "Cancel", danger = false) => openModal(title, h("p", { class: "muted" }, text), danger
+  ? [{ label: no, value: false, key: "Enter" }, { label: yes, value: true, danger: true }] // safe choice is the default
+  : [{ label: no, value: false, key: "Esc" }, { label: yes, value: true, primary: true, key: "Enter" }]);
+
+/** recall_start / mock_start answer {conflict} when another session is unfinished: ask, never overwrite it. */
+function askAboutUnfinished(conflict) {
+  return openModal("You have an unfinished session", h("div", null,
+    h("p", null, conflict.text.replace(/^Session restored: /, "")),
+    h("p", { class: "muted" }, "Starting something new discards it. Drills you already graded still count for the day.")), [
+    { label: "Cancel", value: null },
+    { label: "Discard it and start", value: "discard", danger: true, test: "conflict-discard" },
+    { label: "Continue it", value: "continue", primary: true, key: "Enter", test: "conflict-continue" },
+  ]);
+}
 
 function openHelp() {
   const rows = [
     ["Enter", "Do the highlighted main action"], ["t f d w r s v", "Today · Fast-Track · Drills · Mock · Roadmap · STAR · Vault"],
     ["m", "Micro-Mode (on Today)"], ["Space", "Reveal a drill answer"], ["1 2 3", "Missed · Effort · Instant (also answers lesson exercises)"],
-    ["y / n", "Yes / No on the scorecard"], ["Ctrl+S", "Submit the whiteboard · save a STAR story"],
+    ["y / n", "Yes / No on the scorecard"], ["Ctrl+S", "Save now (whiteboard) · save a STAR story"], ["Ctrl+Enter", "Submit the whiteboard and grade it"],
     ["Alt+1…4", "Tick the live checklist while coding"], ["Tab", "Indent 4 spaces in the code pad"],
     ["Esc", "Leave the code pad · close a dialog · back to Today"], ["?", "This list"],
   ];
@@ -294,7 +307,7 @@ async function openSettings() {
     await api("settings_save", data);
     toast("Settings saved.");
     await refreshState();
-    route();
+    if (!["board", "recall", "star"].includes(S.routeName)) route(); // never restart in-progress work
   } catch (err) { toast(err.message, true); }
 }
 
@@ -319,6 +332,9 @@ async function route() {
   const [path, qs] = raw.split("?");
   const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
   const name = ROUTES[parts[0]] ? parts[0] : "today";
+  S.lastHash = S.currentHash;
+  S.currentHash = location.hash || "#/today";
+  S.routeName = name;
   markNav(name);
   const view = $("#view");
   view.classList.toggle("board-mode", name === "board");
@@ -327,12 +343,18 @@ async function route() {
     const handle = await ROUTES[name](ctx);
     if (seq !== navSeq) { if (handle && handle.cleanup) handle.cleanup(); return; }
     current = handle || {};
+    const active = document.activeElement;
+    if (!active || active === document.body || active.closest(".sidebar")) view.focus({ preventScroll: true });
   } catch (err) {
     if (seq !== navSeq) return;
     mount(ctx, h("div", { class: "page" }, h("div", { class: "empty" }, h("p", null, err.message || String(err)),
       btn("Back to Today", () => go("#/today", { force: true }), { cls: "primary", primary: true, key: "Enter" }))));
     current = {};
   }
+}
+/** Leave a page whose start was cancelled: back where you came from. */
+function goBack() {
+  return go(S.lastHash && S.lastHash !== S.currentHash ? S.lastHash : "#/today", { replace: true, force: true });
 }
 function mount(ctx, ...nodes) {
   if (!ctx.alive()) return false;
@@ -348,12 +370,16 @@ const pageTitle = (title, sub, ...right) => h("div", { class: "page-title" },
 ROUTES.today = async (ctx) => {
   const mode = ctx.query.get("mode") || "normal";
   const [d, st] = await Promise.all([api("today", { mode }), refreshState()]);
-  setCrumbs(d.crumbs);
+  setCrumbs(d.crumbs, ctx);
   const tone = { green: "green", yellow: "yellow" }[d.tone] || "";
+  const unfinished = Boolean(st.session); // finishing it comes first, like the terminal app's launch
   const kicker = { fasttrack: "Phase 0 · C++ → Python", warmup: "Next", deep: "Next", micro: "Never zero", review: "Re-solve", done: "Today" }[d.kind] || "Next";
   const actions = [];
-  if (d.action) actions.push(btn(d.cta, () => runAction(d), { cls: "primary big", primary: true, key: "Enter", test: "primary" }));
-  if (mode === "micro") actions.push(btn("Back to the full plan", () => go("#/today")));
+  if (d.action) {
+    actions.push(btn(d.cta, () => runAction(d), unfinished ? { cls: "big", test: "primary" }
+      : { cls: "primary big", primary: true, key: "Enter", test: "primary" }));
+  }
+  if (mode === "micro") actions.push(btn("Back to the full plan", () => go("#/today?mode=full")));
   else if (d.kind !== "fasttrack") actions.push(btn("Long day? Micro-Mode · 10 min", () => go("#/today?mode=micro"), { key: "m" }));
   const hero = h("section", { class: `hero ${tone}`.trim(), "data-test": "next-card" },
     h("div", { class: "kicker" }, kicker), h("h2", null, d.title),
@@ -362,8 +388,14 @@ ROUTES.today = async (ctx) => {
 
   const resume = st.session ? h("div", { class: "banner resume", "data-test": "resume" },
     h("b", null, "Unfinished"), h("span", { class: "text" }, st.session.text.replace(/^Session restored: /, "")),
-    btn("Continue", () => resumeSession(st.session), { cls: "primary", test: "resume-continue" }),
-    btn("Discard", async () => { await api("session_discard"); toast("Discarded."); route(); }, { cls: "ghost" })) : null;
+    btn("Continue", () => resumeSession(st.session), { cls: "primary", primary: true, key: "Enter", test: "resume-continue" }),
+    btn("Discard", async () => {
+      const ok = await confirmBox("Discard the unfinished session?", `${st.session.text.replace(/^Session restored: /, "")} It cannot be resumed afterwards. Drills you already graded still count.`, "Discard", "Keep it", true);
+      if (!ok) return;
+      await api("session_discard");
+      toast("Discarded.");
+      route();
+    }, { cls: "ghost" })) : null;
 
   const statusRows = d.status.length ? h("div", { class: "status-rows" }, d.status.map((row) => {
     const cls = { Done: "ok-t", Open: "warn-t" }[row.tag] || "muted";
@@ -419,7 +451,7 @@ ROUTES.fasttrack = async (ctx) => {
   const data = await api("fasttrack");
   const dayNo = Number(ctx.parts[1]) || data.current;
   const lesson = data.days.find((x) => x.day === dayNo) || data.days[0];
-  setCrumbs([...data.crumbs, `Day ${lesson.day}: ${lesson.title}`]);
+  setCrumbs([...data.crumbs, `Day ${lesson.day}: ${lesson.title}`], ctx);
   const started = performance.now();
   const results = Object.fromEntries(lesson.exercises.map((e) => [e.id, e.result]));
   const fresh = new Set(); // exercises answered during this visit
@@ -549,8 +581,16 @@ ROUTES.fasttrack = async (ctx) => {
 // ---------------------------------------------------------------- Recall drills
 ROUTES.recall = async (ctx) => {
   const mode = ctx.query.get("mode") || "warmup";
-  const data = await api("recall_start", { mode, count: 5, resume: ctx.query.get("resume") === "1" });
-  setCrumbs(data.crumbs);
+  const request = { mode, count: 5, resume: ctx.query.get("resume") === "1" };
+  let data = await api("recall_start", request);
+  if (data.conflict) {
+    const choice = await askAboutUnfinished(data.conflict);
+    if (!ctx.alive()) return {};
+    if (choice === "continue") { resumeSession(data.conflict); return {}; }
+    if (choice !== "discard") { goBack(); return {}; }
+    data = await api("recall_start", { ...request, discard: true });
+  }
+  setCrumbs(data.crumbs, ctx);
   const title = data.mode === "micro" ? "Micro-Mode drills" : "Morning warmup";
   if (!data.drills.length) {
     mount(ctx, h("div", { class: "page" }, pageTitle(title),
@@ -584,7 +624,8 @@ ROUTES.recall = async (ctx) => {
     const ringSlot = h("div", { class: "ring-slot" });
     const work = h("div", { class: "work" },
       h("div", { class: "think" }, h("div", null, "1. Which pattern?"), h("div", null, "2. Time and space?"), h("div", null, "3. One edge case?")),
-      h("div", { class: "actions" }, btn("Reveal answer", reveal, { cls: "primary big", primary: true, key: "Space", test: "reveal" })));
+      h("div", { class: "actions" }, btn("Reveal answer", reveal, { cls: "primary big", primary: true, key: "Space", test: "reveal" }),
+        btn("Stop here", stopEarly, { cls: "ghost", key: "Esc", test: "stop" })));
     const left = h("div", null, h("div", { class: "row" }, h("span", { class: "kicker" }, label), h("span", { class: "muted small" }, `Drill ${index + 1} of ${data.drills.length}`)),
       dots, promptNodes, work);
     mount(ctx, h("div", { class: "page" }, pageTitle(title, "Name the pattern and complexity out loud, then reveal. Be honest when you grade."),
@@ -637,7 +678,17 @@ ROUTES.recall = async (ctx) => {
     } catch (err) { toast(err.message, true); } finally { busy = false; }
   }
 
+  async function stopEarly() {
+    if (phase === "done") return;
+    if (Object.values(counts).some((n) => n > 0)) { await finish(); return; } // log what was done, like [q] in the terminal
+    stop();
+    phase = "done";
+    await api("session_discard");
+    go("#/today", { force: true });
+  }
+
   async function finish() {
+    if (phase === "done") return;
     stop();
     phase = "done";
     const seconds = carried + (performance.now() - sessionStart) / 1000;
@@ -658,6 +709,7 @@ ROUTES.recall = async (ctx) => {
     onKey(e, typing) {
       if (typing || e.ctrlKey || e.altKey || e.metaKey) return false;
       if (e.key === " " && phase === "think") { $('[data-test="reveal"]').click(); return true; }
+      if (e.key === "Escape" && phase !== "done") { stopEarly(); return true; }
       if (phase === "reveal" && ["1", "2", "3"].includes(e.key)) { grade(e.key); return true; }
       return false;
     },
@@ -668,7 +720,7 @@ ROUTES.recall = async (ctx) => {
 ROUTES.mock = async (ctx) => {
   const topic = ctx.query.get("topic") || "all";
   const [target, list] = await Promise.all([api("mock_target", { topic }), api("problems")]);
-  setCrumbs(target.crumbs);
+  setCrumbs(target.crumbs, ctx);
   let chosen = target.problem;
   let filter = ctx.query.get("show") || "all";
   let search = "";
@@ -753,7 +805,14 @@ ROUTES.board = async (ctx) => {
     if (!sess || sess.kind !== "mock") { go("#/mock", { replace: true, force: true }); return {}; }
     opts = { resume: true };
   }
-  const data = await api("mock_start", opts);
+  let data = await api("mock_start", opts);
+  if (data.conflict) {
+    const choice = await askAboutUnfinished(data.conflict);
+    if (!ctx.alive()) return {};
+    if (choice === "continue") { resumeSession(data.conflict); return {}; }
+    if (choice !== "discard") { goBack(); return {}; }
+    data = await api("mock_start", { ...opts, discard: true });
+  }
   const p = data.problem;
   const B = {
     problem_id: p.id, practice: data.practice, minutes: data.minutes, elapsed: data.elapsed,
@@ -765,7 +824,7 @@ ROUTES.board = async (ctx) => {
   let last = performance.now();
   let lastSaved = 0;
   if (data.submitted) return scorecard(ctx, B, data);
-  setCrumbs(data.crumbs);
+  setCrumbs(data.crumbs, ctx);
 
   const clockText = h("span");
   const pausedTag = h("span", { class: "paused", hidden: true }, "paused");
@@ -830,7 +889,7 @@ ROUTES.board = async (ctx) => {
     paint();
     if (!B.done && ((!B.practice && frac >= RUBRIC_AT) || (B.practice && frac >= 1))) {
       toast(B.practice ? "Time. Grade yourself." : "40:00. Stop coding: scorecard time.");
-      submit();
+      submit(true);
       return;
     }
     if (now - lastSaved > 5000) save(dirty);
@@ -862,9 +921,15 @@ ROUTES.board = async (ctx) => {
     clearTimeout(saveTimer);
     document.removeEventListener("visibilitychange", onVisibility);
   }
-  async function submit() {
+  async function submit(auto = false) {
     if (B.done) return;
+    const limit = B.practice ? total : total * RUBRIC_AT;
+    if (!auto && B.elapsed < limit) {
+      const ok = await confirmBox("Submit and grade now?", `${mmss(limit - B.elapsed)} of coding time is left. After grading you cannot go back to this attempt.`, "Submit & grade", "Keep coding");
+      if (!ok || B.done) return;
+    }
     B.done = true;
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); // typing must not answer the scorecard
     stopAll();
     await save(true);
     if (current) current.beforeLeave = null;
@@ -893,7 +958,7 @@ ROUTES.board = async (ctx) => {
     h("section", { class: "card checklist" }, h("h2", null, "Live interview checklist"), checks.map((c) => c.label)),
     DEBUG ? btn("+5 min (debug)", () => { B.elapsed += 300; tick(); }, { cls: "ghost small", test: "ff" }) : null);
   const right = h("div", { class: "wb-right" },
-    h("div", { class: "tabs", role: "tablist" }, tabCode, tabTrace, h("span", { class: "hint" }, savedTag, " · Tab = 4 spaces · Esc leaves the pad")),
+    h("div", { class: "tabs", role: "tablist" }, tabCode, tabTrace, h("span", { class: "hint" }, savedTag, " · Ctrl+S saves · Tab = 4 spaces · Esc leaves the pad")),
     code, trace);
 
   mount(ctx, h("div", { class: "page wb" },
@@ -901,7 +966,7 @@ ROUTES.board = async (ctx) => {
       h("div", null, h("div", { class: "muted small" }, B.practice ? `Timed solve · ${B.minutes} min` : "Mock interview · 45 min"), clock),
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
       h("div", { class: "row" }, pauseBtn, btn("Abandon", abandon, { cls: "ghost" }),
-        btn("Submit & grade", submit, { cls: "primary", key: "Ctrl+S", test: "submit" }))),
+        btn("Submit & grade", () => submit(), { cls: "primary", key: "Ctrl+Enter", test: "submit" }))),
     banner, h("div", { class: "wb-body" }, left, right)));
   renderBanner();
   paint();
@@ -919,7 +984,8 @@ ROUTES.board = async (ctx) => {
       return confirmBox("Leave the whiteboard?", "Your code, trace and clock are saved. Continue later from Today.", "Leave", "Stay");
     },
     onKey(e, typing) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { submit(); return true; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { clearTimeout(saveTimer); save(true).then(() => toast("Saved.")); return true; }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { submit(); return true; }
       if (e.altKey && ["1", "2", "3", "4"].includes(e.key)) {
         const i = Number(e.key) - 1;
         B.ticks[i] = !B.ticks[i];
@@ -964,7 +1030,7 @@ async function scorecard(ctx, B, data) {
     problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, ticks: B.ticks, shown: B.shown,
   });
   if (!ctx.alive()) return {};
-  setCrumbs(sc.crumbs);
+  setCrumbs(sc.crumbs, ctx);
   const answers = { outcome: null, checks: {}, mistake: null };
   let step = 0;
   let needsMistake = false;
@@ -1041,7 +1107,10 @@ async function scorecard(ctx, B, data) {
         return h("li", { class: i === step ? "now" : null }, h("span", null, label), h("b", { class: cls || null }, val || (i === step ? "…" : "")));
       })));
   }
+  let finishing = false;
   async function finish() {
+    if (finishing) return; // a double click or a repeated key must not log the attempt twice
+    finishing = true;
     keyHandler = () => false;
     main.replaceChildren(h("p", { class: "muted" }, "Saving…"));
     let res;
@@ -1050,7 +1119,7 @@ async function scorecard(ctx, B, data) {
         problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, outcome: answers.outcome,
         checks: answers.checks, mistake: answers.mistake, shown: B.shown,
       });
-    } catch (err) { toast(err.message, true); step -= 1; render(); return; }
+    } catch (err) { toast(err.message, true); finishing = false; step -= 1; render(); return; }
     await refreshState();
     showResult(ctx, res, B, data);
     handle.onKey = () => false;
@@ -1059,9 +1128,11 @@ async function scorecard(ctx, B, data) {
     pageTitle(B.practice ? "Self-grade" : "Scorecard", B.practice ? "Be strict: only a trace that matched counts." : "40:00–45:00 · Google's four pillars, yes or no.", h("span", { class: "chip" }, data.problem.title)),
     h("div", { class: "score-wrap" }, main, side)));
   render();
+  const keysFrom = performance.now() + 800; // keystrokes still in flight from the code pad are not answers
   const handle = {
     onKey(e, typing) {
       if (typing || e.ctrlKey || e.altKey || e.metaKey) return false;
+      if (performance.now() < keysFrom) return true;
       if (e.key === "Backspace") { back(); return true; }
       return keyHandler(e.key.toLowerCase());
     },
@@ -1093,7 +1164,7 @@ function showResult(ctx, res, B, data) {
 // ---------------------------------------------------------------- Roadmap
 ROUTES.roadmap = async (ctx) => {
   const r = await api("roadmap");
-  setCrumbs(r.crumbs);
+  setCrumbs(r.crumbs, ctx);
   const comps = h("div", null, r.components.map((c) => h("div", { class: "meter" },
     h("span", null, c.name, h("span", { class: "muted small" }, ` · ${c.weight}%`)), bar(c.value, toneFor(c.value)), h("span", { class: "val" }, `${Math.round(c.value * 100)}%`))));
   const change = r.weekly_change;
@@ -1142,20 +1213,30 @@ function sparkline(values) {
 // ---------------------------------------------------------------- STAR stories
 ROUTES.star = async (ctx) => {
   let data = await api("star_list");
-  setCrumbs(data.crumbs);
+  setCrumbs(data.crumbs, ctx);
   let selected = ctx.parts[1] ? Number(ctx.parts[1]) : null;
   let dim = (data.dimensions.find((d) => d.count < data.need) || data.dimensions[0]).key;
   const leftCol = h("div", { class: "star-left" });
   const editor = h("section", { class: "card star-editor" });
   let form = null;
+  let dirty = false;
+  const okToDrop = async () => !dirty
+    || confirmBox("Discard your unsaved changes?", "This story has changes that are not saved yet.", "Discard", "Keep editing", true);
+  async function open(id) {
+    if (!(await okToDrop())) return false;
+    selected = id;
+    renderLeft();
+    renderEditor();
+    return true;
+  }
 
   function renderLeft() {
     leftCol.replaceChildren(
       h("section", { class: "card" }, h("h2", null, `Coverage · ${data.need} per dimension`), data.dimensions.map((d) => h("div", { class: "meter" },
         h("span", null, d.key), bar(Math.min(1, d.count / data.need), d.count >= data.need ? "green" : "yellow"), h("span", { class: "val" }, `${d.count}/${data.need}`)))),
-      h("div", { class: "row" }, btn("New story", () => { selected = null; renderEditor(); }, { key: "n", cls: "primary" }), btn("Practice a prompt", practice, { key: "p" })),
+      h("div", { class: "row" }, btn("New story", () => open(null), { key: "n", cls: "primary" }), btn("Practice a prompt", practice, { key: "p" })),
       data.stories.length ? h("div", { class: "story-list" }, data.stories.map((x) => h("button", {
-        type: "button", class: "story", "aria-current": String(x.id === selected), onclick: () => { selected = x.id; renderLeft(); renderEditor(); },
+        type: "button", class: "story", "aria-current": String(x.id === selected), onclick: () => open(x.id),
       }, h("span", { class: "chip blue" }, x.dimension), h("span", { class: "title" }, x.title))))
         : h("div", { class: "empty" }, "No stories yet. Google asks about ambiguity, ownership, disagreement and humility: write one per dimension first."));
   }
@@ -1164,7 +1245,7 @@ ROUTES.star = async (ctx) => {
     if (story) dim = story.dimension;
     const seg = h("div", { class: "seg-ctl", role: "group", "aria-label": "Dimension" }, data.dimensions.map((d) => h("button", {
       type: "button", "aria-pressed": String(d.key === dim), title: d.label,
-      onclick: (e) => { dim = d.key; $$("button", seg).forEach((b) => b.setAttribute("aria-pressed", "false")); e.currentTarget.setAttribute("aria-pressed", "true"); },
+      onclick: (e) => { dim = d.key; dirty = true; $$("button", seg).forEach((b) => b.setAttribute("aria-pressed", "false")); e.currentTarget.setAttribute("aria-pressed", "true"); },
     }, d.key)));
     const field = (name, label, hint, rows) => h("div", { class: "field" }, h("label", { for: `star-${name}` }, label, h("span", { class: "muted" }, ` · ${hint}`)),
       rows ? h("textarea", { id: `star-${name}`, name, rows: String(rows), value: story ? story[name] : "" }) : h("input", { id: `star-${name}`, name, value: story ? story.title : "" }));
@@ -1177,6 +1258,8 @@ ROUTES.star = async (ctx) => {
       field("result", "Result", "numbers: latency, revenue, incidents, time saved", 2),
       h("div", { class: "row" }, btn(story ? "Save changes" : "Save story", saveStory, { cls: "primary", key: "Ctrl+S", test: "star-save" }),
         story ? btn("Delete", deleteStory, { cls: "danger" }) : null));
+    form.addEventListener("input", () => { dirty = true; });
+    dirty = false;
     editor.replaceChildren(h("h2", null, story ? "Edit story" : "New story"), form);
   }
   async function saveStory() {
@@ -1194,6 +1277,7 @@ ROUTES.star = async (ctx) => {
     if (!(await confirmBox("Delete this story?", "This cannot be undone.", "Delete", "Keep", true))) return;
     data = await api("star_delete", { id: selected });
     selected = null;
+    dirty = false;
     renderLeft();
     renderEditor();
   }
@@ -1213,10 +1297,11 @@ ROUTES.star = async (ctx) => {
   mount(ctx, h("div", { class: "page" }, pageTitle("STAR stories", "Googleyness & leadership: two ready stories per dimension."),
     h("div", { class: "star-layout" }, leftCol, editor)));
   return {
+    beforeLeave: okToDrop,
     onKey(e, typing) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { saveStory(); return true; }
       if (typing || e.ctrlKey || e.altKey || e.metaKey) return false;
-      if (e.key === "n") { selected = null; renderLeft(); renderEditor(); $("#star-title").focus(); return true; }
+      if (e.key === "n") { open(null).then((ok) => { if (ok) $("#star-title").focus(); }); return true; }
       if (e.key === "p") { practice(); return true; }
       return false;
     },
@@ -1227,13 +1312,13 @@ ROUTES.star = async (ctx) => {
 ROUTES.vault = async (ctx) => {
   const list = await api("vault_list");
   if (!list.notes.length) {
-    setCrumbs(list.crumbs);
+    setCrumbs(list.crumbs, ctx);
     mount(ctx, h("div", { class: "page" }, pageTitle("Concept vault"), h("div", { class: "empty" }, "No notes bundled.")));
     return {};
   }
   const file = ctx.parts[1] || list.notes[0].file;
   const note = await api("vault_note", { file });
-  setCrumbs(note.crumbs);
+  setCrumbs(note.crumbs, ctx);
   const body = h("article", { class: "card md", "data-test": "note" });
   body.innerHTML = note.html; // rendered server-side by markdown-it with raw HTML disabled
   for (const codeEl of $$("pre > code", body)) {

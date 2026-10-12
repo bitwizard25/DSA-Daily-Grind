@@ -107,22 +107,25 @@ def version() -> str:
 
 
 def find_iscc() -> str | None:
-    """Inno Setup 6 compiler: on PATH, or in its default install folders."""
+    """Inno Setup compiler (6 or newer): on PATH, or in its default install folders."""
     found = shutil.which("iscc") or shutil.which("ISCC")
     if found:
         return found
     for base in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
         root = os.environ.get(base)
-        for sub in (r"Inno Setup 6\ISCC.exe", r"Programs\Inno Setup 6\ISCC.exe"):
-            if root and (Path(root) / sub).exists():
-                return str(Path(root) / sub)
+        if not root:
+            continue
+        for pattern in ("Inno Setup */ISCC.exe", "Programs/Inno Setup */ISCC.exe"):  # 6 or newer
+            found = sorted(Path(root).glob(pattern), reverse=True)
+            if found:
+                return str(found[0])
     return None
 
 
 def build_installer() -> Path | None:
     """The installed app: one folder with both programs, then (Windows) the Setup.exe that installs it."""
     write_icon(ROOT / "build" / "google-prep.ico")
-    print(f"Building the app folder dist/GoogleSWEPrep for {platform.system()}...")
+    print(f"Building the app folder dist/GoogleSWEPrep for {platform.system()}...", flush=True)
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", str(ROOT / "dist"),
                     "--workpath", str(ROOT / "build" / "app"), str(ROOT / "installer" / "app.spec")],
                    check=True, cwd=ROOT)

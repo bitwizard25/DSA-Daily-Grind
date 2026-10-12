@@ -42,6 +42,8 @@ Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; the app holds this mutex while open (launcher.APP_MUTEX): updating or uninstalling asks you to close it first
+AppMutex=GoogleSWEIIOS.Running
 CloseApplications=yes
 RestartApplications=no
 ChangesEnvironment=yes
@@ -55,7 +57,8 @@ Name: "addtopath"; Description: "Let terminals run google-prep-cli (adds the app
 
 [InstallDelete]
 ; drop the previous version's libraries so an update never mixes old and new files
-Type: filesandordirs; Name: "{app}\_internal"
+; (only when updating this app: never in a folder that holds some other program)
+Type: filesandordirs; Name: "{app}\_internal"; Check: IsOurUpdate
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -73,6 +76,11 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; Value
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function IsOurUpdate: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\{#AppExe}')) and FileExists(ExpandConstant('{app}\google-prep-cli.exe'));
+end;
+
 function NeedsAddPath(Dir: string): Boolean;
 var
   Paths: string;

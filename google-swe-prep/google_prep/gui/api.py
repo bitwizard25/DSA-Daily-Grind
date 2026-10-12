@@ -2,7 +2,7 @@
 methods over the same database and logic the CLI uses. Nothing here knows about HTTP."""
 import json
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from sqlmodel import select
 
@@ -81,8 +81,10 @@ class Api:
         t = self.now()
         with get_session() as s:
             sched = scheduler.schedule_for(s, t.date())
-            if mode == "normal" and sched.mode == "micro":
-                mode = "micro"
+            if mode == "full":  # "Back to the full plan"
+                mode = "normal"
+            elif mode == "normal" and sched.mode == "micro" and not (sched.morning_completed or sched.evening_completed):
+                mode = "micro"  # a logged 10+ hour workday, nothing done yet (same rule as the CLI)
             d = today.decide(s, t, mode)
             d["status"] = [{"tag": tag, "text": text} for tag, text in d["status"]]
             d["crumbs"] = _crumbs(s, t.date(), "Today")
@@ -100,11 +102,17 @@ class Api:
         return self.today()
 
     # ---- recall drills ---------------------------------------------------------------
-    def recall_start(self, mode: str = "warmup", count: int = 5, resume: bool = False) -> dict:
+    def recall_start(self, mode: str = "warmup", count: int = 5, resume: bool = False, discard: bool = False) -> dict:
         t = self.now()
         with get_session() as s:
-            state = session_store.load() if resume else None
-            if state and state.get("kind") == "recall":
+            stored = session_store.load()
+            mine = bool(stored and resume and stored.get("kind") == "recall")
+            if stored and not mine:
+                if not discard:  # the window asks: continue the unfinished one, or discard it
+                    return {"conflict": self._session_summary(s)}
+                self._credit_and_clear(s, stored)
+            state = stored if mine else None
+            if state:
                 drills = [d for d in (s.get(RecallDrill, i) for i in state["drill_ids"]) if d]
                 index, counts, seconds = state["index"], state["counts"], state["seconds"]
                 mode = state.get("mode", mode)
@@ -138,11 +146,15 @@ class Api:
     def recall_grade(self, drill_id: str, choice: str, seconds: float, timed_out: bool = False) -> dict:
         t = self.now()
         q, min_days, note = recall.quality(str(choice), float(seconds), bool(timed_out))
+        state = session_store.load()
+        in_session = bool(state and state.get("kind") == "recall" and drill_id in state["drill_ids"])
         with get_session() as s:
             prog = scheduler.grade_drill(s, drill_id, q, t, min_days)
+            day = self._session_day(state) if in_session else t.date()
+            micro = in_session and state.get("mode") == "micro"
+            scheduler.mark_done(s, day, "morning", 0, mode="micro" if micro else None)
         counted = "2" if note else str(choice)  # a slow "Instant" is logged as Effort
-        state = session_store.load()
-        if state and state.get("kind") == "recall" and drill_id in state["drill_ids"]:
+        if in_session:
             state["index"] = state["drill_ids"].index(drill_id) + 1
             state["counts"][counted] = state["counts"].get(counted, 0) + 1
             state["seconds"] = state.get("seconds", 0) + float(seconds)
@@ -153,10 +165,14 @@ class Api:
         t = self.now()
         done = sum(int(v) for v in counts.values())
         minutes = max(1, round(float(seconds) / 60)) if done else 0
+        state = session_store.load()
+        ours = bool(state and state.get("kind") == "recall")
+        day = self._session_day(state) if ours else t.date()  # a session past midnight counts for the day it began
         with get_session() as s:
             if done:
-                scheduler.mark_done(s, t.date(), "morning", minutes, mode="micro" if mode == "micro" else None)
-            session_store.clear()
+                scheduler.mark_done(s, day, "morning", minutes, mode="micro" if mode == "micro" else None)
+            if ours:
+                session_store.clear()
             return {"done": done, "minutes": minutes, "counts": counts, "streak": scheduler.streak(s, t.date())}
 
     # ---- problems & mock whiteboard ---------------------------------------------------
@@ -183,10 +199,18 @@ class Api:
                     "crumbs": _crumbs(s, t.date(), "Mock")}
 
     def mock_start(self, problem_id: str | None = None, practice: bool = False, minutes: int | None = None,
-                   resume: bool = False) -> dict:
+                   resume: bool = False, discard: bool = False) -> dict:
         t = self.now()
-        state = session_store.load() if resume else None
-        if state and state.get("kind") == "mock":
+        stored = session_store.load()
+        mine = bool(stored and stored.get("kind") == "mock" and (resume or (
+            stored.get("problem_id") == problem_id and bool(stored.get("practice")) == bool(practice))))
+        if stored and not mine:
+            with get_session() as s:
+                if not discard:  # the window asks: continue the unfinished one, or discard it
+                    return {"conflict": self._session_summary(s)}
+                self._credit_and_clear(s, stored)
+        state = stored if mine else None
+        if state:
             problem_id, practice, minutes = state["problem_id"], state["practice"], state["minutes"]
         minutes = int(minutes or (60 if practice else 45))
         with get_session() as s:
@@ -200,8 +224,10 @@ class Api:
             ticks = list(state["ticks"]) if state else [False] * len(mock.CHECKLIST)
             shown = int(state["shown"]) if state else -1
             submitted = bool(state.get("submitted")) if state else False
+            started = (state or {}).get("started") or t.isoformat()
             session_store.save({"kind": "mock", "problem_id": p.id, "minutes": minutes, "practice": bool(practice),
-                                "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted})
+                                "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
+                                "started": started})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                     "follow_ups": mock.follow_ups(p), "checklist": mock.CHECKLIST,
@@ -223,9 +249,12 @@ class Api:
                 mock.scratchpad(p).write_text(code, encoding="utf-8")
             if trace is not None:
                 mock.trace_pad(p).write_text(trace, encoding="utf-8")
+        prev = session_store.load() or {}
+        started = prev.get("started") if prev.get("kind") == "mock" and prev.get("problem_id") == problem_id else None
         session_store.save({"kind": "mock", "problem_id": problem_id, "minutes": int(minutes),
-                            "practice": bool(practice), "elapsed": float(elapsed), "ticks": list(ticks),
-                            "shown": int(shown), "submitted": bool(submitted)})
+                            "practice": bool(practice), "elapsed": max(0.0, float(elapsed)), "ticks": list(ticks),
+                            "shown": int(shown), "submitted": bool(submitted),
+                            "started": started or self.now().isoformat()})
         return {"saved_at": time.time()}
 
     def mock_abandon(self) -> dict:
@@ -272,7 +301,11 @@ class Api:
 
     def mock_grade(self, problem_id: str, practice: bool, minutes: int, elapsed: float, outcome: str,
                    checks: dict, mistake: str | None = None, shown: int = -1) -> dict:
-        t = self.now()
+        if str(outcome) not in rubric.OUTCOMES:
+            raise ApiError("Pick Missed it, Solved with Effort or Instant Reflex.")
+        state = session_store.load()
+        ours = bool(state and state.get("kind") == "mock" and state.get("problem_id") == problem_id)
+        t = self._sitting_time(state, int(minutes)) if ours else self.now()
         with get_session() as s:
             p = s.get(Problem, problem_id)
             if p is None:
@@ -282,7 +315,8 @@ class Api:
             fups = mock.follow_ups(p)
             result = mock.record(s, p, int(minutes), max(1, int(elapsed)), str(outcome), full,
                                  fups[shown % len(fups)] if shown >= 0 else "", bool(practice), mistake, t)
-        session_store.clear()
+        if ours or not state:
+            session_store.clear()
         pillars = rubric.pillar_scores(result["checks"])
         again = {"1": "Back in today's re-solve queue", "2": "Re-solve in 3 days", "3": "Re-solve next week"}
         return {**result, "pillars": {rubric.PILLARS[k]: round(v * 25, 1) for k, v in pillars.items()},
@@ -296,8 +330,35 @@ class Api:
             return {"session": self._session_summary(s)}
 
     def session_discard(self) -> dict:
-        session_store.clear()
+        state = session_store.load()
+        if state:
+            with get_session() as s:
+                self._credit_and_clear(s, state)
         return {"ok": True}
+
+    def _credit_and_clear(self, s, state: dict) -> None:
+        """Drop an unfinished session. Drills already graded still count for the day they were done."""
+        if state.get("kind") == "recall" and sum(int(v) for v in state.get("counts", {}).values()):
+            minutes = max(1, round(float(state.get("seconds", 0)) / 60))
+            scheduler.mark_done(s, self._session_day(state), "morning", minutes,
+                                mode="micro" if state.get("mode") == "micro" else None)
+        session_store.clear()
+
+    def _session_day(self, state: dict | None) -> date:
+        try:
+            return date.fromisoformat(state["day"])
+        except (KeyError, TypeError, ValueError):
+            return self.now().date()
+
+    def _sitting_time(self, state: dict | None, minutes: int) -> datetime:
+        """When a mock or solve began, so one that runs past midnight is logged on the day it started.
+        A sitting recovered much later (a crash, then the next evening) counts for the day it is finished."""
+        now = self.now()
+        try:
+            started = datetime.fromisoformat(state["started"])
+        except (KeyError, TypeError, ValueError):
+            return now
+        return started if timedelta(0) <= now - started <= timedelta(minutes=minutes, hours=6) else now
 
     def _session_summary(self, s) -> dict | None:
         state = session_store.load()
@@ -307,12 +368,12 @@ class Api:
             left = len(state["drill_ids"]) - state["index"]
             return {"kind": "recall", "mode": state.get("mode", "warmup"),
                     "text": f"Session restored: Pattern recall ({left} drill{'s' if left != 1 else ''} left)."}
-        p = s.get(Problem, state.get("problem_id"))
-        title = p.title if p else state.get("problem_id")
+        p = s.get(Problem, state.get("problem_id")) if state.get("problem_id") else None
+        title = p.title if p else state.get("problem_id") or "a mock"
         if state.get("submitted"):
             text = f"Session restored: {title} (scorecard not finished)."
         else:
-            left = max(0, state["minutes"] * 60 - state["elapsed"])
+            left = max(0, int(state.get("minutes", 45)) * 60 - float(state.get("elapsed", 0)))
             text = f"Session restored: {title} ({round(left / 60)}m remaining)."
         return {"kind": "mock", "practice": state.get("practice", False), "problem_id": state.get("problem_id"),
                 "submitted": bool(state.get("submitted")), "text": text}

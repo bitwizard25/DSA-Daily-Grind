@@ -10,6 +10,7 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45  # a stuck GUI dialog must fail the job, not hang it for 6 hours
     defaults:
       run:
         working-directory: google-swe-prep
@@ -42,11 +43,21 @@ jobs:
         shell: pwsh
         env:
           GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home
+        timeout-minutes: 5
         run: |
-          # A windowed exe does not block the shell, so wait for it and check its exit code.
-          $p = Start-Process -FilePath dist\google-prep.exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow
-          if ($p.ExitCode -ne 0) { Write-Error "selftest failed: $($p.ExitCode)"; exit 1 }
+          # A windowed exe does not block the shell: wait for it (with a limit) and check its exit code.
+          $p = Start-Process -FilePath dist\google-prep.exe -ArgumentList '--selftest' -PassThru -NoNewWindow
+          $null = $p.Handle  # keep the handle so ExitCode is readable after WaitForExit
+          if (-not $p.WaitForExit(120000)) { taskkill /PID $p.Id /T /F; throw "desktop selftest hung" }
+          if ($p.ExitCode -ne 0) {
+            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log') -ErrorAction SilentlyContinue
+            throw "desktop selftest failed: $($p.ExitCode)"
+          }
           Write-Output "desktop selftest ok"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: google-prep-${{ runner.os }}
+          path: google-swe-prep/dist/google-prep*
       - name: Build the Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
@@ -61,6 +72,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
       - name: Install, run and uninstall like a user would
         if: runner.os == 'Windows'
+        timeout-minutes: 10
         shell: pwsh
         env:
           GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home-installed
@@ -77,22 +89,29 @@ jobs:
             if (-not (Test-Path $f)) { Get-Content $log -Tail 60; throw "missing after install: $f" }
           }
           if ([Environment]::GetEnvironmentVariable('Path', 'User') -notlike "*$app*") { throw "PATH was not updated" }
-          $p = Start-Process -FilePath "$app\google-prep.exe" -ArgumentList '--selftest' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "installed app selftest failed: $($p.ExitCode)" }
+          $p = Start-Process -FilePath "$app\google-prep.exe" -ArgumentList '--selftest' -PassThru
+          $null = $p.Handle
+          if (-not $p.WaitForExit(120000)) { taskkill /PID $p.Id /T /F; throw "installed app selftest hung" }
+          if ($p.ExitCode -ne 0) {
+            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log') -ErrorAction SilentlyContinue
+            throw "installed app selftest failed: $($p.ExitCode)"
+          }
           & "$app\google-prep-cli.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "installed terminal app failed" }
           if (-not (Test-Path (Join-Path $env:GOOGLE_PREP_HOME 'prep.db'))) { throw "no progress database was created" }
+          # the real per-user data folder must survive the uninstall too
+          $real = Join-Path $env:USERPROFILE '.google_prep'
+          New-Item -ItemType Directory -Force -Path $real | Out-Null
+          Set-Content -Path (Join-Path $real 'uninstall-keeps-me.txt') -Value 'progress'
           Start-Process -FilePath "$app\unins000.exe" -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           for ($i = 0; $i -lt 60 -and (Test-Path "$app\google-prep.exe"); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path "$app\google-prep.exe") { throw "uninstall left the program behind" }
           if ((Test-Path $menu) -or (Test-Path $desk)) { throw "uninstall left a shortcut behind" }
           if ([Environment]::GetEnvironmentVariable('Path', 'User') -like "*$app*") { throw "uninstall left the PATH entry" }
           if (-not (Test-Path (Join-Path $env:GOOGLE_PREP_HOME 'prep.db'))) { throw "uninstall deleted the user's progress" }
+          if (-not (Test-Path (Join-Path $real 'uninstall-keeps-me.txt'))) { throw "uninstall deleted %USERPROFILE%\.google_prep" }
+          Remove-Item (Join-Path $real 'uninstall-keeps-me.txt')
           Write-Output "installer ok: install, shortcuts, PATH, selftest, uninstall, progress kept"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: google-prep-${{ runner.os }}
-          path: google-swe-prep/dist/google-prep*
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:

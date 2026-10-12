@@ -27,6 +27,9 @@ Updating: run a newer `GoogleSWEPrep-Setup.exe`; it replaces the old version in 
 Windows SmartScreen may say "Windows protected your PC" because the installer is not code-signed
 (that needs a paid certificate): click **More info → Run anyway**.
 
+Upgrading from an older download: `google-prep.exe` is now the window. Terminal commands live in
+`google-prep-cli.exe`; old reminders that run `google-prep.exe today` simply open the window on Today.
+
 **Other ways:**
 
 - **Portable (no install):** artifact **google-prep-Windows** holds `google-prep.exe` (the window) and
