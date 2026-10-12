@@ -58,6 +58,7 @@ class Api:
                 "days_left": (scheduler.interview_date(s) - t.date()).days,
                 "pace": pace,
                 "session": self._session_summary(s),
+                "data_dir": str(db.home_dir()),
                 "settings": {
                     "name": scheduler.get_setting(s, "name", ""),
                     "target": scheduler.get_setting(s, "target", "Google SWE II"),

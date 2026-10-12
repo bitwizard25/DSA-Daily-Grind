@@ -284,7 +284,9 @@ async function openSettings() {
     field("Your name", "name", st.settings.name), field("Target role", "target", st.settings.target),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
       field("Interview date", "interview_date", st.settings.interview_date, "date")),
-    h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."));
+    h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
+    h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
+      ". Updating or uninstalling the app never deletes it."));
   const ok = await openModal("Settings", form, [{ label: "Cancel", value: false, key: "Esc" }, { label: "Save", value: true, primary: true, test: "settings-save" }]);
   if (!ok) return;
   const data = Object.fromEntries(new FormData(form).entries());

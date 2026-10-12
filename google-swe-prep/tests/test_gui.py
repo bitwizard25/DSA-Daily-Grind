@@ -15,10 +15,11 @@ def api():
 
 
 # ---- API --------------------------------------------------------------------------------------
-def test_state_and_crumbs(api):
+def test_state_and_crumbs(api, home):
     st = api.state()
     assert st["day"] == 3 and st["phase"]["number"] == 1
     assert st["fasttrack"]["pending"] is None
+    assert st["data_dir"].endswith(home.name)  # shown in Settings: where progress is saved
     crumbs = api.today()["crumbs"]
     assert crumbs == ["Google SWE II OS", "Phase 1", "Week 1", "Day 3", "Today"]
 
@@ -162,7 +163,7 @@ def test_page_served_with_csp(server):
     res, body = _request(server, "GET", "/")
     assert res.status == 200 and b"<title>Google SWE II OS</title>" in body
     assert "script-src 'self'" in res.getheader("Content-Security-Policy")
-    for asset in ("/app.js", "/app.css", "/icon.svg"):
+    for asset in ("/app.js", "/app.css", "/icon.svg", "/icon.png"):
         assert _request(server, "GET", asset)[0].status == 200
     assert _request(server, "GET", "/../api.py")[0].status == 404
     assert _request(server, "GET", "/%2e%2e/api.py")[0].status == 404

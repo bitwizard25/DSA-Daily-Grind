@@ -2,6 +2,7 @@ from datetime import datetime
 
 from typer.testing import CliRunner
 
+import google_prep
 from google_prep.cli import app
 from google_prep.core import scheduler, session_store
 from google_prep.db import get_session
@@ -177,7 +178,7 @@ def test_setup_remind_version_hot_add():
     reminders = run("remind").output  # Windows quotes the exe path: cmd /k "google-prep" today
     assert "google-prep" in reminders and " today" in reminders
     assert runner.invoke(app, ["remind", "--morning", "7am"]).exit_code == 2
-    assert "1.0.0" in run("--version").output
+    assert google_prep.__version__ in run("--version").output
     assert "Run: google-prep sync" in run("hot").output
     assert "Already in your bank: G-410" in run("add", "split-array-largest-sum").output
     assert runner.invoke(app, ["add", "generate-parentheses"]).exit_code == 1  # not synced yet

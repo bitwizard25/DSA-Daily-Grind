@@ -1,11 +1,15 @@
 """Build the executables for the current OS (spec section 7).
 
-`python build.py`          -> dist/google-prep(.exe)      the desktop window (no console on Windows)
-                              dist/google-prep-cli(.exe)  the terminal app (every command, scripting)
-`python build.py --onedir` -> folder builds instead: they start ~2x faster (nothing to unpack per launch).
-`python build.py --gui` / `--cli` builds only one of them."""
+`python build.py`             -> dist/google-prep(.exe)      the desktop window (no console on Windows)
+                                 dist/google-prep-cli(.exe)  the terminal app (every command, scripting)
+`python build.py --installer` -> dist/GoogleSWEPrep/ (both programs in one folder, fast start) and, on
+                                 Windows with Inno Setup 6, dist/GoogleSWEPrep-Setup.exe: a normal installer
+                                 with Start menu and desktop shortcuts and an uninstaller.
+`python build.py --onedir`    -> folder builds of the two programs instead of single files.
+`python build.py --gui` / `--cli` builds only one of the single-file programs."""
 import os
 import platform
+import shutil
 import struct
 import subprocess
 import sys
@@ -95,6 +99,51 @@ def build(onedir: bool = False, targets: tuple[str, ...] = ("gui", "cli")):
         print("  ", path.name)
 
 
+def version() -> str:
+    sys.path.insert(0, str(ROOT))
+    from google_prep import __version__
+
+    return __version__
+
+
+def find_iscc() -> str | None:
+    """Inno Setup 6 compiler: on PATH, or in its default install folders."""
+    found = shutil.which("iscc") or shutil.which("ISCC")
+    if found:
+        return found
+    for base in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
+        root = os.environ.get(base)
+        for sub in (r"Inno Setup 6\ISCC.exe", r"Programs\Inno Setup 6\ISCC.exe"):
+            if root and (Path(root) / sub).exists():
+                return str(Path(root) / sub)
+    return None
+
+
+def build_installer() -> Path | None:
+    """The installed app: one folder with both programs, then (Windows) the Setup.exe that installs it."""
+    write_icon(ROOT / "build" / "google-prep.ico")
+    print(f"Building the app folder dist/GoogleSWEPrep for {platform.system()}...")
+    subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", str(ROOT / "dist"),
+                    "--workpath", str(ROOT / "build" / "app"), str(ROOT / "installer" / "app.spec")],
+                   check=True, cwd=ROOT)
+    if platform.system() != "Windows":
+        print("Folder build done. The Setup.exe installer is built on Windows only.")
+        return None
+    iscc = find_iscc()
+    if not iscc:
+        raise SystemExit("Inno Setup 6 not found. Install it (https://jrsoftware.org/isdl.php or "
+                         "`choco install innosetup`) and run `python build.py --installer` again.")
+    subprocess.run([iscc, f"/DAppVersion={version()}", f"/DSourceDir={ROOT / 'dist' / 'GoogleSWEPrep'}",
+                    f"/DOutputDir={ROOT / 'dist'}", f"/DIconFile={ROOT / 'build' / 'google-prep.ico'}",
+                    str(ROOT / "installer" / "google-prep.iss")], check=True, cwd=ROOT)
+    setup = ROOT / "dist" / "GoogleSWEPrep-Setup.exe"
+    print(f"\nSuccess! Installer: {setup}")
+    return setup
+
+
 if __name__ == "__main__":
-    picked = tuple(t for t in ("gui", "cli") if f"--{t}" in sys.argv) or ("gui", "cli")
-    build(onedir="--onedir" in sys.argv, targets=picked)
+    if "--installer" in sys.argv:
+        build_installer()
+    else:
+        picked = tuple(t for t in ("gui", "cli") if f"--{t}" in sys.argv) or ("gui", "cli")
+        build(onedir="--onedir" in sys.argv, targets=picked)

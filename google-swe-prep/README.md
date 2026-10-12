@@ -12,12 +12,29 @@ Two front ends, one database (`~/.google_prep/prep.db`):
 
 ## Get the app
 
-- **Windows:** GitHub → **Actions** → latest green **build-exe** run → download **google-prep-Windows**.
-  It holds `google-prep.exe` (the window, no console) and `google-prep-cli.exe` (the terminal app).
+**Windows (recommended): install it once, like any desktop app.**
+
+1. GitHub → **Actions** → latest green **build-exe** run → **Artifacts** → **GoogleSWEPrep-Setup-Windows**.
+2. Unzip it and run `GoogleSWEPrep-Setup.exe`. It installs for your user only (no admin prompt) into
+   `%LOCALAPPDATA%\Programs\Google SWE II OS` and adds a **Start menu** entry and a **desktop shortcut**.
+3. Open **Google SWE II OS** from the Start menu or the desktop. To pin it, right-click the Start menu entry →
+   **Pin to taskbar** (pinning the open window would pin the browser instead).
+
+Updating: run a newer `GoogleSWEPrep-Setup.exe`; it replaces the old version in place. Uninstalling:
+**Settings → Apps → Google SWE II OS → Uninstall**. Neither touches your progress, which is saved in
+`%USERPROFILE%\.google_prep\` (shown in the app under **Settings**).
+
+Windows SmartScreen may say "Windows protected your PC" because the installer is not code-signed
+(that needs a paid certificate): click **More info → Run anyway**.
+
+**Other ways:**
+
+- **Portable (no install):** artifact **google-prep-Windows** holds `google-prep.exe` (the window) and
+  `google-prep-cli.exe` (the terminal app). Unzip first, then double-click `google-prep.exe`.
 - **macOS / Linux:** artifacts **google-prep-macOS** / **google-prep-Linux** from the same run.
-- **Build it yourself** (Python 3.11+): `cd google-swe-prep`, `pip install -r requirements.txt`, `python build.py`
-  → `dist/google-prep(.exe)` and `dist/google-prep-cli(.exe)`. `--gui` or `--cli` builds one;
-  `--onedir` builds folders, which start faster because nothing is unpacked on each launch.
+- **Build it yourself** (Python 3.11+): `cd google-swe-prep`, `pip install -r requirements.txt`, then
+  `python build.py` (portable programs) or `python build.py --installer` (the app folder, plus
+  `dist/GoogleSWEPrep-Setup.exe` on Windows with [Inno Setup 6](https://jrsoftware.org/isdl.php)).
 - **From source:** `pip install -e .` then `google-prep ui` (window) or `google-prep` (terminal).
 
 ### How the window works
