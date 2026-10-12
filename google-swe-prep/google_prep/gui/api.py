@@ -106,7 +106,8 @@ class Api:
         t = self.now()
         with get_session() as s:
             stored = session_store.load()
-            mine = bool(stored and resume and stored.get("kind") == "recall")
+            mine = bool(stored and stored.get("kind") == "recall" and (resume or (
+                stored.get("mode", "warmup") == mode and stored.get("day") == t.date().isoformat())))
             if stored and not mine:
                 if not discard:  # the window asks: continue the unfinished one, or discard it
                     return {"conflict": self._session_summary(s)}
@@ -123,7 +124,9 @@ class Api:
             ids = [d.id for d in drills]
             if ids:
                 session_store.save({"kind": "recall", "mode": mode, "drill_ids": ids, "index": index,
-                                    "counts": counts, "seconds": seconds, "day": t.date().isoformat()})
+                                    "counts": counts, "seconds": seconds,
+                                    "day": (state or {}).get("day") or t.date().isoformat(),
+                                    "started": (state or {}).get("started") or t.isoformat()})
             return {"mode": mode, "index": index, "counts": counts, "seconds": seconds,
                     "seconds_per_drill": recall.DRILL_SECONDS, "instant_seconds": recall.INSTANT_SECONDS,
                     "crumbs": _crumbs(s, t.date(), "Recall"),
@@ -227,7 +230,7 @@ class Api:
             started = (state or {}).get("started") or t.isoformat()
             session_store.save({"kind": "mock", "problem_id": p.id, "minutes": minutes, "practice": bool(practice),
                                 "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
-                                "started": started})
+                                "started": started, "submitted_at": (state or {}).get("submitted_at")})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                     "follow_ups": mock.follow_ups(p), "checklist": mock.CHECKLIST,
@@ -250,11 +253,14 @@ class Api:
             if trace is not None:
                 mock.trace_pad(p).write_text(trace, encoding="utf-8")
         prev = session_store.load() or {}
-        started = prev.get("started") if prev.get("kind") == "mock" and prev.get("problem_id") == problem_id else None
+        same = prev.get("kind") == "mock" and prev.get("problem_id") == problem_id
+        submitted = bool(submitted) or bool(same and prev.get("submitted"))  # a late autosave never un-submits
+        submitted_at = (prev.get("submitted_at") if same else None) or (self.now().isoformat() if submitted else None)
         session_store.save({"kind": "mock", "problem_id": problem_id, "minutes": int(minutes),
                             "practice": bool(practice), "elapsed": max(0.0, float(elapsed)), "ticks": list(ticks),
-                            "shown": int(shown), "submitted": bool(submitted),
-                            "started": started or self.now().isoformat()})
+                            "shown": int(shown), "submitted": submitted,
+                            "started": (prev.get("started") if same else None) or self.now().isoformat(),
+                            "submitted_at": submitted_at})
         return {"saved_at": time.time()}
 
     def mock_abandon(self) -> dict:
@@ -344,21 +350,38 @@ class Api:
                                 mode="micro" if state.get("mode") == "micro" else None)
         session_store.clear()
 
+    SITTING_GRACE = timedelta(hours=6)
+
     def _session_day(self, state: dict | None) -> date:
+        """The day drills count for: the day the sitting began, if it began within the last few hours
+        (so 23:50 drills finished at 00:05 count for the evening before). Work done after a long gap,
+        such as a page left open overnight, counts for the day it is done."""
+        now = self.now()
         try:
+            started = datetime.fromisoformat(state["started"])
+            return started.date() if timedelta(0) <= now - started <= self.SITTING_GRACE else now.date()
+        except (KeyError, TypeError, ValueError):
+            pass
+        try:  # sessions saved by older versions have only the day
             return date.fromisoformat(state["day"])
         except (KeyError, TypeError, ValueError):
-            return self.now().date()
+            return now.date()
 
     def _sitting_time(self, state: dict | None, minutes: int) -> datetime:
         """When a mock or solve began, so one that runs past midnight is logged on the day it started.
-        A sitting recovered much later (a crash, then the next evening) counts for the day it is finished."""
+        The round ends at the 40:00 hand-over, so a scorecard graded the next morning still counts for the
+        evening it was coded. A sitting recovered much later (a crash, then the next evening) counts for
+        the day it is finished."""
         now = self.now()
         try:
             started = datetime.fromisoformat(state["started"])
         except (KeyError, TypeError, ValueError):
             return now
-        return started if timedelta(0) <= now - started <= timedelta(minutes=minutes, hours=6) else now
+        try:
+            end = datetime.fromisoformat(state["submitted_at"]) if state.get("submitted_at") else now
+        except (TypeError, ValueError):
+            end = now
+        return started if timedelta(0) <= end - started <= timedelta(minutes=minutes) + self.SITTING_GRACE else now
 
     def _session_summary(self, s) -> dict | None:
         state = session_store.load()

@@ -9,11 +9,13 @@ from pathlib import Path
 
 def _report(text: str) -> None:
     home = Path(os.environ.get("GOOGLE_PREP_HOME") or Path.home() / ".google_prep")
-    try:
-        home.mkdir(parents=True, exist_ok=True)
-        (home / "gui-error.log").write_text(text, encoding="utf-8")
-    except OSError:
-        pass
+    names = ["gui-error.log"] + (["selftest.log"] if "--selftest" in sys.argv else [])  # CI prints selftest.log
+    for name in names:
+        try:
+            home.mkdir(parents=True, exist_ok=True)
+            (home / name).write_text(text, encoding="utf-8")
+        except OSError:
+            pass
     if sys.stdout is not None:
         print(text, flush=True)
     elif os.name == "nt" and "--selftest" not in sys.argv:

@@ -50,7 +50,7 @@ jobs:
           $null = $p.Handle  # keep the handle so ExitCode is readable after WaitForExit
           if (-not $p.WaitForExit(120000)) { taskkill /PID $p.Id /T /F; throw "desktop selftest hung" }
           if ($p.ExitCode -ne 0) {
-            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log') -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log'), (Join-Path $env:GOOGLE_PREP_HOME 'gui-error.log') -ErrorAction SilentlyContinue
             throw "desktop selftest failed: $($p.ExitCode)"
           }
           Write-Output "desktop selftest ok"
@@ -89,11 +89,11 @@ jobs:
             if (-not (Test-Path $f)) { Get-Content $log -Tail 60; throw "missing after install: $f" }
           }
           if ([Environment]::GetEnvironmentVariable('Path', 'User') -notlike "*$app*") { throw "PATH was not updated" }
-          $p = Start-Process -FilePath "$app\google-prep.exe" -ArgumentList '--selftest' -PassThru
+          $p = Start-Process -FilePath "$app\google-prep.exe" -ArgumentList '--selftest' -PassThru -NoNewWindow
           $null = $p.Handle
           if (-not $p.WaitForExit(120000)) { taskkill /PID $p.Id /T /F; throw "installed app selftest hung" }
           if ($p.ExitCode -ne 0) {
-            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log') -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $env:GOOGLE_PREP_HOME 'selftest.log'), (Join-Path $env:GOOGLE_PREP_HOME 'gui-error.log') -ErrorAction SilentlyContinue
             throw "installed app selftest failed: $($p.ExitCode)"
           }
           & "$app\google-prep-cli.exe" --version

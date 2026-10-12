@@ -354,7 +354,8 @@ async function route() {
 }
 /** Leave a page whose start was cancelled: back where you came from. */
 function goBack() {
-  return go(S.lastHash && S.lastHash !== S.currentHash ? S.lastHash : "#/today", { replace: true, force: true });
+  const back = S.lastHash && S.lastHash !== S.currentHash && !/^#\/(recall|board)/.test(S.lastHash) ? S.lastHash : "#/today";
+  return go(back, { replace: true, force: true });
 }
 function mount(ctx, ...nodes) {
   if (!ctx.alive()) return false;
@@ -903,7 +904,8 @@ ROUTES.board = async (ctx) => {
     try {
       await api("mock_save", payload, { keepalive });
       savedTag.textContent = `Saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
-    } catch (err) { savedTag.textContent = "Not saved"; toast(err.message, true); }
+      return true;
+    } catch (err) { savedTag.textContent = "Not saved"; toast(err.message, true); return false; }
   }
   function onInput() {
     dirty = true;
@@ -925,7 +927,7 @@ ROUTES.board = async (ctx) => {
     if (B.done) return;
     const limit = B.practice ? total : total * RUBRIC_AT;
     if (!auto && B.elapsed < limit) {
-      const ok = await confirmBox("Submit and grade now?", `${mmss(limit - B.elapsed)} of coding time is left. After grading you cannot go back to this attempt.`, "Submit & grade", "Keep coding");
+      const ok = await confirmBox("Submit and grade now?", `${mmss(limit - B.elapsed)} of coding time is left. After grading you cannot go back to this attempt.`, "Submit & grade", "Keep coding", true);
       if (!ok || B.done) return;
     }
     B.done = true;
@@ -933,7 +935,8 @@ ROUTES.board = async (ctx) => {
     stopAll();
     await save(true);
     if (current) current.beforeLeave = null;
-    scorecard(ctx, B, data).then((handle) => { if (ctx.alive()) current = handle; }).catch((err) => toast(err.message, true));
+    scorecard(ctx, B, data).then((handle) => { if (ctx.alive()) current = handle; })
+      .catch((err) => { toast(err.message, true); if (ctx.alive()) current = {}; });
   }
   async function abandon() {
     const ok = await confirmBox("Abandon this round?", "The attempt is not logged and the timer resets. Your code file stays on disk.", "Abandon", "Keep going", true);
@@ -984,7 +987,8 @@ ROUTES.board = async (ctx) => {
       return confirmBox("Leave the whiteboard?", "Your code, trace and clock are saved. Continue later from Today.", "Leave", "Stay");
     },
     onKey(e, typing) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { clearTimeout(saveTimer); save(true).then(() => toast("Saved.")); return true; }
+      if (B.done) return true; // handing over to the scorecard: swallow keys still being typed
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { clearTimeout(saveTimer); save(true).then((ok) => { if (ok) toast("Saved."); }); return true; }
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { submit(); return true; }
       if (e.altKey && ["1", "2", "3", "4"].includes(e.key)) {
         const i = Number(e.key) - 1;
@@ -1298,6 +1302,7 @@ ROUTES.star = async (ctx) => {
     h("div", { class: "star-layout" }, leftCol, editor)));
   return {
     beforeLeave: okToDrop,
+    isDirty: () => dirty,
     onKey(e, typing) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { saveStory(); return true; }
       if (typing || e.ctrlKey || e.altKey || e.metaKey) return false;
@@ -1368,7 +1373,19 @@ document.addEventListener("keydown", (e) => {
   }
   if (NAV_KEYS[e.key]) { e.preventDefault(); go(`#/${NAV_KEYS[e.key]}`); }
 });
-window.addEventListener("hashchange", () => route());
+window.addEventListener("hashchange", () => {
+  // Back/Forward (Alt+Left, mouse back button) must ask before dropping unsaved work, like the sidebar does
+  if (current && current.beforeLeave && S.currentHash && location.hash !== S.currentHash) {
+    const target = location.hash;
+    history.replaceState(null, "", S.currentHash);
+    go(target);
+    return;
+  }
+  route();
+});
+window.addEventListener("beforeunload", (e) => {
+  if (current && current.isDirty && current.isDirty()) e.preventDefault(); // closing with an unsaved STAR story
+});
 
 async function boot() {
   buildNav();

@@ -31,7 +31,9 @@ class PrepServer(ThreadingHTTPServer):
     allow_reuse_address = os.name != "nt"
 
     def server_bind(self):
-        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+        # Only for the automatic port (the normal launch): an exclusive port stays blocked while old
+        # connections linger, which would make a quick restart with a fixed --port fail for minutes.
+        if os.name == "nt" and self.server_address[1] == 0 and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
 
@@ -41,6 +43,13 @@ class PrepServer(ThreadingHTTPServer):
         self.lock = threading.Lock()  # one API call at a time: SQLite + simple state
         self.last_seen = time.monotonic()
         super().__init__(("127.0.0.1", port), Handler)
+
+    def handle_error(self, request, client_address):
+        import sys
+
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return  # the window reloaded or closed a kept-alive connection: not an error
+        super().handle_error(request, client_address)
 
     @property
     def url(self) -> str:
@@ -75,7 +84,10 @@ class Handler(BaseHTTPRequestHandler):
                              "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; "
                              "connect-src 'self'; frame-ancestors 'none'")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the page reloaded or closed mid-request: nothing to answer
 
     def do_GET(self):  # noqa: N802 - http.server API
         if not self._host_ok():

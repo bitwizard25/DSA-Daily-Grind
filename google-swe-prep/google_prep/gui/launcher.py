@@ -123,6 +123,18 @@ def _error_box(message: str, info: bool = False) -> None:
         ctypes.windll.user32.MessageBoxW(None, message, "Google SWE II OS", 0x40 if info else 0x10)
 
 
+def _release(handle) -> None:
+    if handle and os.name == "nt":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.windll.kernel32
+            kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+            kernel32.CloseHandle(handle)
+        except (AttributeError, OSError):
+            pass
+
+
 def _hold_app_mutex():
     """A named mutex the installer checks (AppMutex) so an update asks you to close the app first."""
     if os.name != "nt":
@@ -130,7 +142,10 @@ def _hold_app_mutex():
     try:
         import ctypes
 
-        return ctypes.windll.kernel32.CreateMutexW(None, False, APP_MUTEX)
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.restype = ctypes.c_void_p  # a HANDLE, not a 32-bit int
+        kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
+        return kernel32.CreateMutexW(None, False, APP_MUTEX)
     except (AttributeError, OSError):
         return None
 
@@ -148,7 +163,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 # `google-prep.exe <command>` (old reminders and shortcuts) opens the window on the matching screen
-ROUTES = {"today": "today", "recall": "recall", "drills": "recall", "mock": "mock", "solve": "mock",
+ROUTES = {"today": "today", "ui": "today", "recall": "recall", "drills": "recall", "mock": "mock", "solve": "mock",
           "roadmap": "roadmap", "star": "star", "fasttrack": "fasttrack", "patterns": "vault", "vault": "vault"}
 
 
@@ -175,13 +190,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_browser and _windowed():
         _error_box("--no-browser needs a terminal. Run: google-prep-cli ui --no-browser")
         return 2
-    mutex = _hold_app_mutex()  # noqa: F841 - held for the life of the process
+    mutex = _hold_app_mutex()  # held while this process shows the app
     try:
         server = serve(Api(), args.port)
     except Exception as exc:  # e.g. a damaged database or a port already in use
         _error_box(f"Google SWE II OS could not start:\n{type(exc).__name__}: {exc}")
         return 1
-    url = server.url + ("" if args.screen == "today" else f"#/{ROUTES[args.screen]}")
+    url = server.url + ("" if ROUTES[args.screen] == "today" else f"#/{ROUTES[args.screen]}")
     proc = None if args.no_browser else open_window(url)
     if proc is None and not args.no_browser:
         webbrowser.open(url)
@@ -192,7 +207,10 @@ def main(argv: list[str] | None = None) -> int:
             proc.wait()  # the window closed: we are done ...
             if time.monotonic() - started >= HANDOFF_SECONDS:
                 return 0
-            # ... unless the browser handed the page to a copy that was already running and exited
+            # ... unless the browser handed the page to a copy that was already running and exited.
+            # That first copy marks the app as running; this window-less helper must not keep the
+            # installer waiting after every window is closed.
+            _release(mutex)
         while args.no_browser or time.monotonic() - server.last_seen < HEARTBEAT_TIMEOUT:
             time.sleep(2)
     except KeyboardInterrupt:

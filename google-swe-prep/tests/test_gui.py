@@ -353,3 +353,99 @@ def test_reminders_open_the_window_when_installed(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "executable", str(cli))
     line = remind.commands("07:30", "19:30", "windows")[0]
     assert str(gui) in line and "cmd /k" not in line
+
+
+# ---- second review round ---------------------------------------------------------------------------
+def test_a_scorecard_graded_next_morning_counts_for_the_evening_it_was_coded(home):
+    from datetime import datetime
+
+    from google_prep.core import scheduler
+    from google_prep.db import get_session
+    from google_prep.models import Attempt
+    from sqlmodel import select
+
+    clock = {"t": datetime(2026, 10, 12, 23, 0)}
+    api = Api(now=lambda: clock["t"])
+    pid = api.mock_target()["problem"]["id"]
+    api.mock_start(pid)
+    clock["t"] = datetime(2026, 10, 12, 23, 40)
+    api.mock_scorecard(pid, False, 45, 2400.0, [False] * 4, 0)  # 40:00 hand-over, then the window is closed
+    clock["t"] = datetime(2026, 10, 13, 7, 0)
+    assert api.mock_start(resume=True)["submitted"]  # Continue next morning
+    api.mock_save(pid, False, 45, 2400.0, [False] * 4, 0)  # a late autosave must not un-submit
+    assert api.state()["session"]["submitted"]
+    api.mock_grade(pid, False, 45, 2400.0, "2", {"dry_run_passed": True}, None, 0)
+    with get_session() as s:
+        assert {a.day for a in s.exec(select(Attempt)).all()} == {"2026-10-12"}
+        assert not scheduler.schedule_for(s, datetime(2026, 10, 13).date()).evening_completed
+    clock["t"] = datetime(2026, 10, 13, 19, 30)
+    assert api.today()["kind"] == "deep"  # Tuesday's evening work is still offered
+
+
+def test_drills_resumed_after_midnight_count_for_the_evening_they_began(home):
+    from datetime import datetime
+
+    from google_prep.core import scheduler
+    from google_prep.db import get_session
+
+    clock = {"t": datetime(2026, 10, 12, 23, 50)}
+    api = Api(now=lambda: clock["t"])
+    drills = api.recall_start("warmup", 4)["drills"]
+    for d in drills[:2]:
+        api.recall_grade(d["id"], "2", 10.0)
+    clock["t"] = datetime(2026, 10, 13, 0, 5)  # window closed, then Continue after midnight
+    resumed = api.recall_start("warmup", resume=True)
+    for d in resumed["drills"][resumed["index"]:]:
+        api.recall_grade(d["id"], "2", 10.0)
+    api.recall_finish("warmup", {"1": 0, "2": 4, "3": 0}, 300)
+    with get_session() as s:
+        assert scheduler.schedule_for(s, datetime(2026, 10, 12).date()).morning_completed
+        assert not scheduler.schedule_for(s, datetime(2026, 10, 13).date()).morning_completed
+
+
+def test_a_drill_page_left_open_overnight_credits_the_day_the_work_is_done(home):
+    from datetime import datetime
+
+    from google_prep.core import scheduler
+    from google_prep.db import get_session
+
+    clock = {"t": datetime(2026, 10, 12, 7, 30)}
+    api = Api(now=lambda: clock["t"])
+    drills = api.recall_start("warmup", 3)["drills"]
+    api.recall_grade(drills[0]["id"], "2", 10.0)
+    clock["t"] = datetime(2026, 10, 13, 7, 30)  # laptop slept with the page open
+    api.recall_grade(drills[1]["id"], "2", 10.0)
+    with get_session() as s:
+        assert scheduler.schedule_for(s, datetime(2026, 10, 13).date()).morning_completed
+
+
+def test_reopening_the_same_drills_continues_them(api):
+    first = api.recall_start("warmup", 3)
+    api.recall_grade(first["drills"][0]["id"], "3", 5.0)
+    again = api.recall_start("warmup", 3)  # sidebar "Recall Drills" while drilling: no false conflict
+    assert "conflict" not in again and again["index"] == 1
+    assert [d["id"] for d in again["drills"]] == [d["id"] for d in first["drills"]]
+
+
+def test_ui_word_opens_the_window(monkeypatch):
+    urls = []
+
+    class Quick:
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(launcher, "open_window", lambda url: urls.append(url) or Quick())
+    monkeypatch.setattr(launcher, "HEARTBEAT_TIMEOUT", 0)
+    assert launcher.main(["ui"]) == 0  # `google-prep ui` with the installed folder on PATH
+    assert "#/" not in urls[0]
+
+
+def test_terminal_app_never_overwrites_an_unfinished_window_session(api):
+    from typer.testing import CliRunner
+
+    from google_prep.cli import app
+
+    pid = _submitted_mock(api)
+    result = CliRunner().invoke(app, ["recall"], input="q")  # shown the unfinished session; quit
+    assert result.exit_code == 0 and "SESSION RESTORED" in result.output
+    assert api.state()["session"]["problem_id"] == pid and api.state()["session"]["submitted"]

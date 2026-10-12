@@ -56,7 +56,17 @@ def screen_today(mode: str = "normal") -> str | None:
     return wait_for(actions)
 
 
+def clear_way() -> bool:
+    """True when nothing unfinished is in the way, or the user chose to discard it. An unfinished drill
+    or mock (the window and the terminal share it) is offered first, never overwritten silently."""
+    if not session_store.load():
+        return True
+    return screen_resume() == "today"  # "today" = discarded (or gone); None = resumed or quit
+
+
 def run_drills(kind: str, count: int = today_mod.WARMUP_DRILLS, resume: dict | None = None) -> None:
+    if resume is None and not clear_way():
+        return
     t = now()
     with get_session() as session:
         if resume:
@@ -82,6 +92,8 @@ def run_drills(kind: str, count: int = today_mod.WARMUP_DRILLS, resume: dict | N
 
 def run_problem(problem: Problem, minutes: int, practice: bool, editor: bool = True,
                 resume: dict | None = None, external: bool = False) -> None:
+    if resume is None and not clear_way():
+        return
     with get_session() as session:
         mock_mod.run(session, problem, minutes=minutes, practice=practice, editor=editor, now=now(), resume=resume,
                      external=external)
