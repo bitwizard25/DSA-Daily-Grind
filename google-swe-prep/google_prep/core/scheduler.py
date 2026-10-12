@@ -16,8 +16,9 @@ from google_prep.models import (
 )
 
 PLAN_DAYS = 56
-PHASES = {
-    1: ("Foundation & Recall Sprint", 1, 21),
+PHASES = {  # phase: (name, first day, last day)
+    0: ("C++ to Python Fast-Track", 1, 2),
+    1: ("Foundation & Recall Sprint", 3, 21),
     2: ("Google Core Patterns & Hard Follow-ups", 22, 42),
     3: ("Final Onsite Loop & Googlyness", 43, 56),
 }
@@ -43,6 +44,7 @@ MISTAKES = {
     "follow_up": "Stuck on the follow-up",
 }
 PROBLEM_TARGET_DAY = PLAN_DAYS  # mocks in weeks 7-8 also solve bank problems
+PROBLEM_START_DAY = PHASES[1][1]  # the bank starts after the 2-day Python fast-track
 
 
 # ---- settings -------------------------------------------------------------
@@ -317,14 +319,16 @@ def pick_warmup(session: Session, now: datetime, count: int = 5) -> list[RecallD
 
 
 def pace(session: Session, today: date) -> dict:
-    """Problems solved vs. a straight-line plan that finishes the bank by the last plan day.
-    Only finished days count, so the morning of Day 1 is never 'behind'."""
+    """Problems solved vs. a straight-line plan from Day 3 (after the Python fast-track) to the
+    last plan day. Only finished days count, so the first morning is never 'behind'."""
     total = count(session, Problem)
     solved = session.exec(select(func.count()).select_from(UserProgress)
                           .where(col(UserProgress.last_solved_at).is_not(None))).one()
     day = day_number(session, today)
-    expected = min(total, round(total * min(day - 1, PROBLEM_TARGET_DAY) / PROBLEM_TARGET_DAY))
-    days_left = max(1, PROBLEM_TARGET_DAY - day + 1)
+    span = PROBLEM_TARGET_DAY - PROBLEM_START_DAY + 1
+    done_days = min(max(day - PROBLEM_START_DAY, 0), span)
+    expected = min(total, round(total * done_days / span))
+    days_left = max(1, PROBLEM_TARGET_DAY - max(day, PROBLEM_START_DAY) + 1)
     return {"solved": solved, "total": total, "expected": expected, "behind": max(0, expected - solved),
             "per_day": max(0.0, (total - solved) / days_left)}
 

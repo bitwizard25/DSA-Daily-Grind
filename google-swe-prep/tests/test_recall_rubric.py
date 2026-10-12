@@ -85,7 +85,7 @@ def test_breadcrumb_has_the_app_phase_and_bold_current_step(session):
     from google_prep.ui.formatters import crumb_text
 
     path = scheduler.breadcrumb(session, NOW.date(), "Mock", "Graphs", "Course Schedule II")
-    assert path == "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Mock > Graphs > Course Schedule II"
+    assert path == "[Google SWE II OS] Phase 1 > Week 1 > Day 3 > Mock > Graphs > Course Schedule II"
     text = crumb_text(path)
     assert text.spans[-1].style.endswith("#FFFFFF") and "bold" in text.spans[-1].style
 

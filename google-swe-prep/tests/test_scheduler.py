@@ -9,7 +9,8 @@ from conftest import NOW
 
 
 def test_phase_boundaries():
-    assert [scheduler.phase_for_day(d) for d in (1, 21, 22, 42, 43, 56, 80)] == [1, 1, 2, 2, 3, 3, 3]
+    days = (1, 2, 3, 21, 22, 42, 43, 56, 80)
+    assert [scheduler.phase_for_day(d) for d in days] == [0, 0, 1, 1, 2, 2, 3, 3, 3]
 
 
 @pytest.mark.parametrize("hour,slot", [(7, "morning"), (11, "morning"), (12, "midday"), (16, "midday"),
@@ -28,6 +29,8 @@ def test_day_number_counts_from_start(session):
 
 
 def test_start_date_defaults_to_first_run(session):
+    session.delete(session.get(scheduler.Setting, "start_date"))
+    session.commit()
     assert scheduler.start_date(session) == NOW.date()
 
 
@@ -107,6 +110,6 @@ def test_warmup_adapts_to_mistakes(session):
 def test_pace(session):
     scheduler.set_setting(session, "start_date", (NOW.date() - timedelta(days=13)).isoformat())  # day 14
     pace = scheduler.pace(session, NOW.date())
-    assert pace["expected"] == round(75 * 13 / 56) and pace["behind"] == pace["expected"]
+    assert pace["expected"] == round(75 * (14 - 3) / 54) and pace["behind"] == pace["expected"]  # bank starts Day 3
     scheduler.set_setting(session, "start_date", NOW.date().isoformat())
     assert scheduler.pace(session, NOW.date())["behind"] == 0

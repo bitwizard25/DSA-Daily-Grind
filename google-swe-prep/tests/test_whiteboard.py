@@ -8,7 +8,7 @@ from google_prep.models import Problem
 from google_prep.modules import mock
 from google_prep.ui.whiteboard import MockApp, RubricScreen, WhiteboardScreen
 
-PATH = "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Mock > Graphs > Number of Islands"
+PATH = "[Google SWE II OS] Phase 1 > Week 1 > Day 3 > Mock > Graphs > Number of Islands"
 
 
 class Clock:
@@ -39,7 +39,7 @@ def test_split_screen_follow_up_banner_trace_and_scorecard_handover():
             wb = app.screen
             assert isinstance(wb, WhiteboardScreen)
             assert wb.query_one("#editor", TextArea).language is None  # no highlighting, nothing runs
-            assert "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Mock > Graphs" in str(wb.query_one(".crumbs", Static).render())
+            assert "[Google SWE II OS] Phase 1 > Week 1 > Day 3 > Mock > Graphs" in str(wb.query_one(".crumbs", Static).render())
             assert wb.query_one("#banner", Static).display is False
             await pilot.press("f1", "f2")
             editor = wb.query_one("#editor", TextArea)

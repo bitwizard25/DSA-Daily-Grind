@@ -69,5 +69,6 @@ def build(session, today: date) -> tuple[Group, dict[str, str]]:
             table.add_row(label, f"[{'danger' if n == worst else 'muted'}]{'■' * n or '·'} {n}[/]")
         parts += [rule("  MISTAKE PROFILE (last 20 logged)"), table, Text("")]
     parts += [key_bar(("b", "Back"), ("w", "Mock"), ("s", "STAR"), ("q", "Quit"))]
-    return Group(*parts), {"b": "today", "t": "today", "d": "warmup", "w": "mock", "r": "roadmap", "s": "star_list",
+    return Group(*parts), {"b": "today", "t": "today", "f": "fasttrack", "d": "warmup", "w": "mock", "r": "roadmap",
+                           "s": "star_list",
                            "m": "micro_start", "q": "quit"}

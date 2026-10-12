@@ -97,7 +97,7 @@ def gauge(fraction: float, label: str = "READY", radius: int = 4) -> Text:
     return out
 
 
-SECTIONS = [("t", "Today"), ("d", "Recall"), ("w", "Mock"), ("r", "Roadmap"), ("s", "STAR")]
+SECTIONS = [("t", "Today"), ("f", "Fast-Track"), ("d", "Recall"), ("w", "Mock"), ("r", "Roadmap"), ("s", "STAR")]
 
 
 def nav(active: str, with_keys: bool = True) -> Text:

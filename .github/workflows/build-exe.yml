@@ -22,16 +22,31 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest -q
       - run: python build.py
-      - name: Smoke-test the executable
+      - name: Smoke-test the terminal app
         env:
           GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home
         run: |
-          EXE=dist/google-prep
-          if [ -f dist/google-prep.exe ]; then EXE=dist/google-prep.exe; fi
-          "$EXE" --version
-          "$EXE" roadmap < /dev/null
-          "$EXE" today < /dev/null
-          "$EXE" problems --topic graphs < /dev/null
+          CLI=dist/google-prep-cli
+          if [ -f dist/google-prep-cli.exe ]; then CLI=dist/google-prep-cli.exe; fi
+          "$CLI" --version
+          "$CLI" roadmap < /dev/null
+          "$CLI" today < /dev/null
+          "$CLI" problems --topic graphs < /dev/null
+      - name: Smoke-test the desktop app (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home
+        run: dist/google-prep --selftest
+      - name: Smoke-test the desktop app (Windows, windowed build)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GOOGLE_PREP_HOME: ${{ runner.temp }}/prep-home
+        run: |
+          # A windowed exe does not block the shell, so wait for it and check its exit code.
+          $p = Start-Process -FilePath dist\google-prep.exe -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow
+          if ($p.ExitCode -ne 0) { Write-Error "selftest failed: $($p.ExitCode)"; exit 1 }
+          Write-Output "desktop selftest ok"
       - uses: actions/upload-artifact@v4
         with:
           name: google-prep-${{ runner.os }}

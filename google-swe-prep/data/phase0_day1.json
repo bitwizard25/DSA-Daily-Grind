@@ -1,0 +1,258 @@
+{
+  "day": 1,
+  "title": "Python Basics for C++ Devs",
+  "subtitle": "Integers, division, bits, strings and references: where C++ instincts give wrong answers in Python.",
+  "minutes": 60,
+  "vault": "00_python_basics_for_cpp_devs.md",
+  "sections": [
+    {
+      "id": "d1-s1",
+      "title": "Integers: arbitrary precision",
+      "points": [
+        "Python `int` has **arbitrary precision**: it grows as needed, so `2**100` is exact. No `int` vs `long long`, no overflow.",
+        "`x.bit_length()` = bits needed for `abs(x)` (like `64 - __builtin_clzll(x)` for x > 0). `x.bit_count()` (3.10+) is popcount of `abs(x)`: `(-1).bit_count() == 1`.",
+        "Arithmetic is O(1) only for word-size values; huge ints cost O(digits) or more. Interview values stay small: treat them as O(1).",
+        "`(lo + hi) // 2` cannot overflow, so the C++ guard `lo + (hi - lo) // 2` is optional. 32-bit limits in a problem must be checked by hand."
+      ],
+      "cpp": "#include <cassert>\n#include <climits>\n\nint main() {\n    // Fixed width: int is 32-bit, long long 64-bit on mainstream 64-bit platforms.\n    assert(INT_MAX == 2147483647);\n    assert(LLONG_MAX == 9223372036854775807LL);\n    long long big = 1LL << 62;  // fits; 2^100 fits in no built-in type\n    assert(big == 4611686018427387904LL);\n    // Signed overflow is undefined behaviour: check BEFORE adding.\n    int a = INT_MAX, b = 1;\n    bool would_overflow = a > INT_MAX - b;\n    assert(would_overflow);\n    // Bit length of a positive value via count-leading-zeros (GCC builtin).\n    unsigned long long x = 1000;\n    assert(64 - __builtin_clzll(x) == 10);\n    assert(__builtin_popcountll(255ULL) == 8);\n    return 0;\n}\n",
+      "python": "x = 2 ** 100\nassert x == 1267650600228229401496703205376   # exact, no overflow\nassert x.bit_length() == 101\nassert (1000).bit_length() == 10\nassert (255).bit_count() == 8                  # popcount, Python 3.10+\nassert (-1).bit_count() == 1                   # counts abs(x); C++ popcount(-1) is 32\nassert (-1 & 0xFFFFFFFF).bit_count() == 32     # mask first for the 32-bit view\n\nINT_MAX = 2**31 - 1\nassert INT_MAX + 1 == 2147483648               # no wraparound\nassert (2**63 - 1) * 2 == 18446744073709551614\n\nlo, hi = 2**62, 2**63\nassert (lo + hi) // 2 == lo + (hi - lo) // 2   # midpoint never overflows\n\n# Reverse Integer: the 32-bit rule must be enforced by hand\ndef reverse_int(n):\n    r = int(str(abs(n))[::-1]) * (-1 if n < 0 else 1)\n    return r if -2**31 <= r <= 2**31 - 1 else 0\n\nassert reverse_int(-123) == -321\nassert reverse_int(1534236469) == 0            # 9646324351 > INT_MAX\n",
+      "gotcha": "Expecting a 32-bit limit to apply on its own: Python never overflows, so check against `2**31 - 1` and `-2**31` yourself."
+    },
+    {
+      "id": "d1-s2",
+      "title": "Division and modulo",
+      "points": [
+        "`/` is **true division** and always returns `float`: `7 / 2 == 3.5`, `6 / 2 == 3.0`. Use `//` for an integer result.",
+        "`//` **floors** (toward -inf): `-7 // 2 == -4`. C++ `/` truncates toward zero: `-7 / 2 == -3`.",
+        "`%` takes the sign of the **divisor**: `-7 % 2 == 1`, `7 % -2 == -1`. C++ takes the dividend's sign: `-7 % 2 == -1`.",
+        "Need C++ truncation (Evaluate Reverse Polish Notation)? Use `int(a / b)`. `divmod(a, b)` returns `(a // b, a % b)`."
+      ],
+      "cpp": "#include <cassert>\n#include <cstdlib>\n\nint main() {\n    // Integer division truncates toward zero (guaranteed since C++11).\n    assert(-7 / 2 == -3);\n    assert(7 / -2 == -3);\n    // % takes the sign of the dividend, so (a / b) * b + a % b == a.\n    assert(-7 % 2 == -1);\n    assert(7 % -2 == 1);\n    // A modulo in [0, m) needs a fix-up.\n    int m = 5, a = -7;\n    assert(((a % m) + m) % m == 3);\n    // std::div returns quotient and remainder together.\n    std::div_t d = std::div(-7, 2);\n    assert(d.quot == -3 && d.rem == -1);\n    // int / int stays int.\n    assert(7 / 2 == 3);\n    return 0;\n}\n",
+      "python": "import math\n\nassert 7 / 2 == 3.5 and type(6 / 2) is float   # / always returns float\nassert -7 // 2 == -4                           # floor; C++ gives -3\nassert 7 // -2 == -4\nassert -7 % 2 == 1                             # divisor's sign; C++ gives -1\nassert 7 % -2 == -1\nassert (-7 // 2) * 2 + (-7 % 2) == -7          # invariant still holds\nassert -7 % 5 == 3                             # already in [0, 5)\n\nassert divmod(-7, 2) == (-4, 1)\nassert divmod(17, 5) == (3, 2)\n\n# Truncate toward zero like C++ (Evaluate Reverse Polish Notation)\nassert int(-7 / 2) == -3\nassert math.trunc(-7 / 2) == -3\nassert int(6 / -132) == 0 and 6 // -132 == -1\n\nassert -(-7 // 2) == 4                         # ceiling division, no floats\n",
+      "gotcha": "Using `a // b` where the problem says 'truncate toward zero' (RPN): it floors, so `-7 // 2` is `-4`. Use `int(a / b)`."
+    },
+    {
+      "id": "d1-s3",
+      "title": "Infinity and limits",
+      "points": [
+        "Use `float('inf')` / `float('-inf')` (or `math.inf`) as sentinels instead of `INT_MAX` / `INT_MIN`.",
+        "Comparisons with ints just work: `10**100 < math.inf`. `math.inf + w == math.inf`, so `dist[u] + w` never overflows.",
+        "`min(math.inf, 3)` returns the int `3`, but inf itself is a `float`. Map it to the required value (often `-1`) before returning.",
+        "There is no max int. `sys.maxsize` is the largest container size, not a numeric limit."
+      ],
+      "cpp": "#include <algorithm>\n#include <cassert>\n#include <climits>\n#include <limits>\n#include <vector>\n\nint main() {\n    const int INF = INT_MAX;\n    std::vector<int> dist = {0, INF, 4};\n    int w = 3;\n    // INF + w would overflow (undefined behaviour): guard before adding.\n    int candidate = (dist[1] == INF) ? INF : dist[1] + w;\n    assert(candidate == INF);\n    // Common workaround: a sentinel with headroom.\n    const int SAFE_INF = 1000000000;\n    assert(SAFE_INF <= INT_MAX - SAFE_INF);  // 2e9 still fits in 32 bits\n    // Floating-point infinity exists but mixes poorly with int code.\n    double dinf = std::numeric_limits<double>::infinity();\n    assert(dinf + 1 == dinf);\n    assert(std::min(INF, 3) == 3);\n    return 0;\n}\n",
+      "python": "import math\nimport sys\n\nINF = float(\"inf\")\nassert INF == math.inf and -INF == float(\"-inf\")\nassert -INF < -10**100 < 10**100 < INF       # any int lies between\nassert min(INF, 3) == 3 and type(min(INF, 3)) is int\nassert type(INF) is float\n\ndist = [0, INF, 4]\nw = 3\nassert dist[1] + w == INF                    # no overflow\n\nbest = INF\nanswer = -1 if best == INF else best         # return an int, not inf\nassert answer == -1\n\nnan = INF - INF                              # inf - inf is NaN\nassert math.isnan(nan) and nan != nan\n\nassert sys.maxsize + 1 > sys.maxsize         # not an int limit\n",
+      "gotcha": "Returning `float('inf')` where the judge expects an int (or `-1`): check `== math.inf` and convert before returning."
+    },
+    {
+      "id": "d1-s4",
+      "title": "Bitwise operators and masking",
+      "points": [
+        "Same operators: `& | ^ ~ << >>`. Ints act like **infinite two's complement**, so `~x == -(x + 1)`: `~5 == -6`.",
+        "`>>` on negatives is **arithmetic** (floors): `-7 >> 1 == -4 == -7 // 2`. `<<` never overflows: `1 << 40` is exact.",
+        "Emulate 32 bits: `x & 0xFFFFFFFF` gives the unsigned value; back to signed: `x - (1 << 32) if x >= 1 << 31 else x`.",
+        "No unsigned types and no wraparound: carry loops (Sum of Two Integers) need masks, or some negative inputs (`-3 + 5`) loop forever."
+      ],
+      "cpp": "#include <cassert>\n#include <cstdint>\n\nint main() {\n    int x = 5;\n    assert(~x == -6);  // two's complement: ~x == -(x + 1)\n    assert((6 & 3) == 2 && (6 | 3) == 7 && (6 ^ 3) == 5);\n    // Unsigned arithmetic wraps modulo 2^32 (well defined).\n    uint32_t u = 0xFFFFFFFFu;\n    u += 1;\n    assert(u == 0);\n    // uint32 -> int32: implementation-defined before C++20 (g++ wraps).\n    uint32_t bits = 0xFFFFFFFEu;\n    assert(static_cast<int32_t>(bits) == -2);\n    // 1 << 40 needs a 64-bit operand.\n    uint64_t big = 1ULL << 40;\n    assert(big == 1099511627776ULL);\n    return 0;\n}\n",
+      "python": "assert ~5 == -6 and ~-1 == 0                 # ~x == -(x + 1)\nassert (6 & 3, 6 | 3, 6 ^ 3) == (2, 7, 5)\nassert -7 >> 1 == -4 == -7 // 2              # arithmetic shift floors\nassert 1 << 40 == 1099511627776              # no overflow\n\nMASK = 0xFFFFFFFF\n\ndef to_signed32(x):\n    x &= MASK\n    return x - (1 << 32) if x >= 1 << 31 else x\n\nassert -2 & MASK == 4294967294               # unsigned view of -2\nassert ~5 & MASK == 4294967290               # C++ (uint32_t)~5\nassert to_signed32(4294967294) == -2\nassert to_signed32(2**31 - 1) == 2**31 - 1\n\n# Sum of Two Integers: add without +, masked to 32 bits\ndef get_sum(a, b):\n    a, b = a & MASK, b & MASK\n    while b:\n        a, b = (a ^ b) & MASK, ((a & b) << 1) & MASK\n    return to_signed32(a)\n\nassert get_sum(-3, 5) == 2 and get_sum(-8, -9) == -17\n\ndef unmasked_steps(a, b, limit=100):         # same loop, no masks\n    for step in range(limit):\n        if not b:\n            return step\n        a, b = a ^ b, (a & b) << 1\n    return None\n\nassert unmasked_steps(-3, 5) is None         # still carrying: loops forever\nassert unmasked_steps(-8, -9) is not None    # some negative inputs do finish\n\nx = 0b101100\nassert x & -x == 0b100                       # lowest set bit\nassert x & (x - 1) == 0b101000               # clear lowest set bit\n",
+      "gotcha": "Porting a C++ bit loop that relies on 32-bit wraparound: in Python it can loop forever on negatives. Mask with `& 0xFFFFFFFF`."
+    },
+    {
+      "id": "d1-s5",
+      "title": "Strings and immutability",
+      "points": [
+        "`str` is **immutable**: `s[0] = 'x'` raises `TypeError`. To edit: `chars = list(s)`, change it, then `''.join(chars)`.",
+        "`s += ch` in a loop **can degrade to O(N^2)** (each step may copy). Append to a list, then `''.join(parts)` once: O(N).",
+        "No `char` type: `s[i]` is a 1-char `str`. Index with `ord(c) - ord('a')`; go back with `chr(i + ord('a'))`.",
+        "Compare chars directly (`'a' <= c <= 'z'`) or use `c.isdigit()`, `c.isalpha()`. `c - 'a'` raises `TypeError`."
+      ],
+      "cpp": "#include <cassert>\n#include <string>\n\nint main() {\n    std::string s = \"abc\";\n    s[0] = 'x';  // std::string is mutable\n    assert(s == \"xbc\");\n    std::string out;\n    for (char c = 'a'; c <= 'e'; ++c) out += c;  // amortized O(1) append\n    assert(out == \"abcde\");\n    char c = 'd';\n    assert(c - 'a' == 3);  // char is a small integer type\n    assert(static_cast<char>('a' + 2) == 'c');\n    return 0;\n}\n",
+      "python": "s = \"abc\"\ntry:\n    s[0] = \"x\"\n    raised = False\nexcept TypeError:\n    raised = True\nassert raised                        # str is immutable\n\nchars = list(s)\nchars[0] = \"x\"\nassert \"\".join(chars) == \"xbc\" and s == \"abc\"\n\nparts = []                           # build with a list, join once: O(N)\nfor i in range(5):\n    parts.append(chr(ord(\"a\") + i))\nassert \"\".join(parts) == \"abcde\"\n\nassert type(s[1]) is str and len(s[1]) == 1   # no char type\nassert ord(\"d\") - ord(\"a\") == 3 and chr(ord(\"a\") + 2) == \"c\"\n\ncnt = [0] * 26                       # like int cnt[26]\nfor ch in \"banana\":\n    cnt[ord(ch) - ord(\"a\")] += 1\nassert cnt[0] == 3 and cnt[1] == 1 and cnt[13] == 2\n",
+      "gotcha": "Writing `res += ch` in a loop as if it were `push_back`: CPython sometimes optimizes it, but not reliably. Use a list and `''.join`."
+    },
+    {
+      "id": "d1-s6",
+      "title": "Slicing",
+      "points": [
+        "`s[start:end:step]`: `end` is an **exclusive index**, not a length like `substr(pos, count)`. Any part can be omitted.",
+        "Negative indexes count from the end: `s[-1]` is the last item; `s[::-1]` reverses.",
+        "Slices clamp out-of-range bounds (`'abc'[1:99] == 'bc'`), but plain indexing still raises: `'abc'[99]` is `IndexError`.",
+        "Every slice **copies**: O(K) time and memory. In hot loops pass indexes (`l`, `r`) instead, like a C++ `string_view`."
+      ],
+      "cpp": "#include <cassert>\n#include <string>\n#include <string_view>\n\nint main() {\n    std::string s = \"interview\";\n    assert(s.substr(2, 3) == \"ter\");   // (pos, count), and it copies\n    std::string_view v(s);\n    assert(v.substr(2, 3) == \"ter\");   // view: O(1), no copy\n    std::string r(s.rbegin(), s.rend());\n    assert(r == \"weivretni\");\n    assert(s.back() == 'w');           // no negative indexes\n    return 0;\n}\n",
+      "python": "s = \"interview\"\nassert s[2:5] == \"ter\"           # [start, end): indexes 2, 3, 4\nassert s[2:2 + 3] == \"ter\"       # C++ s.substr(2, 3)\nassert s[:5] == \"inter\" and s[5:] == \"view\"\nassert s[-1] == \"w\" and s[-4:] == \"view\"\nassert s[::-1] == \"weivretni\" and s[::2] == \"itriw\"\nassert s[2:99] == \"terview\"      # slices clamp\n\na = [1, 2, 3, 4]\nb = a[1:3]                       # new list: O(K) copy\nb[0] = 99\nassert a == [1, 2, 3, 4]\n\ndef is_palindrome(t, l, r):      # indexes, no slice copies\n    while l < r:\n        if t[l] != t[r]:\n            return False\n        l += 1\n        r -= 1\n    return True\n\nassert is_palindrome(\"xracecarx\", 1, 7)\nassert \"xracecarx\"[1:8] == \"racecar\"\n",
+      "gotcha": "Treating `s[i:j]` like a `string_view`: it is a full O(K) copy, so slicing inside a loop can turn O(N) into O(N^2)."
+    },
+    {
+      "id": "d1-s7",
+      "title": "Memory model and references",
+      "points": [
+        "A name is a **reference** to an object. `b = a` copies the reference, not the list: mutating through `b` changes `a`.",
+        "`[[0] * cols] * rows` repeats **one** row object. Writing `grid[0][0]` changes every row. Use `[[0] * cols for _ in range(rows)]`.",
+        "`[0] * n` also repeats one object, but ints are immutable, so sharing is harmless. Aliasing bites only with a **mutable** item.",
+        "Defaults are evaluated **once**, at `def` time: `def f(x, acc=[])` shares one list across calls. Use `acc=None`."
+      ],
+      "cpp": "#include <cassert>\n#include <vector>\n\nint main() {\n    std::vector<int> a = {1, 2, 3};\n    std::vector<int> b = a;  // full copy (value semantics)\n    b[0] = 99;\n    assert(a[0] == 1);\n    std::vector<int>& alias = a;  // aliasing must be explicit\n    alias[0] = 7;\n    assert(a[0] == 7);\n    int rows = 2, cols = 3;\n    // Each row is an independent copy of the prototype row.\n    std::vector<std::vector<int>> grid(rows, std::vector<int>(cols, 0));\n    grid[0][0] = 1;\n    assert(grid[1][0] == 0);\n    return 0;\n}\n",
+      "python": "a = [1, 2, 3]\nb = a                            # same object, no copy\nb[0] = 99\nassert a[0] == 99 and a is b\n\nrows, cols = 2, 3\nbad = [[0] * cols] * rows        # one row object, repeated\nbad[0][0] = 1\nassert bad == [[1, 0, 0], [1, 0, 0]]\nassert bad[0] is bad[1]\n\ngood = [[0] * cols for _ in range(rows)]\ngood[0][0] = 1\nassert good == [[1, 0, 0], [0, 0, 0]]\n\ndef append_bad(x, acc=[]):       # default built once at def time\n    acc.append(x)\n    return acc\n\nassert append_bad(1) == [1]\nassert append_bad(2) == [1, 2]   # state leaked from the first call\n\ndef append_good(x, acc=None):\n    if acc is None:\n        acc = []\n    acc.append(x)\n    return acc\n\nassert append_good(1) == [1] and append_good(2) == [2]\n",
+      "gotcha": "Porting `vector<vector<int>> g(r, vector<int>(c))` as `[[0] * c] * r`: C++ copies the row, Python shares one row."
+    },
+    {
+      "id": "d1-s8",
+      "title": "Copies and equality",
+      "points": [
+        "`a[:]`, `list(a)`, `a.copy()` are **shallow**: a new outer list holding the same inner objects. `copy.deepcopy` copies all levels.",
+        "For a grid of numbers, `[row[:] for row in grid]` is the fast 2D copy; `deepcopy` also works but is much slower.",
+        "`==` compares **values** (like `==` on vectors); `is` compares **identity** (like comparing addresses).",
+        "Check `None` with `x is None`. Never use `is` on numbers or strings: small-int caching makes it pass by accident."
+      ],
+      "cpp": "#include <cassert>\n#include <vector>\n\nint main() {\n    std::vector<std::vector<int>> g = {{1, 2}, {3, 4}};\n    auto copy = g;  // copies every inner vector too\n    copy[0][0] = 9;\n    assert(g[0][0] == 1);\n    std::vector<int> a = {1, 2}, b = {1, 2};\n    assert(a == b);    // value equality\n    assert(&a != &b);  // different objects\n    int* p = nullptr;\n    assert(p == nullptr);\n    return 0;\n}\n",
+      "python": "import copy\n\ngrid = [[1, 2], [3, 4]]\nshallow = grid[:]                    # new outer list, same rows\nshallow[0][0] = 9\nassert grid[0][0] == 9               # the row is shared\nassert shallow is not grid and shallow[0] is grid[0]\n\ngrid = [[1, 2], [3, 4]]\ndeep = copy.deepcopy(grid)\ndeep[0][0] = 9\nrows = [row[:] for row in grid]      # fast 2D copy of a numeric grid\nrows[1][1] = 0\nassert grid == [[1, 2], [3, 4]]\n\na, b = [1, 2], [1, 2]\nassert a == b and a is not b         # equal values, different objects\n\nnode = None\nassert node is None                  # identity check for None\n",
+      "gotcha": "Expecting `grid[:]` or `grid.copy()` to copy rows like `auto copy = g;` does in C++: the inner lists stay shared."
+    },
+    {
+      "id": "d1-s9",
+      "title": "Loops and idioms",
+      "points": [
+        "`for i in range(n)` / `range(a, b, step)` replaces the counter loop. No `i++`: write `i += 1`.",
+        "`enumerate(a)` yields `(i, x)`; `zip(a, b)` pairs items and stops at the shorter; `reversed(a)` walks backwards without a copy.",
+        "Assigning to `i` inside `for i in range(n)` does not skip iterations. Use a `while` loop to jump `i`.",
+        "Empty containers, `0`, `''` and `None` are **falsy**: write `while stack:`. `for ... else` runs `else` only if no `break` ran."
+      ],
+      "cpp": "#include <cassert>\n#include <vector>\n\nint main() {\n    std::vector<int> a = {10, 20, 30};\n    int sum = 0;\n    for (int i = 0; i < (int)a.size(); ++i) sum += i * a[i];\n    assert(sum == 1 * 20 + 2 * 30);\n    std::vector<int> seen;\n    for (int i = 0; i < 10; i += 3) seen.push_back(i);  // i is a real counter\n    assert((seen == std::vector<int>{0, 3, 6, 9}));\n    std::vector<int> stack;\n    assert(stack.empty());  // explicit emptiness check\n    std::vector<int> rev(a.rbegin(), a.rend());\n    assert((rev == std::vector<int>{30, 20, 10}));\n    return 0;\n}\n",
+      "python": "a = [10, 20, 30]\nassert list(range(5, 0, -2)) == [5, 3, 1]\nassert list(enumerate(a)) == [(0, 10), (1, 20), (2, 30)]\nassert list(zip(a, \"xy\")) == [(10, \"x\"), (20, \"y\")]   # stops at shorter\nassert list(reversed(a)) == [30, 20, 10]\n\ni = 5\n++i                                  # legal: two unary pluses, no effect\nassert i == 5\ntry:\n    compile(\"i++\", \"<demo>\", \"exec\")\n    parsed = True\nexcept SyntaxError:\n    parsed = False\nassert not parsed                    # i++ is a SyntaxError\n\nseen = []\nfor i in range(4):\n    seen.append(i)\n    i += 10                          # reset on the next iteration\nassert seen == [0, 1, 2, 3]\n\nstack = []\nassert not stack and not \"\" and not 0 and not None and not {}\n\ndef find(target, items):\n    for idx, x in enumerate(items):\n        if x == target:\n            break\n    else:                            # runs only when no break\n        return -1\n    return idx\n\nassert find(20, a) == 1 and find(99, a) == -1\n",
+      "gotcha": "`++i` is legal Python and does nothing (two unary `+` signs); `i++` is a `SyntaxError`. Write `i += 1`."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "d1-e1",
+      "topic": "Floor division",
+      "prompt": "What does this print?",
+      "code": "print(-7 // 2)\n",
+      "options": [
+        "-3",
+        "-4",
+        "-3.5"
+      ],
+      "answer": 1,
+      "explanation": "`//` floors toward negative infinity, so -3.5 becomes -4. C++ `-7 / 2` truncates toward zero and gives -3."
+    },
+    {
+      "id": "d1-e2",
+      "topic": "Modulo sign",
+      "prompt": "What does this print?",
+      "code": "print(-7 % 2, 7 % -2)\n",
+      "options": [
+        "-1 1",
+        "1 1",
+        "1 -1"
+      ],
+      "answer": 2,
+      "explanation": "Python `%` takes the divisor's sign, so the result is in [0, b) for b > 0. C++ `%` takes the dividend's sign: `-7 % 2 == -1`, `7 % -2 == 1`."
+    },
+    {
+      "id": "d1-e3",
+      "topic": "Truncating division",
+      "prompt": "What does this print?",
+      "code": "print(int(-7 / 2))\n",
+      "options": [
+        "-3",
+        "-4",
+        "-3.5"
+      ],
+      "answer": 0,
+      "explanation": "`/` gives the float -3.5 and `int()` truncates toward zero: -3, matching C++ `-7 / 2`. This is the RPN fix; `-7 // 2` would give -4."
+    },
+    {
+      "id": "d1-e4",
+      "topic": "Bitwise NOT",
+      "prompt": "What does this print?",
+      "code": "print(~5)\n",
+      "options": [
+        "-6",
+        "-5",
+        "4294967290"
+      ],
+      "answer": 0,
+      "explanation": "Ints act like infinite two's complement, so `~x == -(x + 1)` (C++ `~5` on an int is -6 too). There is no unsigned view (4294967290) unless you mask: `~5 & 0xFFFFFFFF`."
+    },
+    {
+      "id": "d1-e5",
+      "topic": "2D list aliasing",
+      "prompt": "What does this print?",
+      "code": "grid = [[0] * 3] * 2\ngrid[0][0] = 1\nprint(grid)\n",
+      "options": [
+        "[[1, 0, 0], [0, 0, 0]]",
+        "[[1, 0, 0], [1, 0, 0]]",
+        "[[1, 1, 1], [0, 0, 0]]"
+      ],
+      "answer": 1,
+      "explanation": "`* 2` repeats a reference to the same row, so both rows are one object. C++ `vector(2, vector<int>(3))` copies the row. Use `[[0] * 3 for _ in range(2)]`."
+    },
+    {
+      "id": "d1-e6",
+      "topic": "Slicing",
+      "prompt": "What does this print?",
+      "code": "s = \"interview\"\nprint(s[2:5])\n",
+      "options": [
+        "tervi",
+        "terv",
+        "ter"
+      ],
+      "answer": 2,
+      "explanation": "Slices are `[start, end)`: indexes 2, 3, 4 give 'ter'. The end is an exclusive index, not a length like C++ `substr(2, 5)` ('tervi')."
+    },
+    {
+      "id": "d1-e7",
+      "topic": "Float equality",
+      "prompt": "What does this print?",
+      "code": "x = 0.1 + 0.2\nprint(x == 0.3, x)\n",
+      "options": [
+        "False 0.30000000000000004",
+        "False 0.3",
+        "True 0.3"
+      ],
+      "answer": 0,
+      "explanation": "Both languages use IEEE-754 doubles, so `==` is false in C++ too. Python prints the shortest repr that round-trips; `cout` shows 6 digits ('0.3'). Compare with `math.isclose`."
+    },
+    {
+      "id": "d1-e8",
+      "topic": "Truthiness",
+      "prompt": "What does this print?",
+      "code": "stack = []\nprint(\"empty\" if not stack else \"has items\", bool([0]))\n",
+      "options": [
+        "empty False",
+        "has items True",
+        "empty True"
+      ],
+      "answer": 2,
+      "explanation": "Empty containers are falsy, so `not stack` is True. `[0]` is a non-empty list, so it is truthy even though it holds 0. C++ needs `stack.empty()`."
+    },
+    {
+      "id": "d1-e9",
+      "topic": "True division",
+      "prompt": "What does this print?",
+      "code": "print(7 / 2, 6 / 2)\n",
+      "options": [
+        "3 3",
+        "3.5 3.0",
+        "3.5 3"
+      ],
+      "answer": 1,
+      "explanation": "In Python 3, `/` always returns a float, even when exact (`6 / 2 == 3.0`). C++ int / int stays an int. Use `//` for integer results."
+    },
+    {
+      "id": "d1-e10",
+      "topic": "is vs ==",
+      "prompt": "What does this print?",
+      "code": "a = [1, 2, 3]\nb = [1, 2, 3]\nprint(a == b, a is b)\n",
+      "options": [
+        "True False",
+        "True True",
+        "False False"
+      ],
+      "answer": 0,
+      "explanation": "`==` compares values item by item; `is` checks whether both names refer to one object. Like C++ `a == b` on vectors vs `&a == &b`."
+    }
+  ]
+}

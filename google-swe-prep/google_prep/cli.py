@@ -14,6 +14,7 @@ from google_prep.core import scheduler, session_store, trending
 from google_prep.core.clock import now
 from google_prep.db import get_session
 from google_prep.models import Problem, RecallDrill, StarStory
+from google_prep.modules import fasttrack as fasttrack_mod
 from google_prep.modules import mock as mock_mod
 from google_prep.modules import recall as recall_mod
 from google_prep.modules import remind as remind_mod
@@ -130,6 +131,8 @@ def next_action() -> str:
     t = now()
     with get_session() as session:
         sched = scheduler.schedule_for(session, t.date())
+        if fasttrack_mod.pending_day(session, scheduler.day_number(session, t.date())) is not None:
+            return "fasttrack"  # Days 1-2: the C++ -> Python fast-track comes first
     if sched.mode == "micro":
         return "micro_start" if not (sched.morning_completed or sched.evening_completed) else "today"
     if t.hour < 12:
@@ -167,7 +170,8 @@ def screen_star_list() -> str | None:
              banner("STAR STORIES", "Ambiguity · Ownership · Disagreement · Humility", "2 per dimension"),
              star_mod.list_view(session))
     show(key_bar(("a", "Add"), ("v", "Practice"), ("b", "Back"), ("q", "Quit")))
-    return wait_for({"a": "star_add", "v": "star_review", "b": "today", "t": "today", "d": "warmup", "w": "mock",
+    return wait_for({"a": "star_add", "v": "star_review", "b": "today", "t": "today", "f": "fasttrack", "d": "warmup",
+                     "w": "mock",
                      "r": "roadmap", "m": "micro_start"})
 
 
@@ -183,8 +187,18 @@ def action_star_review() -> None:
     star_review(dimension=None)
 
 
+def action_fasttrack(day: int | None = None) -> str | None:
+    t = now()
+    with get_session() as session:
+        day_no = scheduler.day_number(session, t.date())
+        day = day or fasttrack_mod.pending_day(session, day_no) or (fasttrack_mod.unfinished(session) or [1])[0]
+        fasttrack_mod.run_terminal(session, day, t)
+    return None
+
+
 ACTIONS = {
     "resume": screen_resume,
+    "fasttrack": action_fasttrack,
     "today": lambda: screen_today(),
     "micro": lambda: screen_today("micro"),
     "review": lambda: screen_today("review"),
@@ -235,6 +249,12 @@ def today(
             console.print(f"[warn]{worked:g}h workday: micro-mode on for today.[/warn]")
         mode = mode or ("micro" if sched.mode == "micro" else "normal")
     navigate({"micro": "micro", "review": "review"}.get(mode, "today"))
+
+
+@app.command()
+def fasttrack(day: Optional[int] = typer.Option(None, "--day", min=1, max=2, help="1 = basics, 2 = data structures")):
+    """Phase 0: the 2-day C++ -> Python fast-track (served automatically on Days 1-2)."""
+    action_fasttrack(day)
 
 
 @app.command()
@@ -443,17 +463,22 @@ def setup(
 
 
 @app.command()
-def ui():
-    """Full-screen cockpit: whiteboard mock + scorecard, roadmap gauge, STAR Studio (same database)."""
+def ui(
+    no_browser: bool = typer.Option(False, "--no-browser", help="Only start the local server and print its address"),
+    port: int = typer.Option(0, "--port", help="Fixed port (default: any free port)"),
+):
+    """Desktop window: Today, Python fast-track, drills, whiteboard mock, roadmap, STAR, vault (same database)."""
+    from google_prep.gui.launcher import main as gui_main
+
+    raise typer.Exit(gui_main((["--no-browser"] if no_browser else []) + (["--port", str(port)] if port else [])))
+
+
+@app.command()
+def tui():
+    """Full-screen terminal cockpit, for when you want no window (same database)."""
     from google_prep.ui.tui_app import PrepUI
 
     navigate(PrepUI(now=now).run())
-
-
-@app.command(hidden=True)
-def tui():
-    """Old name for `ui`."""
-    ui()
 
 
 @star_app.command("add")

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google SWE II OS</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Sections">
+      <div class="brand">
+        <div class="brand-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div><b>Google SWE II OS</b><span id="brand-sub">Interview prep</span></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="side-foot">
+        <div class="mini" id="mini"></div>
+        <div class="row">
+          <button class="btn ghost small" id="settings-btn" type="button">Settings</button>
+          <button class="btn ghost small" id="help-btn" type="button">Keys <kbd>?</kbd></button>
+        </div>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <nav class="crumbs" id="crumbs" aria-label="You are here"></nav>
+        <div class="meta" id="meta"></div>
+      </header>
+      <main class="view" id="view" tabindex="-1"></main>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript>This app needs JavaScript.</noscript>
+</body>
+</html>

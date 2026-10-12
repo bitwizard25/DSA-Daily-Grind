@@ -24,7 +24,7 @@ def count(model):
 def test_zero_args_in_the_morning_starts_the_warmup():
     r = run(input="\n3\n\n2\nq\n")  # reveal, Instant, reveal, Effort, stop
     assert r.exit_code == 0, r.output
-    assert "RECALL DRILL" in r.output and "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Recall > Drill 1/5" in r.output
+    assert "RECALL DRILL" in r.output and "[Google SWE II OS] Phase 1 > Week 1 > Day 3 > Recall > Drill 1/5" in r.output
     assert "Graphs" not in r.output.split("Drill 1/5")[1].split("\n")[0]  # unlabeled: no topic in the breadcrumb
     assert "DRILLS LOGGED" in r.output and "Instant 1" in r.output
     assert count(DrillProgress) == 2
@@ -46,10 +46,10 @@ def test_zero_args_after_both_sessions_shows_today(monkeypatch):
     assert "NEXT: EVENING DEEP WORK" in r.output and "Done" in r.output and "Morning warmup" in r.output
 
 
-def test_today_screen_has_breadcrumb_and_no_greeting():
+def test_today_screen_has_breadcrumb_and_no_greeting():  # Day 3: Phase 1
     r = run("today")
     assert r.exit_code == 0, r.output
-    assert "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Today" in r.output
+    assert "[Google SWE II OS] Phase 1 > Week 1 > Day 3 > Today" in r.output
     assert "[t] Today" in r.output and "[w] Mock" in r.output and "[s] STAR" in r.output  # section bar
     assert "Good morning" not in r.output and "Welcome" not in r.output
     assert "NEXT: MORNING WARMUP" in r.output and "[Enter] Start Today's 20-min Warmup" in r.output
@@ -87,7 +87,7 @@ def test_mock_records_rubric_follow_up_and_mistake():
     keys = "1\n2\nf\ns\n" + "1\n" + "y\ny\nn\nn\ny\n" + "1\n"
     r = run("mock", "--topic", "graphs", "--no-editor", input=keys)
     assert r.exit_code == 0, r.output
-    assert "Phase 1 > Week 1 > Day 1 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
+    assert "Phase 1 > Week 1 > Day 3 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
     with get_session() as s:
         m = s.exec(scheduler.select(MockSession)).one()
         a = s.exec(scheduler.select(Attempt)).one()
@@ -144,7 +144,7 @@ def test_roadmap():
     r = run("roadmap")
     assert r.exit_code == 0, r.output
     assert "Readiness = 0.40×0% + 0.30×0% + 0.15×0% + 0.15×0% = 0%" in r.output  # transparent formula
-    for text in ("Week 1 > Day 1 > Roadmap", "READINESS INDEX COMPONENTS", "Dry-Run Accuracy", "MILESTONE PHASES",
+    for text in ("Week 1 > Day 3 > Roadmap", "READINESS INDEX COMPONENTS", "Dry-Run Accuracy", "MILESTONE PHASES",
                  "Monotonic Queues", "Googlyness STAR Stories", "0/8 completed"):
         assert text in r.output, text
 
@@ -152,7 +152,7 @@ def test_roadmap():
 def test_problems_patterns_and_bad_topic():
     assert "Bus Routes" in run("problems", "--topic", "graphs").output
     assert "Sliding Window" in run("patterns").output
-    assert "left = 0" in run("patterns", "2").output
+    assert "Sliding window: variable size" in run("patterns", "2").output  # pattern 2 opens its vault note
     assert runner.invoke(app, ["mock", "--topic", "nope"]).exit_code == 2
 
 

@@ -5,58 +5,82 @@ Spec: [`google_swe_prep_spec.md`](./google_swe_prep_spec.md).
 
 Two front ends, one database (`~/.google_prep/prep.db`):
 
-| | Command | For |
+| | Launch | For |
 |---|---|---|
-| **CLI** | `google-prep` | Daily habit: zero-argument launch, 60-second recall drills, micro-mode, streaks |
-| **UI** | `google-prep ui` | Full-screen cockpit: 45-min whiteboard + scorecard, roadmap gauge, STAR Studio |
+| **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | The main way to use it: a real window with Today, the Python fast-track, drills, the 45-min whiteboard, roadmap, STAR studio and the concept vault |
+| **Terminal** | `google-prep-cli.exe` (or `google-prep` from source) | Every command, scripting, `remind`, `sync`; `google-prep-cli tui` is the full-screen terminal version |
 
 ## Get the app
 
-- **Windows `.exe`:** GitHub → **Actions** → latest green **build-exe** run → download **google-prep-Windows**.
-  Run `google-prep.exe` in Windows Terminal or PowerShell.
+- **Windows:** GitHub → **Actions** → latest green **build-exe** run → download **google-prep-Windows**.
+  It holds `google-prep.exe` (the window, no console) and `google-prep-cli.exe` (the terminal app).
 - **macOS / Linux:** artifacts **google-prep-macOS** / **google-prep-Linux** from the same run.
 - **Build it yourself** (Python 3.11+): `cd google-swe-prep`, `pip install -r requirements.txt`, `python build.py`
-  → `dist/google-prep(.exe)`. `python build.py --onedir` builds a folder instead; it starts about 40%
-  faster (≈0.9 s vs ≈1.5 s measured on Linux) because nothing is unpacked on each launch.
-- **From source:** `pip install -e .` then `google-prep`.
+  → `dist/google-prep(.exe)` and `dist/google-prep-cli(.exe)`. `--gui` or `--cli` builds one;
+  `--onedir` builds folders, which start faster because nothing is unpacked on each launch.
+- **From source:** `pip install -e .` then `google-prep ui` (window) or `google-prep` (terminal).
+
+### How the window works
+
+The app starts a small server on `127.0.0.1` only and opens it in a chromeless Microsoft Edge or Chrome
+window (Edge ships with Windows 10/11) with its own profile, so it behaves like a normal desktop app:
+closing the window quits it. Every request carries a secret key made at launch, the page refuses other
+hosts (no DNS-rebinding) and loads nothing from the internet. Without Edge/Chrome it opens in your
+default browser and quits a few minutes after the tab closes. `GOOGLE_PREP_BROWSER` picks another
+Chromium browser. The same database is used by both front ends, so you can switch any time.
+
+Keys in the window: `Enter` does the highlighted main action on every screen; `t f d w r s v` jump to
+Today, Fast-Track, Drills, Mock, Roadmap, STAR, Vault; `?` lists everything.
+
+## Days 1–2: C++ → Python fast-track (Phase 0)
+
+The plan starts with two 60-minute modules for C++ programmers switching to Python. Today serves them
+on Days 1 and 2; the Google problem bank starts on Day 3.
+
+| Day | Covers |
+|---|---|
+| 1 | Arbitrary-precision `int`, `//` and `%` on negatives vs C++ truncation, `int(a / b)`, `inf`, bitwise NOT and 32-bit masks, string immutability and `''.join`, slicing, references and the `[[0] * c] * r` aliasing bug, shallow vs deep copy |
+| 2 | `list` as vector/stack (never `pop(0)`), `deque`, `heapq` (min-heap, negate for max, tuples), `dict` / `defaultdict` / `Counter`, `set`, classes for ListNode/TreeNode, tuple swaps, `bisect` = lower/upper_bound, sorting with keys, `@lru_cache` |
+
+Each section puts the C++ you know next to the Python to write, plus one trap. Each day ends with
+10 predict-the-output exercises; the answer shows what Python really prints (the snippet is run).
+Every code block in the lessons and the vault is executed (Python) or compiled and run (C++,
+`g++ -std=c++17`) by the test suite, so the side-by-side examples are known to be correct.
 
 ## Daily use
 
-| When | Run | What happens |
+| When | Do | What happens |
 |---|---|---|
-| Any time | `google-prep` | Starts the next best action: AM → recall warmup, PM → timed solve (mock in weeks 7–8), micro-mode on a heavy day. Offers to resume a crashed session first. |
-| Exhausted | `m` on any screen, or `google-prep today --worked 11` | 10-minute Micro-Mode (1 pattern drill + 1 bug-hunt); counts toward the streak. |
-| Mock | `google-prep mock --topic graphs`, or `w` | The 45-minute whiteboard below. |
-| Weekly | `google-prep roadmap` | Circular readiness gauge, components, 14-day trend, pace, topic mastery, mistake profile. |
-| STAR | `s`, or `google-prep star add/list/review` | Stories for Ambiguity, Ownership, Disagreement, Humility. |
+| Any time | open the app | Today shows one **Next** card: fast-track (Days 1–2), AM recall warmup, PM timed solve (mock in weeks 7–8). An unfinished drill or mock appears first with **Continue**. |
+| Exhausted | **Micro-Mode** on Today (`m`), or `google-prep-cli today --worked 11` | 10 minutes (1 pattern drill + 1 bug-hunt); counts toward the streak. |
+| Mock | **Mock & Solve** (`w`) | Recommended weakest-topic problem, or pick any of the 75; then the 45-minute whiteboard below. |
+| Weekly | **Roadmap** (`r`) | Readiness gauge with the formula, 14-day trend, 8-week plan, topic mastery, mistake profile. |
+| STAR | **STAR Stories** (`s`) | Write and edit stories for Ambiguity, Ownership, Disagreement, Humility; 2-minute practice prompts. |
+| Reference | **Concept Vault** (`v`) | 12 notes: C++ vs Python, complexity tables, templates and traps per pattern. |
 
-Every screen shows the same frame: breadcrumb (`[Google SWE II OS] Phase 1 > Week 2 > Day 3 > …`, current
-step in bold), the section bar `[t] Today [d] Recall [w] Mock [r] Roadmap [s] STAR`, a title, and the
-keys for that screen in the footer. `b`/`Esc` goes back, `q` quits. The home screen shows one
-**Next** card; press `Enter`.
-
-Everything is logged automatically when a drill, solve or mock ends. Do off-app practice through
-`google-prep solve <id>` so the timer captures it.
+Every screen shows the same frame: the section list on the left, a breadcrumb on top
+(`Google SWE II OS › Phase 1 › Week 2 › Day 10 › Mock › Graphs › Course Schedule II`, current step in
+bold), one title, one main button. Everything is logged automatically when a drill, solve or mock ends.
 
 ## The 45-minute whiteboard
 
-Timer bar on top, problem on the left, plain-text editor on the right (no syntax highlighting, no
-autocomplete, nothing runs), plus a **Trace table** tab where you step through your own code by hand.
+Clock and phase bar on top, problem and live checklist on the left, a plain-text code pad on the
+right (no syntax highlighting, no autocomplete, nothing runs), plus a **Dry-run trace** tab where you
+step through your own code by hand.
 
 | Time | Phase |
 |---|---|
-| 00:00–05:00 | Scoping: clarify constraints and edge cases (checklist F1–F2) |
-| 05:00–35:00 | Code in plain text; trace a non-trivial input by hand (F6) |
+| 00:00–05:00 | Scoping: clarify constraints and edge cases |
+| 05:00–35:00 | Code in plain text; trace a non-trivial input by hand |
 | 35:00–40:00 | A Google follow-up banner drops in (streaming, memory caps, sharding) |
 | 40:00–45:00 | 4-pillar scorecard: Analytical Ability, Coding & Craft, Verification & Rigor, System Scaling (25% each) |
 
-Keys: `F1-F4` checklist · `F5` code · `F6` trace table · `Ctrl+F` another follow-up · `Ctrl+T` pause ·
-`Ctrl+S` submit · `Ctrl+Q` twice to abandon.
-Scorecard: first `[1] Missed it` / `[2] Solved with Effort` / `[3] Instant Reflex` (reschedules the problem
-today / in 3 days / next week), then one `y`/`n` per pillar check; your checklist ticks are pre-noted, `b`
-steps back. Every keystroke in the code and trace is saved to `~/.google_prep/sessions/`; after a crash,
-`google-prep` opens with "Session restored: Course Schedule II (18m remaining). Press [Enter] to resume."
-`--external` uses Notepad/TextEdit and a terminal timer instead.
+Window keys: `Alt+1…4` tick the checklist · `Tab` indents 4 spaces, `Enter` keeps the indent ·
+`Esc` leaves the pad · `Alt+P` pause · `Ctrl+S` submit. Scorecard: `[1] Missed it` /
+`[2] Solved with Effort` / `[3] Instant Reflex` (reschedules the problem today / in 3 days / next
+week), then one `y`/`n` per pillar check (your ticks are pre-noted), `Backspace` steps back.
+Every keystroke is saved to `~/.google_prep/sessions/`; after a crash the app opens with
+"House Robber (18m remaining) · Continue". Terminal keys for `google-prep-cli mock` are listed by `?`.
 
 ## Recall grading
 
@@ -94,8 +118,8 @@ brand colours are used only for borders.
 
 ## Other commands
 
-`solve [id]` · `problems` · `patterns [n]` · `setup --name --target --interview-date` · `remind` (OS
-scheduler commands for 07:30 / 19:30) · `resume`.
+`fasttrack [--day 1|2]` · `solve [id]` · `problems` · `patterns [n]` · `setup --name --target --interview-date` ·
+`remind` (OS scheduler commands for 07:30 / 19:30) · `resume` · `ui` (window) · `tui` (full-screen terminal).
 
 ## Files
 
@@ -106,4 +130,7 @@ scheduler commands for 07:30 / 19:30) · `resume`.
 
 ## Tests
 
-`pip install -r requirements.txt` then `python -m pytest`.
+`pip install -r requirements.txt` then `python -m pytest`. The suite covers the scheduler, SM-2,
+readiness, the CLI, the terminal UI, the window's API and server guards (token, host check, path
+traversal), and runs every lesson and vault code block (C++ blocks need `g++`; they are skipped
+without it).

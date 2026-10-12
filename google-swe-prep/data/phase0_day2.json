@@ -1,0 +1,258 @@
+{
+  "day": 2,
+  "title": "Data Structures for C++ Devs",
+  "subtitle": "Map the STL containers you know to list, deque, heapq, dict, set, bisect and sorted.",
+  "minutes": 60,
+  "vault": "00_python_datastructures_for_cpp_devs.md",
+  "sections": [
+    {
+      "id": "d2-s1",
+      "title": "list = vector + stack",
+      "points": [
+        "`xs.append(x)` is `push_back`: **O(1) amortized**. `xs.pop()` removes the last item in **O(1)** and returns it. `xs[-1]` is `back()`.",
+        "`xs.pop(0)` and `xs.insert(0, x)` shift every element: **O(N)**. A list is never a queue.",
+        "**List comprehension** `[f(x) for x in xs if cond]` replaces a `push_back` loop.",
+        "2D grid: `[[0] * c for _ in range(r)]`. `[[0] * c] * r` repeats ONE row object r times."
+      ],
+      "cpp": "#include <cassert>\n#include <vector>\n\nint main() {\n    std::vector<int> st;\n    st.push_back(1);\n    st.push_back(2);\n    st.push_back(3);\n    assert(st.back() == 3);\n    st.pop_back();                                   // returns void\n    assert(st.back() == 2 && st.size() == 2);\n\n    std::vector<int> squares;\n    for (int x = 0; x < 5; ++x)\n        if (x % 2 == 0) squares.push_back(x * x);\n    assert((squares == std::vector<int>{0, 4, 16}));\n\n    std::vector<std::vector<int>> grid(2, std::vector<int>(3, 0));   // rows are copies\n    grid[0][0] = 1;\n    assert(grid[1][0] == 0);\n    return 0;\n}\n",
+      "python": "stack = []\nstack.append(1)\nstack.append(2)\nstack.append(3)\nassert stack[-1] == 3            # top() / back()\nassert stack.pop() == 3          # pop() RETURNS the item\nassert stack == [1, 2]\n\nsquares = [x * x for x in range(5) if x % 2 == 0]\nassert squares == [0, 4, 16]\n\ngrid = [[0] * 3 for _ in range(2)]   # 2 independent rows\ngrid[0][0] = 1\nassert grid == [[1, 0, 0], [0, 0, 0]]\n\nbad = [[0] * 3] * 2                  # the SAME row twice\nbad[0][0] = 1\nassert bad == [[1, 0, 0], [1, 0, 0]]\n\nwhile stack:                         # empty list is falsy: while (!st.empty())\n    stack.pop()\nassert stack == []\n",
+      "gotcha": "`q.pop(0)` reads like `queue.pop()` but shifts every element: O(N) per call, up to O(N^2) for a BFS. Use `collections.deque`."
+    },
+    {
+      "id": "d2-s2",
+      "title": "collections.deque = queue + deque",
+      "points": [
+        "`deque` is `std::deque`: `append`, `appendleft`, `pop`, `popleft` are all **O(1)**.",
+        "**BFS**: `q = deque([start])`, `seen = {start}`, `while q: u = q.popleft()`. Mark seen when you push, not when you pop.",
+        "`deque(maxlen=k)` keeps the last k items: appending to a full deque drops the item at the other end.",
+        "Unlike `std::deque`, `d[i]` is **O(N)** in the middle (O(1) at the ends) and `d[1:3]` raises TypeError. Use a list for random access."
+      ],
+      "cpp": "#include <cassert>\n#include <deque>\n#include <queue>\n#include <vector>\n\nint main() {\n    // BFS on edges 0-1, 0-2, 1-3\n    std::vector<std::vector<int>> adj = {{1, 2}, {0, 3}, {0}, {1}};\n    std::vector<int> dist(4, -1);\n    std::queue<int> q;\n    q.push(0);\n    dist[0] = 0;\n    while (!q.empty()) {\n        int u = q.front();\n        q.pop();                                     // std::queue::pop removes the FRONT\n        for (int v : adj[u])\n            if (dist[v] == -1) { dist[v] = dist[u] + 1; q.push(v); }\n    }\n    assert((dist == std::vector<int>{0, 1, 1, 2}));\n\n    std::deque<int> d = {2};\n    d.push_front(1);\n    d.push_back(3);\n    assert(d.front() == 1 && d.back() == 3);\n    return 0;\n}\n",
+      "python": "from collections import deque\n\nadj = {0: [1, 2], 1: [0, 3], 2: [0], 3: [1]}\ndist = {0: 0}\nq = deque([0])\nwhile q:\n    u = q.popleft()                  # O(1); list.pop(0) would be O(N)\n    for v in adj[u]:\n        if v not in dist:            # mark when pushed\n            dist[v] = dist[u] + 1\n            q.append(v)\nassert dist == {0: 0, 1: 1, 2: 1, 3: 2}\n\nd = deque([2])\nd.appendleft(1)\nd.append(3)\nassert d[0] == 1 and d[-1] == 3      # front() and back()\nassert d.popleft() == 1              # pop_front\nassert d.pop() == 3                  # pop_back (NOT the front)\n\nlast3 = deque(maxlen=3)\nfor x in range(5):\n    last3.append(x)                  # full: drops from the left\nassert list(last3) == [2, 3, 4]\n\ncells = deque([(0, 0)])              # one cell\nassert len(cells) == 1\nassert len(deque((0, 0))) == 2       # two ints: deque iterates its argument\n",
+      "gotcha": "`deque((r, c))` builds a queue of two ints, not one cell: the constructor iterates its argument. Write `deque([(r, c)])`."
+    },
+    {
+      "id": "d2-s3",
+      "title": "heapq = priority_queue (but min-first)",
+      "points": [
+        "`heapq` works on a plain list and is a **min-heap**: `h[0]` is the smallest. `std::priority_queue` is a **max-heap**.",
+        "Max-heap: push `-x`, negate again after the pop. For tuples, negate the key field: `(-count, word)`.",
+        "Push `(priority, counter, item)`: on equal priorities the unique counter decides, so `item` (say a `ListNode`) is never compared.",
+        "`heapify(xs)` is **O(N)** in place. Push / pop **O(log N)**. `nlargest(k, xs)` / `nsmallest(k, xs)` are O(N log k)."
+      ],
+      "cpp": "#include <cassert>\n#include <functional>\n#include <queue>\n#include <vector>\n\nint main() {\n    std::priority_queue<int> maxh;                   // max-heap by default\n    for (int x : {3, 1, 4}) maxh.push(x);\n    assert(maxh.top() == 4);\n\n    std::priority_queue<int, std::vector<int>, std::greater<int>> minh;   // what heapq gives you\n    for (int x : {3, 1, 4}) minh.push(x);\n    assert(minh.top() == 1);\n    minh.pop();\n    assert(minh.top() == 3);\n    return 0;\n}\n",
+      "python": "import heapq\nimport itertools\n\nh = []\nfor x in [3, 1, 4, 1, 5]:\n    heapq.heappush(h, x)\nassert h[0] == 1                                     # smallest on top\nassert [heapq.heappop(h) for _ in range(3)] == [1, 1, 3]\n\nmaxh = [-x for x in [3, 1, 4]]                       # max-heap via negation\nheapq.heapify(maxh)                                  # O(N)\nassert -heapq.heappop(maxh) == 4\n\n\nclass Task:                                          # no __lt__: not orderable\n    def __init__(self, name):\n        self.name = name\n\n\ntie = itertools.count()\npq = []\nheapq.heappush(pq, (2, next(tie), Task(\"b\")))\nheapq.heappush(pq, (2, next(tie), Task(\"c\")))       # equal priority: counter decides\nheapq.heappush(pq, (1, next(tie), Task(\"a\")))\nassert [heapq.heappop(pq)[2].name for _ in range(3)] == [\"a\", \"b\", \"c\"]\n\nbad = [(1, Task(\"x\"))]\ntry:\n    heapq.heappush(bad, (1, Task(\"y\")))              # tie -> compares two Task objects\n    compared = True\nexcept TypeError:\n    compared = False\nassert compared is False\n\nassert heapq.nlargest(2, [5, 1, 9, 3]) == [9, 5]\nassert heapq.nsmallest(2, [5, 1, 9, 3]) == [1, 3]\n",
+      "gotcha": "Pushing `(val, node)` with a `ListNode` works in small tests, then raises TypeError when two vals tie. Add a counter: `(val, i, node)`."
+    },
+    {
+      "id": "d2-s4",
+      "title": "dict, defaultdict, Counter = unordered_map",
+      "points": [
+        "`dict` is a hash map like `unordered_map` (average **O(1)**) but **keeps insertion order**. It is not sorted like `std::map`.",
+        "`d[k]` on a missing key raises **KeyError**; C++ `m[k]` silently inserts a default. Use `d.get(k, 0)` or a `defaultdict`.",
+        "`defaultdict(list)` gives adjacency lists: `g[u].append(v)` with no key check. Reading `g[x]` also inserts `x`.",
+        "`Counter(xs)` counts in O(N). `most_common(k)` returns `(item, count)` pairs, highest first; equal counts keep first-seen order."
+      ],
+      "cpp": "#include <cassert>\n#include <string>\n#include <unordered_map>\n#include <vector>\n\nint main() {\n    std::unordered_map<std::string, int> freq;\n    for (std::string w : {\"a\", \"b\", \"a\"}) freq[w]++;    // operator[] inserts 0 first\n    assert(freq[\"a\"] == 2);\n    assert(freq.count(\"z\") == 0);\n    int z = freq[\"z\"];                                  // a READ also inserts\n    assert(z == 0 && freq.size() == 3);\n\n    std::unordered_map<int, std::vector<int>> g;        // adjacency list\n    g[1].push_back(2);\n    g[1].push_back(3);\n    assert(g[1].size() == 2);\n    return 0;\n}\n",
+      "python": "from collections import Counter, defaultdict\n\nfreq = {}\nfor w in [\"a\", \"b\", \"a\"]:\n    freq[w] = freq.get(w, 0) + 1         # get with a default\nassert freq == {\"a\": 2, \"b\": 1}\nassert list(freq) == [\"a\", \"b\"]          # insertion order is kept\n\ntry:\n    freq[\"z\"]                            # C++ m[\"z\"] would insert 0\n    found = True\nexcept KeyError:\n    found = False\nassert found is False and \"z\" not in freq\n\ng = defaultdict(list)                    # adjacency list\nfor u, v in [(1, 2), (1, 3), (2, 3)]:\n    g[u].append(v)\nassert g[1] == [2, 3]\nassert g[9] == [] and 9 in g             # reading a missing key inserts it\n\nc = Counter(\"mississippi\")\nassert c[\"s\"] == 4 and c[\"z\"] == 0       # Counter returns 0 and does NOT insert\nassert \"z\" not in c\nassert c.most_common(2) == [(\"i\", 4), (\"s\", 4)]   # tie: \"i\" was seen first\n",
+      "gotcha": "`d[k] += 1` on a plain dict raises KeyError (C++ `m[k]++` inserts 0). Use `Counter`, `defaultdict(int)` or `d.get(k, 0) + 1`."
+    },
+    {
+      "id": "d2-s5",
+      "title": "set, frozenset, tuple keys = unordered_set",
+      "points": [
+        "`set` is `unordered_set`: `add`, `remove`, `in` are average **O(1)**. `{}` is an empty **dict**; an empty set is `set()`.",
+        "Set algebra: `a | b`, `a & b`, `a - b`, `a ^ b`. `remove(x)` raises KeyError if x is missing; `discard(x)` does not.",
+        "Keys must be **hashable**: tuples of ints/strs work (`seen.add((r, c))`); lists raise `TypeError: unhashable type`.",
+        "`frozenset` is an immutable, hashable set: use it as a dict key or as a member of another set."
+      ],
+      "cpp": "#include <cassert>\n#include <set>\n#include <unordered_set>\n#include <utility>\n\nint main() {\n    std::unordered_set<int> s = {1, 2};\n    s.insert(2);\n    assert(s.size() == 2 && s.count(1) == 1);\n\n    // std::pair has no std::hash: unordered_set<pair> does not compile without a custom hash,\n    // so C++ code often falls back to std::set (a tree, O(log N)).\n    std::set<std::pair<int, int>> seen;\n    seen.insert({0, 1});\n    assert(seen.count({0, 1}) == 1);\n    return 0;\n}\n",
+      "python": "s = {1, 2}\ns.add(2)\nassert len(s) == 2 and 1 in s\nassert type({}) is dict and type(set()) is set\n\na, b = {1, 2, 3}, {2, 3, 4}\nassert a | b == {1, 2, 3, 4} and a & b == {2, 3}\nassert a - b == {1} and a ^ b == {1, 4}\ns.discard(99)                            # fine; s.remove(99) raises KeyError\n\nseen = set()\nseen.add((0, 1))                         # tuple: hashable, O(1) average\nassert (0, 1) in seen\n\ntry:\n    seen.add([0, 1])                     # list: mutable, so unhashable\n    hashable = True\nexcept TypeError:\n    hashable = False\nassert hashable is False\n\nmemo = {frozenset({1, 2}): \"pair\"}\nassert memo[frozenset({2, 1})] == \"pair\"   # element order does not matter\n",
+      "gotcha": "`seen.add([r, c])` raises TypeError: lists are unhashable. Use a tuple `(r, c)`; C++ habit says any comparable value can be a key."
+    },
+    {
+      "id": "d2-s6",
+      "title": "Classes instead of pointers",
+      "points": [
+        "Every variable is a **reference** to an object; there is no `*` or `->`. `None` is `nullptr`; test it with `is None`.",
+        "`ListNode` / `TreeNode` are small classes; `node.next` is `node->next`. Unreachable nodes are freed for you: no `delete`.",
+        "Tuple assignment evaluates the whole right side first: `curr.next, prev, curr = prev, curr, curr.next` reverses one link.",
+        "A **dummy head** `dummy = ListNode()` removes the empty-list special case; return `dummy.next`."
+      ],
+      "cpp": "#include <cassert>\n#include <vector>\n\nstruct ListNode {\n    int val;\n    ListNode* next;\n    explicit ListNode(int v, ListNode* n = nullptr) : val(v), next(n) {}\n};\n\nListNode* reverse(ListNode* head) {\n    ListNode* prev = nullptr;\n    ListNode* curr = head;\n    while (curr) {\n        ListNode* nxt = curr->next;      // C++ needs the temporary\n        curr->next = prev;\n        prev = curr;\n        curr = nxt;\n    }\n    return prev;\n}\n\nint main() {\n    ListNode c(3), b(2, &c), a(1, &b);\n    std::vector<int> out;\n    for (ListNode* p = reverse(&a); p; p = p->next) out.push_back(p->val);\n    assert((out == std::vector<int>{3, 2, 1}));\n    return 0;\n}\n",
+      "python": "class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\n\nclass TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\n\ndef build(vals):\n    dummy = ListNode()                   # dummy head: no special case for the first node\n    tail = dummy\n    for v in vals:\n        tail.next = ListNode(v)\n        tail = tail.next\n    return dummy.next\n\n\ndef to_list(head):\n    out = []\n    while head:                          # None is falsy, like nullptr\n        out.append(head.val)\n        head = head.next\n    return out\n\n\ndef reverse(head):\n    prev, curr = None, head\n    while curr:\n        curr.next, prev, curr = prev, curr, curr.next   # right side evaluated first\n    return prev\n\n\nassert to_list(reverse(build([1, 2, 3]))) == [3, 2, 1]\nassert reverse(None) is None\n\n\ndef height(node):\n    if node is None:\n        return 0\n    return 1 + max(height(node.left), height(node.right))\n\n\nassert height(TreeNode(1, TreeNode(2, TreeNode(4)), TreeNode(3))) == 3\n",
+      "gotcha": "Target order matters: `prev, curr, curr.next = curr, curr.next, prev` rebinds `curr` first, then sets `.next` on the NEW node."
+    },
+    {
+      "id": "d2-s7",
+      "title": "bisect = lower_bound / upper_bound",
+      "points": [
+        "`bisect_left(a, x)` is `std::lower_bound`: first index with `a[i] >= x`. It returns an **index**, not an iterator.",
+        "`bisect_right(a, x)` (alias `bisect`) is `std::upper_bound`: first index with `a[i] > x`. Count of x = right - left.",
+        "`insort(a, x)` finds the slot in O(log N), but the list insert shifts elements: **O(N)** per call.",
+        "3.10+: `bisect_left(a, t, key=lambda e: e[0])`. `t` is a key value, not a record; `a` must be sorted by that key."
+      ],
+      "cpp": "#include <algorithm>\n#include <cassert>\n#include <vector>\n\nint main() {\n    std::vector<int> a = {1, 2, 2, 2, 5};\n    auto lo = std::lower_bound(a.begin(), a.end(), 2) - a.begin();\n    auto hi = std::upper_bound(a.begin(), a.end(), 2) - a.begin();\n    assert(lo == 1 && hi == 4 && hi - lo == 3);\n    assert(std::lower_bound(a.begin(), a.end(), 9) == a.end());\n\n    a.insert(std::upper_bound(a.begin(), a.end(), 3), 3);   // O(N) shift, same as insort\n    assert((a == std::vector<int>{1, 2, 2, 2, 3, 5}));\n    return 0;\n}\n",
+      "python": "from bisect import bisect_left, bisect_right, insort\n\na = [1, 2, 2, 2, 5]\nassert bisect_left(a, 2) == 1                        # std::lower_bound\nassert bisect_right(a, 2) == 4                       # std::upper_bound\nassert bisect_right(a, 2) - bisect_left(a, 2) == 3   # how many 2s\nassert bisect_left(a, 9) == len(a)                   # like end()\n\ninsort(a, 3)                                         # O(log N) search + O(N) insert\nassert a == [1, 2, 2, 2, 3, 5]\n\ni = bisect_left(a, 4)                                # membership test\nassert not (i < len(a) and a[i] == 4)\n\nevents = [(1, \"a\"), (4, \"b\"), (7, \"c\")]\nj = bisect_left(events, 4, key=lambda e: e[0])       # x is a key value\nassert events[j] == (4, \"b\")\n",
+      "gotcha": "`bisect_left` returns `len(a)` when x is larger than every item. Check `i < len(a)` before reading `a[i]`, as you would check `end()`."
+    },
+    {
+      "id": "d2-s8",
+      "title": "Sorting: key=, stability, cmp_to_key",
+      "points": [
+        "`sorted(xs)` returns a new list; `xs.sort()` sorts in place and returns **None**. Both are Timsort: **O(N log N)**.",
+        "Python sorts are **stable** (equal keys keep input order), also with `reverse=True`. `std::sort` is not guaranteed stable; `std::stable_sort` is.",
+        "`key=` is computed once per item: `sorted(words, key=len)`. Multi-key: `key=lambda p: (-p[1], p[0])`.",
+        "A comparator for `functools.cmp_to_key` returns negative / 0 / positive, not a C++ `bool`. Prefer `key=` when you can."
+      ],
+      "cpp": "#include <algorithm>\n#include <cassert>\n#include <string>\n#include <utility>\n#include <vector>\n\nint main() {\n    std::vector<std::pair<std::string, int>> v = {{\"cat\", 90}, {\"amy\", 95}, {\"bob\", 90}};\n    std::stable_sort(v.begin(), v.end(),\n                     [](const auto& a, const auto& b) { return a.second > b.second; });\n    assert(v[0].first == \"amy\" && v[1].first == \"cat\" && v[2].first == \"bob\");\n\n    std::vector<std::string> nums = {\"3\", \"30\", \"34\"};   // largest number\n    std::sort(nums.begin(), nums.end(),\n              [](const std::string& a, const std::string& b) { return a + b > b + a; });\n    assert(nums[0] == \"34\" && nums[1] == \"3\" && nums[2] == \"30\");\n    return 0;\n}\n",
+      "python": "from functools import cmp_to_key\n\npeople = [(\"cat\", 90), (\"amy\", 95), (\"bob\", 90)]\nby_score = sorted(people, key=lambda p: p[1], reverse=True)\nassert by_score == [(\"amy\", 95), (\"cat\", 90), (\"bob\", 90)]   # stable: cat stays before bob\n\nby_both = sorted(people, key=lambda p: (-p[1], p[0]))        # score desc, then name asc\nassert by_both == [(\"amy\", 95), (\"bob\", 90), (\"cat\", 90)]\n\nassert sorted([\"dd\", \"b\", \"cc\", \"a\"], key=len) == [\"b\", \"a\", \"dd\", \"cc\"]\n\nxs = [3, 1, 2]\nassert xs.sort() is None and xs == [1, 2, 3]                  # in place, returns None\n\n\ndef cmp(a, b):                                                # 3-way, not bool\n    if a + b > b + a:\n        return -1\n    if a + b < b + a:\n        return 1\n    return 0\n\n\nassert \"\".join(sorted([\"3\", \"30\", \"34\"], key=cmp_to_key(cmp))) == \"34330\"\n",
+      "gotcha": "`xs = xs.sort()` sets `xs` to None, and the error shows up lines later. Write `xs.sort()` alone or `xs = sorted(xs)`."
+    },
+    {
+      "id": "d2-s9",
+      "title": "Recursion, memoization and depth",
+      "points": [
+        "`@functools.cache` (3.9+) or `@lru_cache(maxsize=None)` memoizes a function: top-down DP with no memo table code.",
+        "Cached arguments must be **hashable**: pass tuples or indices, not lists. Reset between test cases with `f.cache_clear()`.",
+        "Default recursion limit is **1000** frames: a recursive DFS on a 10^5-node path raises **RecursionError**.",
+        "`sys.setrecursionlimit` helps plain recursion only. Deep `@cache` recursion still fails: RecursionError (3.12+) or a crash (3.11). Safest: an explicit stack."
+      ],
+      "cpp": "#include <cassert>\n#include <unordered_map>\n#include <vector>\n\nlong long fib(int n, std::unordered_map<int, long long>& memo) {\n    if (n < 2) return n;\n    auto it = memo.find(n);\n    if (it != memo.end()) return it->second;\n    long long r = fib(n - 1, memo) + fib(n - 2, memo);\n    memo[n] = r;\n    return r;\n}\n\nint main() {\n    std::unordered_map<int, long long> memo;\n    assert(fib(50, memo) == 12586269025LL);\n\n    int n = 100000;                                  // path 0 -> 1 -> ... -> n-1\n    std::vector<std::vector<int>> adj(n);\n    for (int i = 0; i + 1 < n; ++i) adj[i].push_back(i + 1);\n    std::vector<int> st = {0};\n    std::vector<bool> seen(n, false);\n    seen[0] = true;\n    int visited = 0;\n    while (!st.empty()) {                            // iterative DFS\n        int u = st.back();\n        st.pop_back();\n        ++visited;\n        for (int v : adj[u])\n            if (!seen[v]) { seen[v] = true; st.push_back(v); }\n    }\n    assert(visited == n);\n    return 0;\n}\n",
+      "python": "import sys\nfrom functools import cache, lru_cache\n\n\n@cache                                   # same as lru_cache(maxsize=None)\ndef fib(n):\n    return n if n < 2 else fib(n - 1) + fib(n - 2)\n\n\nassert fib(90) == 2880067194370816120   # without the cache this never finishes\n\n\n@lru_cache(maxsize=None)\ndef paths(r, c):                         # grid DP, top-down\n    if r == 0 or c == 0:\n        return 1\n    return paths(r - 1, c) + paths(r, c - 1)\n\n\nassert paths(2, 2) == 6\npaths.cache_clear()                      # reset between test cases\n\nassert sys.getrecursionlimit() == 1000\n\nn = 100_000\nadj = [[i + 1] for i in range(n - 1)] + [[]]    # a path 0 -> 1 -> ... -> n-1\n\n\ndef dfs(u):\n    for v in adj[u]:\n        dfs(v)\n\n\ntry:\n    dfs(0)\n    deep_ok = True\nexcept RecursionError:\n    deep_ok = False\nassert deep_ok is False\n\n\ndef dfs_iter(start):                     # explicit stack: no depth limit\n    seen, stack = {start}, [start]\n    while stack:\n        u = stack.pop()\n        for v in adj[u]:\n            if v not in seen:\n                seen.add(v)\n                stack.append(v)\n    return len(seen)\n\n\nassert dfs_iter(0) == n\n",
+      "gotcha": "Recursive flood fill passes the small samples, then dies with RecursionError on a 300x300 grid. Plan an explicit stack."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "d2-e1",
+      "topic": "heapq pop order",
+      "prompt": "What does this print?",
+      "code": "import heapq\nh = []\nfor x in [5, 1, 4]:\n    heapq.heappush(h, x)\nprint([heapq.heappop(h) for _ in range(3)])\n",
+      "options": [
+        "[5, 4, 1]",
+        "[1, 4, 5]",
+        "[5, 1, 4]"
+      ],
+      "answer": 1,
+      "explanation": "`heapq` is a min-heap, so pops come out smallest first. `std::priority_queue` is a max-heap and would give 5, 4, 1."
+    },
+    {
+      "id": "d2-e2",
+      "topic": "max-heap via negation",
+      "prompt": "What does this print?",
+      "code": "import heapq\nh = [-x for x in [3, 7, 5]]\nheapq.heapify(h)\nprint(heapq.heappop(h))\n",
+      "options": [
+        "-7",
+        "7",
+        "-3"
+      ],
+      "answer": 0,
+      "explanation": "The heap stores negatives and pops the smallest: -7. You must negate again to get 7. Expecting -3 assumes a max-heap like `priority_queue`."
+    },
+    {
+      "id": "d2-e3",
+      "topic": "deque popleft vs pop",
+      "prompt": "What does this print?",
+      "code": "from collections import deque\nq = deque([1, 2, 3])\nq.appendleft(0)\nprint(q.popleft(), q.pop())\n",
+      "options": [
+        "0 1",
+        "3 0",
+        "0 3"
+      ],
+      "answer": 2,
+      "explanation": "`popleft()` is `pop_front`; `pop()` is `pop_back`. In C++ `std::queue::pop()` removes the front, so habit says `0 1`."
+    },
+    {
+      "id": "d2-e4",
+      "topic": "Counter.most_common",
+      "prompt": "What does this print?",
+      "code": "from collections import Counter\nprint(Counter(\"banana\").most_common(2))\n",
+      "options": [
+        "[('a', 3), ('n', 2)]",
+        "[('a', 3), ('b', 1)]",
+        "{'a': 3, 'n': 2}"
+      ],
+      "answer": 0,
+      "explanation": "`most_common(k)` returns a list of `(item, count)` pairs, highest count first. It is not key order like iterating a `std::map`."
+    },
+    {
+      "id": "d2-e5",
+      "topic": "bisect_left / bisect_right",
+      "prompt": "What does this print?",
+      "code": "from bisect import bisect_left, bisect_right\na = [1, 3, 3, 3, 7]\nprint(bisect_left(a, 3), bisect_right(a, 3))\n",
+      "options": [
+        "1 3",
+        "1 4",
+        "3 7"
+      ],
+      "answer": 1,
+      "explanation": "Both return indices: `bisect_right` is one past the last 3, like `upper_bound`. Not the last 3 (index 3), and not the values `*it` would give."
+    },
+    {
+      "id": "d2-e6",
+      "topic": "sorted stability with reverse=True",
+      "prompt": "What does this print?",
+      "code": "pairs = [(\"b\", 2), (\"a\", 1), (\"c\", 2)]\nprint(sorted(pairs, key=lambda p: p[1], reverse=True))\n",
+      "options": [
+        "[('c', 2), ('b', 2), ('a', 1)]",
+        "[('a', 1), ('b', 2), ('c', 2)]",
+        "[('b', 2), ('c', 2), ('a', 1)]"
+      ],
+      "answer": 2,
+      "explanation": "`reverse=True` keeps the sort stable: equal keys keep input order (b before c). C++ `stable_sort` then `std::reverse` would flip them to c, b."
+    },
+    {
+      "id": "d2-e7",
+      "topic": "tuple vs list as dict key",
+      "prompt": "What does this print?",
+      "code": "d = {(0, 1): \"a\"}\ntry:\n    d[[0, 1]] = \"b\"\n    print(len(d))\nexcept TypeError as e:\n    print(type(e).__name__)\n",
+      "options": [
+        "TypeError",
+        "2",
+        "1"
+      ],
+      "answer": 0,
+      "explanation": "Lists are mutable, so unhashable: they cannot be dict keys. `std::map<std::vector<int>, ...>` is fine in C++. Use the tuple `(0, 1)`."
+    },
+    {
+      "id": "d2-e8",
+      "topic": "defaultdict missing key",
+      "prompt": "What does this print?",
+      "code": "from collections import defaultdict\nd = defaultdict(int)\nd[\"a\"] += 1\nprint(d[\"b\"], len(d))\n",
+      "options": [
+        "0 1",
+        "0 2",
+        "None 1"
+      ],
+      "answer": 1,
+      "explanation": "`defaultdict(int)` returns `int()` = 0 for a missing key AND inserts it, like C++ `m[k]`. So `len(d)` is 2. Test with `k in d` to avoid inserts."
+    },
+    {
+      "id": "d2-e9",
+      "topic": "linked-list multi-assignment",
+      "prompt": "What does this print?",
+      "code": "class Node:\n    def __init__(self, val, next=None):\n        self.val, self.next = val, next\n\nhead = Node(1, Node(2, Node(3)))\nprev, curr = None, head\nwhile curr:\n    curr.next, prev, curr = prev, curr, curr.next\nout = []\nwhile prev:\n    out.append(prev.val)\n    prev = prev.next\nprint(out)\n",
+      "options": [
+        "[1]",
+        "[1, 2, 3]",
+        "[3, 2, 1]"
+      ],
+      "answer": 2,
+      "explanation": "The right side is evaluated before any assignment, so it is a correct reversal. Run as three C++ statements, `curr` would become None after one step: [1]."
+    },
+    {
+      "id": "d2-e10",
+      "topic": "lru_cache call count",
+      "prompt": "What does this print?",
+      "code": "from functools import lru_cache\ncalls = 0\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    global calls\n    calls += 1\n    return n if n < 2 else fib(n - 1) + fib(n - 2)\n\nfib(10)\nprint(calls)\n",
+      "options": [
+        "177",
+        "11",
+        "10"
+      ],
+      "answer": 1,
+      "explanation": "The cache runs the body once per distinct n: 0 to 10 is 11 calls. Plain recursion, as in C++ without a memo table, makes 177 calls."
+    }
+  ]
+}

@@ -10,7 +10,7 @@ from google_prep.core import readiness, scheduler
 from google_prep.ui.formatters import banner, bar, crumbs, keys as key_bar, nav
 from google_prep.ui.theme import BLUE, GREEN, YELLOW
 
-SHORT_PHASE = {1: "Foundation", 2: "Core Patterns", 3: "Onsite Loop"}
+SHORT_PHASE = {0: "Python Fast-Track", 1: "Foundation", 2: "Core Patterns", 3: "Onsite Loop"}
 WARMUP_DRILLS = 5
 
 
@@ -71,69 +71,101 @@ def next_card(title: str, bullets: list[str], start_label: str | None, style: st
                  border_style=style, padding=(1, 2))
 
 
-def build(session, now: datetime, mode: str = "normal") -> tuple[Group, dict[str, str]]:
-    """Home screen: one dominant next-action card; everything else is a one-line status."""
-    p = plan(session, now, mode)
-    label = {"micro": "Micro-Mode", "review": "Re-solve Queue"}.get(mode, "Today")
-    parts = [crumbs(scheduler.breadcrumb(session, now.date(), label)), nav("Today"),
-             header(session, now, label.upper()), status_line(session, now), Text("")]
-    actions = {"m": "micro_start", "t": "today", "d": "warmup", "w": "mock", "r": "roadmap", "s": "star_list",
-               "q": "quit"}
-    footer = [("m", "Micro-Mode (10 min)"), ("q", "Quit")]
+def decide(session, now: datetime, mode: str = "normal") -> dict:
+    """The single next action for today, as plain data shared by the CLI and the GUI.
+    Bullets use **bold** / `code` inline markup. `action` is what Enter / the main button does."""
+    from google_prep.modules import fasttrack  # Phase 0: Days 1-2 serve the C++ -> Python modules
 
+    p = plan(session, now, mode)
+    out = {"mode": mode, "kind": "done", "title": "", "bullets": [], "cta": None, "action": None, "tone": "blue",
+           "status": []}
     if mode == "micro":
         bullets = [f"{'Bug-hunt' if d.type == 'bug_hunt' else 'Pattern drill'} · ~5 min" for d in p["micro"]]
-        bullets.append("Counts toward your streak")
-        parts.append(next_card("MICRO-MODE · 10 MIN", bullets, "Start 10-min Micro-Mode", YELLOW))
-        parts += [Text(""), key_bar(("Enter", "Start"), ("q", "Quit"))]
-        return Group(*parts), {**actions, "enter": "micro_start"}
-
+        return {**out, "kind": "micro", "title": "Micro-Mode · 10 min", "tone": "yellow",
+                "bullets": bullets + ["Counts toward your streak"], "cta": "Start 10-min Micro-Mode",
+                "action": "micro_start"}
     if mode == "review":
         due = p["due"][:8]
-        bullets = [f"{x.id} [header]{x.title}[/header] ({x.difficulty})" for x in due] or ["Nothing due for a re-solve."]
-        parts.append(next_card("RE-SOLVE QUEUE", bullets,
-                               f"Re-solve {due[0].title}" if due else None))
-        if due:
-            actions["enter"] = "review_start"
-        parts += [Text(""), key_bar(*([("Enter", "Start")] if due else []), *footer)]
-        return Group(*parts), actions
+        return {**out, "kind": "review", "title": "Re-solve queue",
+                "bullets": [f"{x.id} **{x.title}** ({x.difficulty})" for x in due] or ["Nothing due for a re-solve."],
+                "cta": f"Re-solve {due[0].title}" if due else None, "action": "review_start" if due else None,
+                "problem_id": due[0].id if due else None}
 
     sched, target = p["schedule"], p["target"]
     evening_time = scheduler.get_setting(session, "evening_time", "7:30 PM")
+    day_no = scheduler.day_number(session, now.date())
+    fast_day = fasttrack.pending_day(session, day_no)
+    if fast_day is not None:
+        lesson = fasttrack.load_day(fast_day)
+        return {**out, "kind": "fasttrack", "day": fast_day, "minutes": lesson["minutes"],
+                "title": f"Python fast-track · Day {fast_day} of 2 · {lesson['minutes']} min",
+                "bullets": [f"{len(lesson['sections'])} short sections: C++ next to Python, one trap each",
+                            f"{len(lesson['exercises'])} predict-the-output exercises · 3 choices each",
+                            lesson["subtitle"]],
+                "cta": f"Start Day {fast_day}: {lesson['title']}", "action": "fasttrack"}
+    if day_no <= fasttrack.DAYS[-1]:
+        return {**out, "kind": "done", "title": "Done for today", "tone": "green",
+                "bullets": ["Fast-track module finished. The streak is safe.",
+                            "The Google problem bank starts on Day 3."]}
+
     morning_next = not sched.morning_completed and p["slot"] != "evening"
     evening_next = not morning_next and not sched.evening_completed and target is not None
-
     kind = "45-min mock" if p["mock"] else "60-min timed solve"
     if morning_next:
         bugs = sum(d.type == "bug_hunt" for d in p["drills"])
         bullets = [f"{len(p['drills'])} unlabeled drills, mixed topics" + (f" (incl. {bugs} bug-hunt)" if bugs else ""),
-                   "Name the [header]pattern[/header] + [header]complexity[/header] in under 60s each"]
+                   "Name the **pattern** + **complexity** in under 60s each"]
         mistake = scheduler.dominant_mistake(session)
         if mistake:
-            bullets.append(f"[warn]Tuned to your top mistake: {scheduler.MISTAKES[mistake]}[/warn]")
+            bullets.append(f"Tuned to your top mistake: {scheduler.MISTAKES[mistake]}")
         if p["yesterday"]:
             bullets.append("Re-read yesterday's code: " + ", ".join(x.title for x in p["yesterday"]))
-        parts.append(next_card("MORNING WARMUP · 20 MIN", bullets, "Start Today's 20-min Warmup"))
-        actions["enter"] = "warmup"
+        out.update(kind="warmup", title="Morning warmup · 20 min", bullets=bullets,
+                   cta="Start Today's 20-min Warmup", action="warmup", minutes=20)
     elif evening_next:
-        bullets = [f"{target.id} [header]{target.title}[/header] · {target.difficulty} · "
-                   f"{scheduler.CATEGORIES[target.category]} (weakest topic)",
-                   f"Target [header]{target.time_target}[/header] time · [header]{target.space_target}[/header] space",
-                   recency_text(session, target)[:1].upper() + recency_text(session, target)[1:]]
-        parts.append(next_card(f"EVENING DEEP WORK · {kind.upper()}", bullets, f"Start {kind.title()}"))
-        actions["enter"] = "deep"
+        signal = recency_text(session, target)
+        out.update(kind="deep", title=f"Evening deep work · {kind}", minutes=45 if p["mock"] else 60,
+                   bullets=[f"{target.id} **{target.title}** · {target.difficulty} · "
+                            f"{scheduler.CATEGORIES[target.category]} (weakest topic)",
+                            f"Target **{target.time_target}** time · **{target.space_target}** space",
+                            signal[:1].upper() + signal[1:]],
+                   cta=f"Start {kind.title()}", action="deep", problem_id=target.id, practice=not p["mock"])
     else:
-        parts.append(next_card("DONE FOR TODAY", ["Both sessions logged. The streak is safe.",
-                                                   "Extra rep? [w] mock or [d] drills."], None, GREEN))
+        out.update(kind="done", title="Done for today", tone="green",
+                   bullets=["Both sessions logged. The streak is safe.", "Extra rep? Mock or drills."])
 
-    status = []
+    for d in fasttrack.unfinished(session):
+        out["status"].append(("Open", f"Python fast-track Day {d} not finished"))
     if not morning_next:
-        status.append(("Done" if sched.morning_completed else "Not done", "Morning warmup"))
+        out["status"].append(("Done" if sched.morning_completed else "Not done", "Morning warmup"))
     if not evening_next and target is not None:
-        status.append(("Done" if sched.evening_completed else "Later",
-                       f"Evening · {evening_time} · {kind} · {target.title}"))
-    for tag, text in status:
-        style = "ok" if tag == "Done" else "muted"
-        parts.append(Text.from_markup(f"  [{style}]{tag:<8}[/{style}] [muted]{text}[/muted]"))
-    parts += [Text(""), key_bar(*([("Enter", "Start")] if "enter" in actions else []), *footer)]
+        out["status"].append(("Done" if sched.evening_completed else "Later",
+                              f"Evening · {evening_time} · {kind} · {target.title}"))
+    return out
+
+
+TONE = {"blue": BLUE, "green": GREEN, "yellow": YELLOW}
+
+
+def build(session, now: datetime, mode: str = "normal") -> tuple[Group, dict[str, str]]:
+    """Home screen: one dominant next-action card; everything else is a one-line status."""
+    from google_prep.modules.fasttrack import inline_markup
+
+    label = {"micro": "Micro-Mode", "review": "Re-solve Queue"}.get(mode, "Today")
+    parts = [crumbs(scheduler.breadcrumb(session, now.date(), label)), nav("Today"),
+             header(session, now, label.upper()), status_line(session, now), Text("")]
+    actions = {"m": "micro_start", "t": "today", "f": "fasttrack", "d": "warmup", "w": "mock", "r": "roadmap",
+               "s": "star_list", "q": "quit"}
+    footer = [("m", "Micro-Mode (10 min)"), ("q", "Quit")]
+    d = decide(session, now, mode)
+    if d["action"]:
+        actions["enter"] = d["action"]
+    parts.append(next_card(d["title"].upper(), [inline_markup(b) for b in d["bullets"]], d["cta"], TONE[d["tone"]]))
+    for tag, text in d["status"]:
+        style = "ok" if tag == "Done" else "warn" if tag == "Open" else "muted"
+        hint = " · [f] open it" if tag == "Open" else ""
+        parts.append(Text.from_markup(f"  [{style}]{tag:<8}[/{style}] [muted]{inline_markup(text)}{hint}[/muted]"))
+    if mode == "micro":
+        footer = [("q", "Quit")]
+    parts += [Text(""), key_bar(*([("Enter", "Start")] if d["action"] else []), *footer)]
     return Group(*parts), actions

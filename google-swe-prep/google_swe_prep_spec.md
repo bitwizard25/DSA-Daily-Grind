@@ -1,25 +1,233 @@
 # Master PRD & Technical Architecture: Google Interview OS (`google-swe-prep`)
-### Designed by the Google Engineering Hiring & Candidate Experience Product Team
+### Complete Product Specification, C++ to Python Fast-Track, & Google SWE II Prep Loop
+
+> **Instruction for Claude Code**: This document represents the definitive Product Requirement Document (PRD), Technical Specification, UI/UX Design Guide, and **C++ to Python Fast-Track Syllabus**. Build the repository as a **Hybrid UI + CLI Application** sharing a single local SQLite database (`~/.google_prep/prep.db`). Package into a standalone executable (`dist/google-prep.exe` on Windows / `dist/google-prep` on macOS/Linux).
+
+---
+
+## 1. Executive Summary & Problem Discovery (The PM Lens)
+
+### The User Reality
+* **Target Role:** Google Software Engineer II (L3) — AI/ML & Distributed Systems (Hyderabad, India).
+* **The Transition Hurdle:** The candidate has solved 600+ problems in **C++**, but is now switching to **Python** for Google interviews. Python is fundamentally different from C++:
+  * Dynamic typing vs. static typing.
+  * Arbitrary-precision integers vs. 32/64-bit integer overflow.
+  * Floor division (`//`) on negatives vs. truncation towards zero (`/`).
+  * Pass-by-object-reference and aliasing vs. C++ value/pointer/reference semantics.
+  * Python's standard library (`collections.deque`, `heapq`, `defaultdict`, `bisect`) vs. C++ STL (`std::vector`, `std::queue`, `std::priority_queue`).
+* **The Solution (Phase 0: Days 1–2):** The first two days of the 8-week timeline are strictly dedicated to a **C++ to Python Fast-Track Immersion**, teaching data types, operators, memory models, and data structure mechanics before starting the Google problem bank on Day 3.
+
+---
+
+## 2. Updated Master Timeline: From Day 1 to Google Offer
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       NORTH STAR: GOOGLE SWE II OFFER                       │
+│           (Readiness Index: Pattern Mastery + Mock Speed + Googlyness)      │
+└──────────────────────────────────────▲──────────────────────────────────────┘
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    │  PHASE 3: ONSITE & GOOGLYNESS LOOP  │ (Weeks 7–8)
+                    ├─────────────────────────────────────┤
+                    │  PHASE 2: GOOGLE HIGH-FREQ & HARD   │ (Weeks 4–6)
+                    ├─────────────────────────────────────┤
+                    │  PHASE 1: FOUNDATION & RECALL SPRINT│ (Days 3–21)
+                    ├─────────────────────────────────────┤
+                    │  PHASE 0: C++ TO PYTHON FAST-TRACK  │ (Days 1–2)
+                    └──────────────────▲──────────────────┘
+                                       │
+┌──────────────────────────────────────┴──────────────────────────────────────┐
+│                    DAILY TIME-BOXING & SCHEDULE ENGINE                      │
+│   Morning Warmup (20m) ──► Work Day ──► Evening Deep Mock/Solve (60-90m)   │
+│   Adaptive Fallback: Low-Energy Mode for Overtime / Busy Workdays           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Phase 0: The 2-Day C++ to Python Fast-Track Syllabus
+
+Claude Code must seed the curriculum so `google-prep today` serves these specific modules on Days 1 and 2:
+
+### Day 1: Core Syntax, Data Types, Operators & Memory Models
+
+#### 1. Primitive Types & Integer Behaviors
+* **C++ vs. Python Integers:** C++ has fixed-width integers (`int`, `long long`) prone to overflow. Python `int` has **arbitrary precision** (no integer overflow!).
+* **Division & Modulo Gotchas:**
+  * In C++, `-7 / 2` evaluates to `-3` (truncation toward zero). In Python, `-7 // 2` is **`-4`** (floor division).
+  * In C++, `-7 % 2` is `-1`. In Python, `-7 % 2` is **`1`**.
+  * *Google Interview Rule:* When writing algorithms requiring truncation towards zero (e.g. Reverse Polish Notation), use `int(a / b)`.
+* **Float & Infinity:** `float('inf')` and `float('-inf')` replace `INT_MAX` and `INT_MIN`.
+
+#### 2. Bitwise Operators & Masking
+* Bitwise AND (`&`), OR (`|`), XOR (`^`), NOT (`~`), Left-shift (`<<`), Right-shift (`>>`).
+* *Gotcha:* Because Python integers are infinitely large, bitwise NOT (`~x`) produces `-(x + 1)`. In 32-bit bitmask problems, mask with `x & 0xFFFFFFFF`.
+
+#### 3. Strings & Immutability
+* Strings in Python are **immutable**. Concatenating strings in a loop (`s += ch`) takes $O(N^2)$ time.
+* *Idiom:* Build characters in a list and use `''.join(chars)` for $O(N)$.
+* Slicing syntax: `s[start:end:step]` creates an $O(K)$ shallow copy. Negative indexing (`s[-1]`) accesses from the end.
+
+#### 4. Python Memory Model & References
+* Everything in Python is an object; variables are **pointers/references**.
+* **The 2D Array Allocation Bug:**
+  * Writing `grid = [[0] * cols] * rows` creates `rows` references to the **same list**.
+  * Always use list comprehensions: `grid = [[0] * cols for _ in range(rows)]`.
+* **Shallow Copy vs. Deep Copy:** `list.copy()` or `list[:]` copies the outer list; `copy.deepcopy()` is needed for nested structures.
+
+---
+
+### Day 2: Essential Data Structures & Standard Library Mappings
+
+#### 1. Lists as Dynamic Arrays & Stacks
+* `list.append(x)` $\rightarrow$ $O(1)$ amortized push (like `vector::push_back`).
+* `list.pop()` $\rightarrow$ $O(1)$ pop from end (like `stack::pop`).
+* `list[-1]` $\rightarrow$ $O(1)$ top of stack (like `stack::top`).
+* *Crucial Rule:* NEVER use `list.pop(0)` for a queue—it takes $O(N)$ time.
+
+#### 2. Double-Ended Queues (`collections.deque`)
+* In C++: `std::queue` or `std::deque`.
+* In Python: `from collections import deque`.
+* `q = deque()`; `q.append(x)` (push right); `q.popleft()` ($O(1)$ pop front).
+* Used for all Breadth-First Search (BFS) and sliding window algorithms.
+
+#### 3. Priority Queues & Heaps (`heapq`)
+* In C++: `std::priority_queue` is a **Max-Heap** by default.
+* In Python: `heapq` is a **Min-Heap** by default.
+* Transforming into Max-Heap: Push negated values (`heapq.heappush(h, -x)`).
+* Storing custom objects: Push tuples `(priority, item)`. Python sorts tuples by the first element automatically.
+
+#### 4. Dictionaries & Frequency Maps (`dict`, `defaultdict`, `Counter`)
+* In C++: `std::unordered_map<string, int>`.
+* In Python:
+  * `from collections import defaultdict`: `adj = defaultdict(list)` (eliminates checking if key exists).
+  * `from collections import Counter`: `counts = Counter(nums)` (instant frequency distribution).
+
+#### 5. Custom Classes & Pointers (Linked Lists & Trees)
+* In C++: `struct ListNode { int val; ListNode* next; };`
+* In Python:
+  ```python
+  class ListNode:
+
+    def __init__(self, val=0, next=None):
+      self.val = val
+      self.next = next
+  ```
+* Multi-variable swaps: `curr.next, prev, curr = prev, curr, curr.next` (eliminates temporary pointers).
+
+#### 6. Built-in Binary Search (`bisect`) & Cache (`@lru_cache`)
+* `bisect.bisect_left(arr, x)` $\rightarrow$ `std::lower_bound`
+* `bisect.bisect_right(arr, x)` $\rightarrow$ `std::upper_bound`
+* `from functools import lru_cache`: Decorating a recursive function with `@lru_cache(None)` turns it into Dynamic Programming with automatic state memoization.
+
+---
+
+## 4. Embedded Concept Vault (`patterns_vault/`)
+
+Claude Code must generate 12 markdown files in `patterns_vault/`:
+* `00_python_basics_for_cpp_devs.md` (Day 1: Types, Operators, Math, Slicing, Memory)
+* `00_python_datastructures_for_cpp_devs.md` (Day 2: Lists, Deques, Heaps, Maps, Classes, OOP)
+* `01_arrays_strings.md` (Two Pointers, Sliding Window)
+* `02_stacks_monotonic.md` (Next Greater Element)
+* `03_queues_deques.md` (BFS Grid/Graph)
+* `04_heaps_priority_queues.md` (Top-K, Sweep-Line)
+* `05_hash_tables_sets.md` (Frequency Maps, Pair Sum)
+* `06_linked_lists.md` (Sentinels, Fast & Slow Pointers)
+* `07_trees_bst.md` (LCA, Path Sum, DFS/BFS)
+* `08_trie_prefix_trees.md` (Prefix Autocomplete, Word Search II)
+* `09_graphs_union_find.md` (Topological Sort, Dijkstra, Disjoint Set)
+* `10_dynamic_programming.md` (Memoization with `@lru_cache`)
+
+---
+
+## 5. Daily Routine & Schedule Logic (`google_prep/modules/today.py`)
+
+When the user runs `google-prep` (or launches the UI), the application checks user progress:
+* **If Day 1:** Serves the **Day 1 Python Fundamentals Module** (data types, division gotchas, slicing, and 5 interactive terminal syntax exercises).
+* **If Day 2:** Serves the **Day 2 Python Data Structure Mappings** (deque, heapq, defaultdict, custom ListNode/TreeNode classes).
+* **If Day 3+ :** Begins the **Phase 1 Google Problem Bank** (75 high-frequency questions, timed 45-min whiteboard simulation, and SM-2 spaced repetition).
+
+---
+
+## 6. Steve Krug Usability Rules (Chapters 1–13 Integrated)
+
+1. **Zero-Argument Default:** Running `.\google-prep.exe` immediately launches today's task with zero menus to navigate.
+2. **3-Button Grading:** `[1] Missed`, `[2] Solved with Effort`, `[3] Instant Reflex`.
+3. **High Signal-to-Noise:** Clear cards, no conversational fluff, persistent breadcrumbs (`[Google SWE II] Phase 0 > Day 1 > Python Basics`).
+4. **Auto-Save & Recovery:** Code auto-saves locally; 1-click **Emergency Micro-Mode** (`--mode micro`) preserves streaks on exhausting workdays.
+
+---
+
+## 7. Standalone Executable Build (`build.py`)
+
+```python
+import platform
+import subprocess
+import sys
+
+
+def build():
+  print(f"Building google-swe-prep for {platform.system()}...")
+  cmd = [
+      sys.executable,
+      "-m",
+      "PyInstaller",
+      "--name=google-prep",
+      "--onefile",
+      "--add-data=data:data",
+      "--add-data=patterns_vault:patterns_vault",
+      "--clean",
+      "google_prep/cli.py",
+  ]
+  subprocess.run(cmd, check=True)
+  print("\nSuccess! Standalone binary generated in dist/ directory.")
+
+
+if __name__ == "__main__":
+  build()
+```
+
+---
+
+## 8. Implementation notes (how this build meets the spec)
+
+* **Desktop window.** `google-prep.exe` opens a real window (a chromeless Edge/Chrome app window on a
+  local `127.0.0.1` server with a per-launch key). `google-prep-cli.exe` is the terminal app; both share
+  `~/.google_prep/prep.db`. The `build.py` in section 7 is extended to build both.
+* **Phase 0** content lives in `data/phase0_day1.json` and `data/phase0_day2.json` (sections with C++ next to
+  Python, a gotcha each, 10 predict-the-output exercises per day). Every example is executed by the tests.
+* **Vault:** the 12 files of section 4. The old 9 stub notes were replaced.
+
+---
+
+# Appendix: earlier spec (v2), still implemented
+
+Everything below is the previous version of this spec. Where it disagrees with sections 1–8 above
+(Phase 1 now starts on Day 3), the sections above win.
+
+## Master PRD & Technical Architecture: Google Interview OS (`google-swe-prep`)
+#### Designed by the Google Engineering Hiring & Candidate Experience Product Team
 
 > **Instruction for Claude Code**: This document represents the definitive Product Requirement Document (PRD), Technical Specification, and UI/UX Design Guide. Build the repository as a **Hybrid UI + CLI Application** sharing a single local SQLite database (`~/.google_prep/prep.db`). Package into a standalone executable (`dist/google-prep.exe` on Windows / `dist/google-prep` on macOS/Linux) as specified in Section 8.
 
 ---
 
-## 1. Executive Summary & Problem Discovery (The Google PM Lens)
+### 1. Executive Summary & Problem Discovery (The Google PM Lens)
 
-### The Problem Space
+#### The Problem Space
 Every year, thousands of capable software engineers—including those who have solved 600+ LeetCode problems—fail the Google SWE II (L3/L4) hiring loop. At Google, Hiring Committees (HC) reject candidates not because they lack raw intelligence, but because of three structural preparation failures:
 
 1. **Compiler Addiction:** Candidates practice on platforms with instant "Run Code" feedback. During real Google interviews (conducted in a Google Doc / non-compiling plain-text sandbox), they freeze when required to mentally execute code line-by-line and trace edge cases.
 2. **Blocked vs. Interleaved Practice:** Solving 20 graph problems in a row creates the "illusion of competence." In an interview, problems arrive without topic labels. Candidates waste 10–15 minutes trying to identify the underlying pattern.
 3. **The Follow-Up Blindspot:** Google interviewers never stop at the base solution. The real hiring signal is generated in the final 10 minutes when the interviewer alters constraints: *"What if memory is capped at 64MB?", "What if this is a distributed stream of $10^7$ QPS?"*
 
-### The Product Vision
+#### The Product Vision
 `google-swe-prep` is an **Internal-Calibrated Google Interview Simulator & Accountability OS**. It unifies a **keyboard-first CLI** for daily habit retention with a **Desktop GUI** for full 45-minute interview simulations, powered by Google's actual 4-pillar evaluation rubric and distributed systems follow-up engine.
 
 ---
 
-## 2. Core Architecture: The "UI + CLI Combo"
+### 2. Core Architecture: The "UI + CLI Combo"
 
 The system runs 100% locally and offline from a unified SQLite engine (`~/.google_prep/prep.db`):
 
@@ -47,7 +255,7 @@ The system runs 100% locally and offline from a unified SQLite engine (`~/.googl
 
 ---
 
-## 3. Google-Calibrated Evaluation Pillars & Interview Rubric
+### 3. Google-Calibrated Evaluation Pillars & Interview Rubric
 
 The application evaluates candidates using the exact 4 scoring dimensions utilized by Google Hiring Committees:
 
@@ -71,7 +279,7 @@ The application evaluates candidates using the exact 4 scoring dimensions utiliz
 
 ---
 
-## 4. Role-Specific Focus: AI/ML & Distributed Systems (SWE II / L3)
+### 4. Role-Specific Focus: AI/ML & Distributed Systems (SWE II / L3)
 
 The curated 75-problem bank is explicitly weighted toward backend, distributed systems, and AI infrastructure:
 
@@ -82,9 +290,9 @@ The curated 75-problem bank is explicitly weighted toward backend, distributed s
 
 ---
 
-## 5. Feature Specifications & User Experience
+### 5. Feature Specifications & User Experience
 
-### Feature 1: `prep today` — The Daily Command Center
+#### Feature 1: `prep today` — The Daily Command Center
 * **CLI:** `google-prep today [--mode normal|micro]`
 * **Zero-Argument Default:** Running `google-prep` without flags launches today's priority task automatically.
 * **Routine Engine:**
@@ -92,7 +300,7 @@ The curated 75-problem bank is explicitly weighted toward backend, distributed s
   * **Evening (>= 5:00 PM):** 60–90 minute Evening Deep Work (1 targeted Google problem or 1 timed mock).
   * **Emergency Micro-Mode (`--mode micro`):** A 10-minute mental exercise to preserve streaks when exhausted from overtime work.
 
-### Feature 2: `prep recall` — The Confidence-Rebuilding Engine
+#### Feature 2: `prep recall` — The Confidence-Rebuilding Engine
 * **CLI:** `google-prep recall`
 * **Mechanism:**
   * Displays an unseen problem statement with title and tags hidden.
@@ -105,7 +313,7 @@ The curated 75-problem bank is explicitly weighted toward backend, distributed s
     * `[2] Solved with Effort` *(Rescheduled in 3 days)*
     * `[3] Instant Reflex` *(Rescheduled next week)*
 
-### Feature 3: `prep mock` — 45-Minute Google Whiteboard Simulator
+#### Feature 3: `prep mock` — 45-Minute Google Whiteboard Simulator
 * **CLI / UI:** `google-prep mock [--topic graphs|trees|intervals|dp|all]`
 * **Phased Countdown:**
   * **00:00–05:00:** Problem scoping & constraint clarification checklist.
@@ -113,12 +321,12 @@ The curated 75-problem bank is explicitly weighted toward backend, distributed s
   * **35:00–40:00:** **Dynamic Google Follow-Up Constraint** injected (e.g., *"What if queries stream at $10^7$ events/sec?"*).
   * **40:00–45:00:** 4-Pillar Google Rubric self-evaluation scorecard.
 
-### Feature 4: `prep roadmap` — The 8-Week North Star Tracker
+#### Feature 4: `prep roadmap` — The 8-Week North Star Tracker
 * **CLI / UI:** `google-prep roadmap`
 * Visualizes progress across 3 Phases and computes the real-time **Readiness Index (0–100%)**:
   $$\text{Readiness Index} = 0.40(\text{Pattern Mastery}) + 0.30(\text{Mock Speed}) + 0.15(\text{Dry-Run Accuracy}) + 0.15(\text{STAR Stories})$$
 
-### Feature 5: `prep star` — The Googlyness & Behavioral Studio
+#### Feature 5: `prep star` — The Googlyness & Behavioral Studio
 * **CLI / UI:** `google-prep star {add|list|review}`
 * Structured builder mapping real engineering experiences (Hapminds, NNIIT, Projects) to Google's 4 dimensions:
   * *Ambiguity:* Leading ambiguous architecture decisions
@@ -128,7 +336,7 @@ The curated 75-problem bank is explicitly weighted toward backend, distributed s
 
 ---
 
-## 6. Database Schema Specifications (`models.py`)
+### 6. Database Schema Specifications (`models.py`)
 
 ```python
 from datetime import datetime
@@ -196,7 +404,7 @@ class StarStory(SQLModel, table=True):
 
 ---
 
-## 7. Implementation Roadmap for Claude Code
+### 7. Implementation Roadmap for Claude Code
 
 * **Phase 1: Shared Core & Storage**
   * Set up `pyproject.toml` with `typer`, `rich`, `textual`, `sqlmodel`, `pydantic`.
@@ -218,7 +426,7 @@ class StarStory(SQLModel, table=True):
 
 ---
 
-## 8. Standalone Executable Packaging (`build.py`)
+### 8. Standalone Executable Packaging (`build.py`)
 
 ```python
 import platform
@@ -249,7 +457,7 @@ if __name__ == "__main__":
 
 ---
 
-## 9. Comprehensive UI/UX Design & Interaction Guide
+### 9. Comprehensive UI/UX Design & Interaction Guide
 
 The user interface follows Steve Krug’s usability principles from *Don’t Make Me Think, Revisited*:
 1. **Google Theme:** Primary Blue (`#4285F4`), Green (`#34A853`), Yellow (`#FBBC05`), Red (`#EA4335`) on dark slate (`#1E1E2E`).
@@ -258,7 +466,7 @@ The user interface follows Steve Krug’s usability principles from *Don’t Mak
 4. **Auto-Save & Session Recovery:** All scratchpad code auto-saves to `~/.google_prep/sessions/` with one-key resume.
 ---
 
-## 10. Usability Master Guide (Steve Krug, *Don't Make Me Think, Revisited*, Ch. 1–13)
+### 10. Usability Master Guide (Steve Krug, *Don't Make Me Think, Revisited*, Ch. 1–13)
 
 | Chapter | Principle | Implementation in `google-swe-prep` |
 |---|---|---|

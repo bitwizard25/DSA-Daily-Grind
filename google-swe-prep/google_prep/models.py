@@ -130,6 +130,14 @@ class TrendingProblem(SQLModel, table=True):
     frequency: float = 0.0
 
 
+class LessonProgress(SQLModel, table=True):
+    """Phase 0 fast-track: one row per answered exercise (latest answer wins) and one per finished day."""
+    item_id: str = Field(primary_key=True)  # "d1-e3" or "day-1"
+    kind: str  # exercise, day
+    correct: Optional[bool] = None
+    updated_at: NaiveDatetime = Field(default_factory=now)
+
+
 class ReadinessSnapshot(SQLModel, table=True):
     date: str = Field(primary_key=True)
     score: float
