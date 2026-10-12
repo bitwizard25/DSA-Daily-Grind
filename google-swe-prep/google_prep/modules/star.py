@@ -12,10 +12,10 @@ from google_prep.ui.formatters import card, keys as key_bar
 from sqlmodel import select
 
 DIMENSIONS = {
-    "Ambiguity": "Thriving in Ambiguity",
-    "Ownership": "Ownership & Bias for Action",
-    "Collaboration": "Collaboration & Navigating Disagreement",
-    "Humility": "Technical Humility & Continuous Learning",
+    "Ambiguity": "Leading Ambiguous Decisions",
+    "Ownership": "Owning Outages & Fixes",
+    "Disagreement": "Navigating Technical Disagreement",
+    "Humility": "Learning from Miscalculations",
 }
 
 
@@ -29,7 +29,7 @@ def resolve_dimension(text: str) -> str | None:
 
 def add(session, dimension: str, title: str, situation: str, task: str, action: str, result: str) -> StarStory:
     story = StarStory(dimension=dimension, title=title, situation=situation, task=task, action=action,
-                      result=result, updated_at=clock.now())
+                      result=result, created_at=clock.now())
     session.add(story)
     session.commit()
     return story
@@ -41,7 +41,7 @@ def list_view(session) -> Group:
     for c in ("ID", "Dimension", "Title", "Updated"):
         table.add_column(c)
     for s in stories:
-        table.add_row(str(s.id), DIMENSIONS.get(s.dimension, s.dimension), s.title, f"{s.updated_at:%Y-%m-%d}")
+        table.add_row(str(s.id), DIMENSIONS.get(s.dimension, s.dimension), s.title, f"{s.created_at:%Y-%m-%d}")
     counts = readiness.star_counts(session)
     need = readiness.STARS_PER_DIMENSION
     cov = "   ".join(f"[{'ok' if counts[d] >= need else 'warn'}]{d} {min(counts[d], need)}/{need}[/]" for d in DIMENSIONS)

@@ -7,9 +7,8 @@ from conftest import NOW
 
 
 def add_mock(session, used_seconds, solved=True, limit=45):
-    session.add(MockSession(problem_id="G-200", day=NOW.date().isoformat(), limit_minutes=limit,
-                            used_seconds=used_seconds, solved=solved, algorithms=3, coding=3,
-                            communication=3, problem_solving=3))
+    session.add(MockSession(problem_id="G-200", date=NOW, limit_minutes=limit, duration_seconds=used_seconds,
+                            solved=solved, clarified_constraints=True, clean_code=True))
     session.commit()
 
 

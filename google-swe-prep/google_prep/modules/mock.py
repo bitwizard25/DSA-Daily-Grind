@@ -15,19 +15,19 @@ from rich.live import Live
 from rich.text import Text
 
 from google_prep import db
-from google_prep.core import clock, readiness, scheduler, session_store
+from google_prep.core import clock, readiness, rubric, scheduler, session_store
 from google_prep.core.timer import FOLLOW_UP_AT, Countdown, mmss
 from google_prep.models import MockSession, Problem
 from google_prep.ui import keys
-from google_prep.ui.formatters import banner, card, console, crumbs, keys as key_bar, show
+from google_prep.ui.formatters import banner, card, console, crumbs, keys as key_bar, nav, show
 from google_prep.ui.theme import DIFFICULTY_STYLE, RED, YELLOW
 
 TOPICS = {"all": None, **{c: [c] for c in scheduler.CATEGORIES}}
-CHECKLIST = [
-    "Clarified constraints and input size",
-    "Stated brute force vs. optimal with complexity",
-    "Wrote clean, modular code",
-    "Traced a test case line by line",
+CHECKLIST = [  # short labels for the rubric's first four checks (same order)
+    "Clarified constraints & edge cases",
+    "Stated time/space complexity",
+    "Idiomatic, modular code",
+    "Traced a test case by hand",
 ]
 GENERIC_FOLLOW_UPS = [
     "What if the input is a stream of 10^9 events and does not fit in memory?",
@@ -36,13 +36,6 @@ GENERIC_FOLLOW_UPS = [
     "What if this function is called 10^5 times per second? What would you precompute?",
     "What if the input is modified concurrently by other threads?",
 ]
-RUBRIC = [
-    ("algorithms", "Algorithms", "chose the optimal approach and justified its complexity"),
-    ("coding", "Coding", "clean, correct, idiomatic code with no compiler help"),
-    ("communication", "Communication", "explained thinking out loud the whole time"),
-    ("problem_solving", "Problem Solving", "handled edge cases, hints and the follow-up"),
-]
-RUBRIC_SCALE = [("1", "Weak"), ("2", "Mixed"), ("3", "Solid"), ("4", "Strong")]
 AUTOSAVE_SECONDS = 5
 
 
@@ -50,22 +43,30 @@ def follow_ups(problem: Problem) -> list[str]:
     return [problem.google_follow_up] + GENERIC_FOLLOW_UPS
 
 
-def hire_signal(avg: float) -> str:
-    if avg >= 3.5:
-        return "Strong Hire"
-    if avg >= 2.75:
-        return "Lean Hire"
-    if avg >= 2.0:
-        return "Lean No Hire"
-    return "No Hire"
+TRACE_TEMPLATE = (
+    "Dry-run trace: pick a non-trivial input and step through YOUR code by hand. No running it.\n"
+    "Input:\n\n"
+    "step | line | variables (name=value, ...)              | note\n"
+    "-----+------+------------------------------------------+----------------\n"
+    "1    |      |                                          |\n"
+    "2    |      |                                          |\n"
+    "3    |      |                                          |\n")
+
+
+def _pad_name(problem: Problem) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", problem.title.lower()).strip("_")
+    return f"{problem.id}_{slug}"
 
 
 def scratchpad(problem: Problem) -> Path:
-    """Plain .txt on purpose: a .py file can open in an IDE with autocomplete and linting."""
-    folder = db.home_dir() / "scratchpads"
+    """Plain .txt on purpose: a .py file can open in an IDE with autocomplete and linting.
+    Saved under ~/.google_prep/sessions/ with the rest of the auto-saved session."""
+    folder = db.home_dir() / "sessions"
     folder.mkdir(exist_ok=True)
-    slug = re.sub(r"[^a-z0-9]+", "_", problem.title.lower()).strip("_")
-    path = folder / f"{problem.id}_{slug}.txt"
+    path = folder / f"{_pad_name(problem)}.txt"
+    legacy = db.home_dir() / "scratchpads" / path.name
+    if not path.exists() and legacy.exists():  # v1.0 kept scratchpads in their own folder
+        legacy.replace(path)
     if not path.exists():
         path.write_text(
             f"# {problem.id} {problem.title} ({problem.difficulty})\n# {problem.statement}\n#\n"
@@ -77,6 +78,23 @@ def scratchpad(problem: Problem) -> Path:
             encoding="utf-8",
         )
     return path
+
+
+def trace_pad(problem: Problem) -> Path:
+    path = scratchpad(problem).with_name(f"{_pad_name(problem)}.trace.txt")
+    if not path.exists():
+        path.write_text(TRACE_TEMPLATE, encoding="utf-8")
+    return path
+
+
+def trace_rows(text: str) -> int:
+    """Filled rows of the hand trace table: evidence for Verification & Rigor."""
+    rows = 0
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.split("|")]
+        if len(cells) >= 3 and cells[0].isdigit() and any(cells[1:]):
+            rows += 1
+    return rows
 
 
 def open_editor(path: Path) -> str:
@@ -105,7 +123,7 @@ def mock_screen(problem: Problem, timer: Countdown, ticks: list[bool], follow_up
     rem = timer.remaining()
     style = "danger" if rem <= 300 else "warn"
     clock = f"[{style}]⏱ {mmss(rem)} Remaining[/{style}]" + ("  [muted](paused)[/muted]" if timer.paused else "")
-    title = "TIMED SOLVE" if practice else "MOCK INTERVIEW: Google Coding Round"
+    title = "TIMED SOLVE" if practice else "MOCK INTERVIEW · WHITEBOARD SIMULATOR"
     dstyle = DIFFICULTY_STYLE[problem.difficulty]
     head = banner(title, f"Problem: [header]{problem.title}[/header] ([{dstyle}]{problem.difficulty}[/{dstyle}])",
                   f"{clock}   [muted]Focus: {scheduler.CATEGORIES[problem.category]}[/muted]")
@@ -118,7 +136,7 @@ def mock_screen(problem: Problem, timer: Countdown, ticks: list[bool], follow_up
     check = card("LIVE INTERVIEW CHECKLIST",
                  [f"[{'ok' if t else 'muted'}]{'[✓]' if t else '[ ]'}[/] {i + 1}. {item}"
                   for i, (t, item) in enumerate(zip(ticks, CHECKLIST))])
-    parts = [crumbs(path), head, phase, statement, Text(""), env, check]
+    parts = [crumbs(path), nav("Mock", with_keys=False), head, phase, statement, Text(""), env, check]
     if follow_up:
         parts.append(card("GOOGLE FOLLOW-UP CONSTRAINT", [follow_up], style=YELLOW))
     if timer.expired():
@@ -183,22 +201,12 @@ def run(session, problem: Problem, minutes: int = 45, practice: bool = False, ed
         return None
 
     outcome = "s"
+    if inline and resume.get("submitted"):
+        return _run_inline(session, problem, minutes, practice, timer, ticks, shown, fups, path, when, graded_only=True)
     if not resume.get("submitted"):
         autosave(force=True)
         if inline:
-            from google_prep.ui.whiteboard import Whiteboard  # textual loads only when needed
-
-            def save_state(st: dict) -> None:
-                session_store.save(_state(problem, minutes, practice, timer, st["ticks"], st["shown"]))
-
-            res = Whiteboard(problem, minutes, practice, path, timer, ticks, shown, fups, CHECKLIST, pad,
-                             save_state, clock_fn).run()
-            if res is None:  # closed without a result: keep the auto-save for `resume`
-                show(Text("  Stopped. Session auto-saved: run google-prep to resume.", style="muted"))
-                return None
-            ticks[:] = res["ticks"]
-            shown = res["shown"]
-            outcome = "q" if res["outcome"] == "q" else "s"
+            return _run_inline(session, problem, minutes, practice, timer, ticks, shown, fups, path, when)
         elif keys.interactive():
             with keys.held(), Live(screen(), console=console, refresh_per_second=2) as live:
                 while True:
@@ -235,52 +243,122 @@ def run(session, problem: Problem, minutes: int = 45, practice: bool = False, ed
     return result
 
 
+def board_screen(problem: Problem, minutes: int, practice: bool, timer: Countdown, ticks: list[bool], shown: int,
+                 path: str, clock_fn=time.monotonic):
+    """The full-screen whiteboard for this problem (used by `mock`, `solve` and `ui`)."""
+    from google_prep.ui.whiteboard import WhiteboardScreen  # textual loads only when needed
+
+    def save_state(st: dict) -> None:
+        session_store.save(_state(problem, minutes, practice, timer, st["ticks"], st["shown"]))
+
+    return WhiteboardScreen(problem, minutes, practice, path, timer, ticks, shown, follow_ups(problem), CHECKLIST,
+                            scratchpad(problem), trace_pad(problem), save_state, clock_fn)
+
+
+def rubric_screen(problem: Problem, minutes: int, practice: bool, timer: Countdown, board: dict, path: str):
+    """The 40:00 scorecard. Saves a 'submitted' checkpoint so a crash resumes straight into it."""
+    from google_prep.ui.whiteboard import RubricScreen
+
+    fups = follow_ups(problem)
+    session_store.save({**_state(problem, minutes, practice, timer, board["ticks"], board["shown"], submitted=True),
+                        "elapsed": board["elapsed"]})
+    used = max(1, int(board["elapsed"]))
+    follow_up = fups[board["shown"] % len(fups)] if board["shown"] >= 0 else ""
+    trace = board.get("trace_text") or trace_pad(problem).read_text(encoding="utf-8")
+    return RubricScreen(problem, path, practice, used, board["ticks"], follow_up, trace_rows(trace),
+                        lambda solved, dry: needs_mistake(solved, dry, used, minutes), scheduler.MISTAKES,
+                        over_time=used > minutes * 60 * readiness.CODING_SHARE)
+
+
+def save_graded(session, problem: Problem, minutes: int, practice: bool, board: dict, graded: dict,
+                now: datetime) -> dict:
+    fups = follow_ups(problem)
+    follow_up = fups[board["shown"] % len(fups)] if board["shown"] >= 0 else ""
+    result = record(session, problem, minutes, max(1, int(board["elapsed"])), graded["outcome"], graded["checks"],
+                    follow_up, practice, graded["mistake"], now)
+    session_store.clear()
+    return result
+
+
+def _run_inline(session, problem: Problem, minutes: int, practice: bool, timer: Countdown, ticks: list[bool],
+                shown: int, fups: list[str], path: str, when: datetime, graded_only: bool = False) -> dict | None:
+    from google_prep.ui.whiteboard import MockApp
+
+    resumed = {"outcome": "s", "elapsed": timer.elapsed(), "ticks": ticks, "shown": shown}
+    board = None if graded_only else board_screen(problem, minutes, practice, timer, ticks, shown, path)
+    res = MockApp(board, lambda b: rubric_screen(problem, minutes, practice, timer, b, path),
+                  start=resumed if graded_only else None).run()
+    if res is None or (res["outcome"] != "q" and not res.get("graded")):
+        show(Text("  Stopped. Session auto-saved: run google-prep to resume.", style="muted"))
+        return None
+    if res["outcome"] == "q":
+        session_store.clear()
+        show(Text("  Abandoned. Not logged.", style="muted"))
+        return None
+    result = save_graded(session, problem, minutes, practice, res, res["graded"], when)
+    show(crumbs(f"{path} > Result"), card("RESULT · LOGGED", result_lines(result, minutes, practice)))
+    return result
+
+
+def needs_mistake(solved: bool, dry: bool, used: int, minutes: int) -> bool:
+    return not solved or not dry or used > minutes * 60 * readiness.CODING_SHARE
+
+
+def record(session, problem: Problem, minutes: int, used: int, outcome: str, checks: dict[str, bool],
+           follow_up: str, practice: bool, mistake: str | None, now: datetime) -> dict:
+    """Log the attempt (and the mock with its pillar score) and reschedule the problem.
+    `outcome` is the 3-tier choice: 1 Missed it, 2 Solved with Effort, 3 Instant Reflex."""
+    target = minutes * 60 * readiness.CODING_SHARE
+    outcome = rubric.outcome_for(outcome, used > target)
+    solved = outcome != "1"
+    points = rubric.score(checks)
+    scheduler.log_attempt(session, problem.id, max(1, round(used / 60)), solved, checks["dry_run_passed"],
+                          rubric.OUTCOME_GRADE[outcome], now, source="solve" if practice else "mock", mistake=mistake,
+                          min_days=rubric.OUTCOME_DAYS[outcome])
+    result = {"problem": problem.id, "solved": solved, "outcome": outcome, "dry_run_ok": checks["dry_run_passed"],
+              "used_seconds": used, "mistake": mistake, "checks": checks, "score": points,
+              "signal": rubric.hire_signal(points, solved), "over_time": used > target}
+    if not practice:
+        session.add(MockSession(problem_id=problem.id, date=now, duration_seconds=used, limit_minutes=minutes,
+                                solved=solved, follow_up=follow_up, score=points, **checks))
+        session.commit()
+    return result
+
+
+def result_lines(result: dict, minutes: int, practice: bool) -> list[str]:
+    again = {"1": "back in today's re-solve queue", "2": "re-solve in 3 days", "3": "re-solve next week"}
+    lines = [f"Coding time: {mmss(result['used_seconds'])} of {minutes:02d}:00"
+             + (" [danger](over the 35-min coding target)[/danger]" if result["over_time"] and result["solved"] else ""),
+             f"{rubric.OUTCOMES[result['outcome']]} · {again[result['outcome']]}   "
+             f"Dry-run matched: {'[ok]yes[/ok]' if result['dry_run_ok'] else '[danger]no[/danger]'}"]
+    if not practice:
+        pillars = rubric.pillar_scores(result["checks"])
+        lines.append("   ".join(f"{rubric.PILLARS[p]} {round(v * 25):>2}/25" for p, v in pillars.items()))
+        lines.append(f"Score {result['score']:.0f}/100  ->  [accent]{result['signal']}[/accent]")
+    return lines
+
+
 def evaluate(session, problem: Problem, minutes: int, timer: Countdown, ticks: list[bool],
              follow_up: str, practice: bool, now: datetime, path: str = "") -> dict:
+    """Terminal scorecard (piped input or --external). The full-screen UI uses RubricScreen."""
     used = max(1, int(timer.elapsed()))
     stage = "Self-grade" if practice else "Rubric"
-    show(crumbs(f"{path} > {stage}" if path else stage),
-         banner("PHASE 4: RUBRIC SELF-EVALUATION" if not practice else "SELF-GRADE",
+    show(crumbs(f"{path} > {stage}" if path else stage), nav("Mock", with_keys=False),
+         banner("SELF-GRADE" if practice else "SCORECARD · GOOGLE 4 PILLARS",
                 f"{problem.title} · coding time used [warn]{mmss(used)}[/warn]",
-                "[muted]40:00–45:00[/muted]" if not practice else ""))
-    solved = _ask("Did you reach a correct, complete solution?", [("y", "Yes"), ("n", "No")]) == "y"
-    dry = _ask("Dry-run: did your hand trace of a test case match the expected output?",
-               [("y", "Yes, matched"), ("n", "No / skipped")]) == "y"
-    rubric = {}
-    if not practice:
-        for field, name, hint in RUBRIC:
-            rubric[field] = int(_ask(f"{name}: {hint}", RUBRIC_SCALE))
-    target = minutes * 60 * readiness.CODING_SHARE
+                "" if practice else "[muted]40:00–45:00[/muted]"))
+    outcome = _ask("How did it go?", list(rubric.OUTCOMES.items()))
+    checks = rubric.from_ticks(ticks)
+    asked = rubric.PRACTICE_CHECKS if practice else [f for f, _, _ in rubric.CHECKS]
+    for field, pillar, question in rubric.CHECKS:
+        if field in asked:
+            hint = " (ticked during the round)" if checks[field] else ""
+            label = "" if practice else f"[{rubric.PILLARS[pillar]}] "
+            checks[field] = _ask(f"{label}{question}?{hint}", [("y", "Yes"), ("n", "No")]) == "y"
     mistake = None
-    if not solved or not dry or used > target:
+    if needs_mistake(outcome != "1", checks["dry_run_passed"], used, minutes):
         options = [(str(i), label) for i, label in enumerate(scheduler.MISTAKES.values(), 1)]
-        pick = _ask("What hurt most? (tunes tomorrow's warmup)", options)
-        mistake = list(scheduler.MISTAKES)[int(pick) - 1]
-    if not solved:
-        grade = 2
-    elif used > target:
-        grade = 3
-    elif practice:
-        grade = 5 if dry else 4
-    else:
-        grade = 5 if sum(rubric.values()) / 4 >= 3.5 else 4
-    used_min = max(1, round(used / 60))
-    scheduler.log_attempt(session, problem.id, used_min, solved, dry, grade, now,
-                          source="solve" if practice else "mock", mistake=mistake)
-    result = {"problem": problem.id, "solved": solved, "dry_run_ok": dry, "used_seconds": used,
-              "grade": grade, "rubric": rubric, "mistake": mistake}
-    lines = [f"Time used: {mmss(used)} of {minutes:02d}:00"
-             + (" [danger](over the 35-min coding target)[/danger]" if used > target and solved else ""),
-             f"Solved: {'[ok]yes[/ok]' if solved else '[danger]no[/danger]'}   "
-             f"Dry-run matched: {'[ok]yes[/ok]' if dry else '[danger]no[/danger]'}   "
-             f"Checklist: {sum(ticks)}/{len(ticks)}"]
-    if not practice:
-        session.add(MockSession(problem_id=problem.id, day=now.date().isoformat(), limit_minutes=minutes,
-                                used_seconds=used, solved=solved, follow_up=follow_up,
-                                checklist_done=sum(ticks), **rubric))
-        session.commit()
-        avg = sum(rubric.values()) / 4
-        result["signal"] = hire_signal(avg)
-        lines.append(f"Rubric average: {avg:.2f}/4  ->  [accent]{result['signal']}[/accent]")
-    show(Text(""), card("RESULT", lines))
+        mistake = list(scheduler.MISTAKES)[int(_ask("What hurt most? (tunes tomorrow's warmup)", options)) - 1]
+    result = record(session, problem, minutes, used, outcome, checks, follow_up, practice, mistake, now)
+    show(Text(""), card("RESULT", result_lines(result, minutes, practice)))
     return result

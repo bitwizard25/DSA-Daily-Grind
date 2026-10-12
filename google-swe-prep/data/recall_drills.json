@@ -7,7 +7,7 @@
     "prompt": "Count islands of '1's connected horizontally or vertically in a grid.",
     "pattern": "DFS/BFS flood fill",
     "complexity": "O(R * C) time, O(R * C) space",
-    "edge_case": "Empty grid; recursion depth on a huge island."
+    "edge_case": "Empty grid"
   },
   {
     "id": "R-207",
@@ -17,7 +17,7 @@
     "prompt": "Decide if all courses can be finished given prerequisite pairs.",
     "pattern": "Cycle detection (Kahn or 3-colour DFS)",
     "complexity": "O(V + E) time, O(V + E) space",
-    "edge_case": "Self-dependency; disconnected components."
+    "edge_case": "Self-dependency"
   },
   {
     "id": "R-994",
@@ -27,7 +27,7 @@
     "prompt": "Return minutes until no fresh orange remains, or -1 if impossible.",
     "pattern": "Multi-source BFS",
     "complexity": "O(R * C) time, O(R * C) space",
-    "edge_case": "No fresh oranges at all returns 0."
+    "edge_case": "No fresh oranges at all returns 0"
   },
   {
     "id": "R-547",
@@ -37,7 +37,17 @@
     "prompt": "Given an n x n matrix of direct connections between cities, count the groups of connected cities.",
     "pattern": "Union-find (or DFS) over the adjacency matrix",
     "complexity": "O(N^2 α(N)) time, O(N) space",
-    "edge_case": "Diagonal self-connections; an isolated city is its own province."
+    "edge_case": "Diagonal self-connections"
+  },
+  {
+    "id": "R-133",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-133",
+    "prompt": "Return a deep copy of a connected undirected graph, given a reference to one of its nodes.",
+    "pattern": "DFS/BFS with an original -> copy hash map",
+    "complexity": "O(V + E) time, O(V) space",
+    "edge_case": "Cycles: reuse the existing copy instead of recursing forever"
   },
   {
     "id": "R-210",
@@ -47,7 +57,7 @@
     "prompt": "Return an order in which to take all courses, or empty if impossible.",
     "pattern": "Topological sort (Kahn's algorithm)",
     "complexity": "O(V + E) time, O(V + E) space",
-    "edge_case": "Cycle detection: output shorter than V."
+    "edge_case": "Cycle detection: output shorter than V"
   },
   {
     "id": "R-127",
@@ -57,7 +67,7 @@
     "prompt": "Find the shortest transformation length from begin to end word, changing one letter at a time via a word list.",
     "pattern": "BFS over wildcard pattern buckets",
     "complexity": "O(N * L^2) time, O(N * L^2) space",
-    "edge_case": "End word missing from the list."
+    "edge_case": "End word missing from the list"
   },
   {
     "id": "R-269",
@@ -67,7 +77,67 @@
     "prompt": "Given words sorted in an unknown alphabet, derive a valid order of its letters.",
     "pattern": "Build edges from adjacent words, topological sort",
     "complexity": "O(C) time, O(1) alphabet space",
-    "edge_case": "Prefix case like ['abc', 'ab'] is invalid."
+    "edge_case": "Prefix case like ['abc', 'ab'] is invalid"
+  },
+  {
+    "id": "R-743",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-743",
+    "prompt": "Find how long it takes a signal from node k to reach all nodes, or -1.",
+    "pattern": "Dijkstra with a min-heap",
+    "complexity": "O(E log V) time, O(V + E) space",
+    "edge_case": "Unreachable nodes"
+  },
+  {
+    "id": "R-721",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-721",
+    "prompt": "Merge accounts that share at least one email address.",
+    "pattern": "Union-find on emails",
+    "complexity": "O(N α(N) + sort) time, O(N) space",
+    "edge_case": "Same name does not imply the same person"
+  },
+  {
+    "id": "R-329",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-329",
+    "prompt": "Find the length of the longest strictly increasing path in a matrix (4 directions).",
+    "pattern": "DFS + memoisation (DAG longest path)",
+    "complexity": "O(R * C) time, O(R * C) space",
+    "edge_case": "Equal neighbours are not increasing"
+  },
+  {
+    "id": "R-310",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-310",
+    "prompt": "Given a tree of n nodes as an edge list, return every node that, chosen as the root, gives the tree its minimum height.",
+    "pattern": "Topological peeling: trim leaves layer by layer",
+    "complexity": "O(N) time, O(N) space",
+    "edge_case": "n == 1 returns [0]"
+  },
+  {
+    "id": "R-1631",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-1631",
+    "prompt": "In a grid of heights, find a path from top-left to bottom-right that minimises the largest absolute height difference between neighbouring cells on the path.",
+    "pattern": "Dijkstra with a min-heap where path cost is the largest step so far",
+    "complexity": "O(R * C log(R * C)) time, O(R * C) space",
+    "edge_case": "A 1 x 1 grid needs 0 effort"
+  },
+  {
+    "id": "R-417",
+    "type": "pattern",
+    "category": "graphs",
+    "problem_id": "G-417",
+    "prompt": "Water flows to neighbouring cells of equal or lower height. Return every cell from which water can reach both the Pacific (top/left edges) and the Atlantic (bottom/right edges).",
+    "pattern": "Reverse flood fill uphill from each ocean's border",
+    "complexity": "O(R * C) time, O(R * C) space",
+    "edge_case": "Border cells already touch an ocean"
   },
   {
     "id": "R-236",
@@ -77,7 +147,7 @@
     "prompt": "Find the lowest common ancestor of two nodes in a binary tree.",
     "pattern": "Post-order: return the node found in each subtree",
     "complexity": "O(N) time, O(H) space",
-    "edge_case": "One node is an ancestor of the other."
+    "edge_case": "One node is an ancestor of the other"
   },
   {
     "id": "R-98",
@@ -87,7 +157,7 @@
     "prompt": "Decide whether a binary tree is a valid binary search tree.",
     "pattern": "DFS with (low, high) bounds or in-order",
     "complexity": "O(N) time, O(H) space",
-    "edge_case": "Duplicates; values at integer limits."
+    "edge_case": "Duplicates"
   },
   {
     "id": "R-199",
@@ -97,7 +167,7 @@
     "prompt": "Return the values visible when looking at a binary tree from the right side.",
     "pattern": "BFS level order, take the last node per level",
     "complexity": "O(N) time, O(W) space",
-    "edge_case": "Left subtree deeper than the right one."
+    "edge_case": "Left subtree deeper than the right one"
   },
   {
     "id": "R-230",
@@ -107,7 +177,7 @@
     "prompt": "Return the k-th smallest value in a binary search tree.",
     "pattern": "In-order traversal with counter",
     "complexity": "O(H + K) time, O(H) space",
-    "edge_case": "k equal to the number of nodes."
+    "edge_case": "k equal to the number of nodes"
   },
   {
     "id": "R-543",
@@ -117,7 +187,7 @@
     "prompt": "Return the length of the longest path between any two nodes in a binary tree.",
     "pattern": "DFS height, update global left + right",
     "complexity": "O(N) time, O(H) space",
-    "edge_case": "Path need not pass through the root."
+    "edge_case": "Path need not pass through the root"
   },
   {
     "id": "R-208",
@@ -127,7 +197,7 @@
     "prompt": "Implement insert, search and startsWith for a prefix tree.",
     "pattern": "Trie nodes with children map + end flag",
     "complexity": "O(L) per op time, O(total chars) space",
-    "edge_case": "Prefix that is also a full word."
+    "edge_case": "Prefix that is also a full word"
   },
   {
     "id": "R-103",
@@ -137,7 +207,17 @@
     "prompt": "Return the level-order values of a binary tree, alternating left-to-right and right-to-left on each level.",
     "pattern": "BFS by level, reverse every other level (or fill a deque from alternating ends)",
     "complexity": "O(N) time, O(W) space",
-    "edge_case": "Empty tree returns []; do not reverse the BFS queue itself, only the level output."
+    "edge_case": "Empty tree returns []"
+  },
+  {
+    "id": "R-297",
+    "type": "pattern",
+    "category": "trees",
+    "problem_id": "G-297",
+    "prompt": "Design encode/decode functions that turn a binary tree into a string and back.",
+    "pattern": "Pre-order with null markers",
+    "complexity": "O(N) time, O(N) space",
+    "edge_case": "Negative and multi-digit values"
   },
   {
     "id": "R-23",
@@ -147,7 +227,7 @@
     "prompt": "Merge k sorted linked lists into one sorted list.",
     "pattern": "Min-heap of list heads",
     "complexity": "O(N log K) time, O(K) space",
-    "edge_case": "Some lists empty; k == 0."
+    "edge_case": "Some lists empty"
   },
   {
     "id": "R-347",
@@ -157,7 +237,7 @@
     "prompt": "Return the k most frequent elements.",
     "pattern": "Count + size-K min-heap (or bucket sort)",
     "complexity": "O(N log K) time, O(N) space",
-    "edge_case": "Ties in frequency; k equal to the number of distinct values."
+    "edge_case": "Ties in frequency"
   },
   {
     "id": "R-215",
@@ -167,7 +247,7 @@
     "prompt": "Return the k-th largest element in an unsorted array.",
     "pattern": "Size-K min-heap or quickselect",
     "complexity": "O(N log K) time, O(K) space",
-    "edge_case": "Duplicates count separately."
+    "edge_case": "Duplicates count separately"
   },
   {
     "id": "R-1094",
@@ -177,37 +257,7 @@
     "prompt": "A car with a fixed capacity only drives east. Given trips [passengers, from, to], decide if it can complete every trip without exceeding capacity.",
     "pattern": "Sort by pickup + min-heap of drop-offs (or difference array)",
     "complexity": "O(N log N) time, O(N) space",
-    "edge_case": "Drop-offs at a location happen before pick-ups at the same location."
-  },
-  {
-    "id": "R-295",
-    "type": "pattern",
-    "category": "heaps",
-    "problem_id": "G-295",
-    "prompt": "Design a structure that supports adding numbers and returning the running median.",
-    "pattern": "Two heaps: max-heap low half, min-heap high half",
-    "complexity": "O(log N) add, O(1) median time, O(N) space",
-    "edge_case": "Even count returns the average of the two middles."
-  },
-  {
-    "id": "R-621",
-    "type": "pattern",
-    "category": "heaps",
-    "problem_id": "G-621",
-    "prompt": "Find the minimum time units to run tasks when identical tasks need n idle units between them.",
-    "pattern": "Greedy by max frequency (formula or heap)",
-    "complexity": "O(N) time, O(1) space",
-    "edge_case": "n == 0; several tasks share the max frequency."
-  },
-  {
-    "id": "R-767",
-    "type": "pattern",
-    "category": "heaps",
-    "problem_id": "G-767",
-    "prompt": "Rearrange a string so no two adjacent characters are equal, or return empty if impossible.",
-    "pattern": "Max-heap, place most frequent char not equal to last",
-    "complexity": "O(N log A) time, O(A) space",
-    "edge_case": "Impossible when maxFreq > (n + 1) / 2."
+    "edge_case": "Drop-offs at a location happen before pick-ups at the same location"
   },
   {
     "id": "R-56",
@@ -217,7 +267,7 @@
     "prompt": "Merge all overlapping intervals and return the non-overlapping result.",
     "pattern": "Sort by start, merge overlaps",
     "complexity": "O(N log N) time, O(N) space",
-    "edge_case": "Touching intervals like [1,4] and [4,5] should merge."
+    "edge_case": "Touching intervals like [1,4] and [4,5] should merge"
   },
   {
     "id": "R-57",
@@ -227,7 +277,7 @@
     "prompt": "Insert a new interval into a sorted list of non-overlapping intervals, merging if needed.",
     "pattern": "Three-phase scan: before, overlap, after",
     "complexity": "O(N) time, O(N) space",
-    "edge_case": "New interval before all or after all existing intervals."
+    "edge_case": "New interval before all or after all existing intervals"
   },
   {
     "id": "R-253",
@@ -237,47 +287,7 @@
     "prompt": "Given meeting time intervals, find the minimum number of conference rooms required.",
     "pattern": "Min-heap of end times or sweep line",
     "complexity": "O(N log N) time, O(N) space",
-    "edge_case": "A meeting ending exactly when another starts frees the room."
-  },
-  {
-    "id": "R-452",
-    "type": "pattern",
-    "category": "intervals",
-    "problem_id": "G-452",
-    "prompt": "Balloons span [x_start, x_end] on the x-axis. An arrow shot at x bursts every balloon covering x. Find the fewest arrows that burst them all.",
-    "pattern": "Greedy: sort by end, shoot at the earliest end, skip balloons it bursts",
-    "complexity": "O(N log N) time, O(1) space",
-    "edge_case": "Touching balloons like [1,2] and [2,3] share one arrow; avoid a - b comparators that overflow."
-  },
-  {
-    "id": "R-1288",
-    "type": "pattern",
-    "category": "intervals",
-    "problem_id": "G-1288",
-    "prompt": "Remove every interval that is covered by another interval and return how many remain.",
-    "pattern": "Sort by start ascending and end descending; count intervals that extend the max end",
-    "complexity": "O(N log N) time, O(1) space",
-    "edge_case": "Equal starts: the longer interval must come first or it will be counted twice."
-  },
-  {
-    "id": "R-435",
-    "type": "pattern",
-    "category": "intervals",
-    "problem_id": "G-435",
-    "prompt": "Find the minimum number of intervals to remove so the rest do not overlap.",
-    "pattern": "Greedy: sort by end, keep earliest finishing",
-    "complexity": "O(N log N) time, O(1) space",
-    "edge_case": "Touching endpoints are not overlapping."
-  },
-  {
-    "id": "R-759",
-    "type": "pattern",
-    "category": "intervals",
-    "problem_id": "G-759",
-    "prompt": "Given each employee's sorted working intervals, return the finite common free time slots.",
-    "pattern": "Merge sorted interval lists with a heap",
-    "complexity": "O(N log K) time, O(K) space",
-    "edge_case": "Ignore infinite gaps before the first and after the last interval."
+    "edge_case": "A meeting ending exactly when another starts frees the room"
   },
   {
     "id": "R-198",
@@ -287,7 +297,7 @@
     "prompt": "Maximise money robbed from houses in a line without robbing two adjacent houses.",
     "pattern": "1D DP: rob or skip",
     "complexity": "O(N) time, O(1) space",
-    "edge_case": "Single house."
+    "edge_case": "Single house"
   },
   {
     "id": "R-62",
@@ -297,7 +307,7 @@
     "prompt": "Count the paths from top-left to bottom-right moving only right or down.",
     "pattern": "Grid DP (or combinatorics)",
     "complexity": "O(R * C) time, O(C) space",
-    "edge_case": "1 x N grid has exactly one path."
+    "edge_case": "1 x N grid has exactly one path"
   },
   {
     "id": "R-91",
@@ -307,7 +317,7 @@
     "prompt": "Count how many ways a digit string can be decoded where 'A'=1 ... 'Z'=26.",
     "pattern": "1D DP with one- and two-digit lookback",
     "complexity": "O(N) time, O(1) space",
-    "edge_case": "Zeros: '0', '06', '100' have no valid decoding."
+    "edge_case": "Zeros: '0', '06', '100' have no valid decoding"
   },
   {
     "id": "R-139",
@@ -317,7 +327,7 @@
     "prompt": "Decide if a string can be split into a sequence of dictionary words.",
     "pattern": "DP over prefixes with a word set",
     "complexity": "O(N^2) time, O(N) space",
-    "edge_case": "Reusing words is allowed."
+    "edge_case": "Reusing words is allowed"
   },
   {
     "id": "R-5",
@@ -327,7 +337,7 @@
     "prompt": "Return the longest substring of s that reads the same forwards and backwards.",
     "pattern": "Expand around each of the 2N - 1 centres (interval DP also works)",
     "complexity": "O(N^2) time, O(1) space",
-    "edge_case": "Even-length palindromes need a centre between two characters."
+    "edge_case": "Even-length palindromes need a centre between two characters"
   },
   {
     "id": "R-416",
@@ -337,7 +347,27 @@
     "prompt": "Decide whether an array can be split into two subsets with equal sums.",
     "pattern": "0/1 knapsack over reachable sums (loop sums downwards)",
     "complexity": "O(N * S) time, O(S) space",
-    "edge_case": "An odd total is impossible; iterate sums from high to low so each number is used once."
+    "edge_case": "An odd total is impossible"
+  },
+  {
+    "id": "R-152",
+    "type": "pattern",
+    "category": "dp",
+    "problem_id": "G-152",
+    "prompt": "Find the contiguous subarray with the largest product.",
+    "pattern": "Track the running max and min product (a negative swaps them)",
+    "complexity": "O(N) time, O(1) space",
+    "edge_case": "A zero resets the run"
+  },
+  {
+    "id": "R-322",
+    "type": "pattern",
+    "category": "dp",
+    "problem_id": "G-322",
+    "prompt": "Find the fewest coins needed to make an amount, or -1.",
+    "pattern": "Unbounded knapsack, min coins",
+    "complexity": "O(A * C) time, O(A) space",
+    "edge_case": "Amount 0 returns 0"
   },
   {
     "id": "R-739",
@@ -347,7 +377,7 @@
     "prompt": "For each day, return how many days you must wait until a warmer temperature (0 if never).",
     "pattern": "Monotonic decreasing stack of indices",
     "complexity": "O(N) time, O(N) space",
-    "edge_case": "Equal temperatures do not count as warmer."
+    "edge_case": "Equal temperatures do not count as warmer"
   },
   {
     "id": "R-503",
@@ -357,17 +387,7 @@
     "prompt": "For each element of a circular array, return the next greater element, or -1.",
     "pattern": "Monotonic decreasing stack of indices over two passes (circular)",
     "complexity": "O(N) time, O(N) space",
-    "edge_case": "All-equal values return -1 everywhere; only push indices in the first pass."
-  },
-  {
-    "id": "R-402",
-    "type": "pattern",
-    "category": "monotonic",
-    "problem_id": "G-402",
-    "prompt": "Remove k digits from a number string to make the smallest possible number.",
-    "pattern": "Monotonic increasing stack of digits: pop while the top is bigger",
-    "complexity": "O(N) time, O(N) space",
-    "edge_case": "Strip leading zeros, return '0' when empty, and drop from the end if k is left over."
+    "edge_case": "All-equal values return -1 everywhere"
   },
   {
     "id": "R-84",
@@ -377,30 +397,10 @@
     "prompt": "Given bar heights of a histogram, find the area of the largest rectangle.",
     "pattern": "Monotonic increasing stack with sentinel",
     "complexity": "O(N) time, O(N) space",
-    "edge_case": "All equal heights; strictly increasing heights (flush the stack at the end)."
+    "edge_case": "All equal heights"
   },
   {
-    "id": "R-239",
-    "type": "pattern",
-    "category": "monotonic",
-    "problem_id": "G-239",
-    "prompt": "Return the maximum of every contiguous window of size k.",
-    "pattern": "Monotonic deque of indices",
-    "complexity": "O(N) time, O(K) space",
-    "edge_case": "k == 1 and k == n; evict indices that fall out of the window."
-  },
-  {
-    "id": "R-42",
-    "type": "pattern",
-    "category": "monotonic",
-    "problem_id": "G-42",
-    "prompt": "Compute how much rain water is trapped between bars of given heights.",
-    "pattern": "Monotonic decreasing stack of bars (or two pointers with running max)",
-    "complexity": "O(N) time, O(1) space",
-    "edge_case": "Fewer than 3 bars traps nothing."
-  },
-  {
-    "id": "B-01",
+    "id": "B-dijkstra-stale",
     "type": "bug_hunt",
     "category": "graphs",
     "problem_id": null,
@@ -410,7 +410,7 @@
     "edge_case": "Many duplicate heap entries for the same node."
   },
   {
-    "id": "B-02",
+    "id": "B-bfs-visited",
     "type": "bug_hunt",
     "category": "graphs",
     "problem_id": null,
@@ -420,7 +420,17 @@
     "edge_case": "Open grid with no walls explodes the queue."
   },
   {
-    "id": "B-03",
+    "id": "B-union-find-root",
+    "type": "bug_hunt",
+    "category": "graphs",
+    "problem_id": null,
+    "prompt": "Union-find with path compression:\n\n  def find(x):\n      if parent[x] != x:\n          parent[x] = find(parent[x])\n      return x",
+    "pattern": "Returns x instead of the root. The last line must be `return parent[x]`.",
+    "complexity": "~O(1) amortised per call",
+    "edge_case": "Chain 1 -> 2 -> 3: find(1) must return 3."
+  },
+  {
+    "id": "B-bst-bounds",
     "type": "bug_hunt",
     "category": "trees",
     "problem_id": null,
@@ -430,7 +440,7 @@
     "edge_case": "Tree [5,4,6,null,null,3,7] must be invalid."
   },
   {
-    "id": "B-04",
+    "id": "B-trie-prefix",
     "type": "bug_hunt",
     "category": "trees",
     "problem_id": null,
@@ -440,17 +450,7 @@
     "edge_case": "After insert(\"apple\"), search(\"app\") must be False."
   },
   {
-    "id": "B-05",
-    "type": "bug_hunt",
-    "category": "heaps",
-    "problem_id": null,
-    "prompt": "Kth largest with a heap:\n\n  heap = []\n  for x in nums:\n      heapq.heappush(heap, x)\n      if len(heap) > k: heapq.heappop(heap)\n  return heap[-1]",
-    "pattern": "heap[-1] is not the minimum. The k-th largest is heap[0] (root of the min-heap).",
-    "complexity": "O(N log K) time, O(K) space",
-    "edge_case": "k == len(nums)."
-  },
-  {
-    "id": "B-06",
+    "id": "B-heap-ties",
     "type": "bug_hunt",
     "category": "heaps",
     "problem_id": null,
@@ -460,7 +460,7 @@
     "edge_case": "Two lists that start with the same value."
   },
   {
-    "id": "B-07",
+    "id": "B-merge-max-end",
     "type": "bug_hunt",
     "category": "intervals",
     "problem_id": null,
@@ -470,7 +470,7 @@
     "edge_case": "Nested interval fully inside another."
   },
   {
-    "id": "B-08",
+    "id": "B-coin-guard",
     "type": "bug_hunt",
     "category": "dp",
     "problem_id": null,
@@ -480,7 +480,7 @@
     "edge_case": "Unreachable amount must return -1."
   },
   {
-    "id": "B-09",
+    "id": "B-knapsack-direction",
     "type": "bug_hunt",
     "category": "dp",
     "problem_id": null,
@@ -490,7 +490,7 @@
     "edge_case": "nums = [1, 2, 5] (target 4) must be False."
   },
   {
-    "id": "B-10",
+    "id": "B-deque-evict",
     "type": "bug_hunt",
     "category": "monotonic",
     "problem_id": null,

@@ -31,7 +31,7 @@ def _read_line() -> str:
         return "enter"
     if text.strip() == "":
         return "space"
-    return text.strip()[0].lower()
+    return _normalise(text.strip()[0])
 
 
 @contextmanager

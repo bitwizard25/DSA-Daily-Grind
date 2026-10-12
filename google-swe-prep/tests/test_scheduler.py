@@ -38,7 +38,7 @@ def test_streak(session):
     assert scheduler.streak(session, today) == 3  # today not done yet still keeps yesterday's streak
     scheduler.mark_done(session, today, "evening", 60)
     assert scheduler.streak(session, today) == 4
-    assert scheduler.schedule_for(session, today).total_minutes_spent == 60
+    assert scheduler.schedule_for(session, today).total_minutes == 60
 
 
 def test_needs_micro():

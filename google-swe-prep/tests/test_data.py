@@ -4,8 +4,8 @@ from google_prep import db
 from google_prep.core import scheduler
 
 PROBLEM_FIELDS = {"id", "title", "leetcode_id", "slug", "difficulty", "category", "phase", "key_pattern",
-                  "time_target", "space_target", "google_frequency", "recency", "recent_frequency",
-                  "statement", "edge_case", "google_follow_up"}
+                  "key_insight", "time_target", "space_target", "google_frequency", "recency", "recent_frequency",
+                  "statement", "edge_cases", "google_follow_up"}
 SIX = {"graphs", "trees", "heaps", "intervals", "dp", "monotonic"}
 
 
@@ -21,9 +21,18 @@ def test_problem_bank():
         assert p["category"] in scheduler.CATEGORIES
         assert p["phase"] in (1, 2, 3)
         assert p["recency"] in ("30d", "3m", "6m")  # every bank problem was asked in the last 6 months
-        assert p["statement"] and p["google_follow_up"] and p["edge_case"]
+        assert p["statement"] and p["google_follow_up"] and p["key_insight"]
+        assert isinstance(p["edge_cases"], list) and p["edge_cases"] and all(p["edge_cases"])
     assert {p["category"] for p in problems} == set(scheduler.CATEGORIES) == SIX
-    assert all(11 <= sum(p["category"] == c for p in problems) <= 14 for c in SIX)
+    share = {c: sum(p["category"] == c for p in problems) / 75 for c in SIX}
+    # spec section 4 weights: Graphs 35%, Trees 20%, DP 20%, Concurrency/Queues/Intervals 25%
+    assert round(share["graphs"], 2) == 0.35 and round(share["trees"], 2) == 0.20 and round(share["dp"], 2) == 0.20
+    assert round(share["heaps"] + share["intervals"] + share["monotonic"], 2) == 0.25
+    for named in ("Course Schedule", "Course Schedule II", "Evaluate Division", "Network Delay Time", "Alien Dictionary",
+                  "Meeting Rooms II", "Merge Intervals", "Sliding Window Maximum", "Task Scheduler",
+                  "Lowest Common Ancestor of a Binary Tree", "Word Search II", "Binary Tree Maximum Path Sum",
+                  "Word Break", "Longest Increasing Subsequence", "Trapping Rain Water"):
+        assert named in {p["title"] for p in problems}, named  # every problem the spec names is in the bank
     assert {p["phase"] for p in problems} == {1, 2, 3}
 
 
@@ -51,7 +60,7 @@ def test_patterns_and_vault():
 
 def test_googlyness_prompts_cover_dimensions():
     prompts = db.load_json("googlyness_prompts.json")
-    assert set(prompts) == {"Ambiguity", "Ownership", "Collaboration", "Humility"}
+    assert set(prompts) == {"Ambiguity", "Ownership", "Disagreement", "Humility"}
     assert all(len(v) >= 3 for v in prompts.values())
 
 
@@ -121,3 +130,47 @@ def test_migration_drops_renamed_content_columns(home):
     changes = db.migrate(create_engine(f"sqlite:///{old}"))
     assert "-problem.follow_up_prompt" in changes and "+problem.google_follow_up" in changes
     assert "-starstory.legacy_note" not in changes  # user tables are never stripped
+
+
+def test_upgrade_from_previous_release_keeps_history(home):
+    """A prep.db written by the 6-category release opens cleanly and keeps its history."""
+    import sqlite3
+
+    from sqlmodel import Session, create_engine
+
+    from google_prep.models import DailySchedule, MockSession, StarStory
+
+    old = home / "v11.db"
+    con = sqlite3.connect(old)
+    con.executescript("""
+        CREATE TABLE dailyschedule (date VARCHAR PRIMARY KEY, mode VARCHAR NOT NULL, morning_completed BOOLEAN NOT NULL,
+            evening_completed BOOLEAN NOT NULL, total_minutes_spent INTEGER NOT NULL);
+        INSERT INTO dailyschedule VALUES ('2026-10-11', 'normal', 1, 0, 25);
+        CREATE TABLE starstory (id INTEGER PRIMARY KEY, dimension VARCHAR NOT NULL, title VARCHAR NOT NULL,
+            situation VARCHAR NOT NULL, task VARCHAR NOT NULL, action VARCHAR NOT NULL, result VARCHAR NOT NULL,
+            updated_at DATETIME NOT NULL);
+        INSERT INTO starstory VALUES (1, 'Collaboration', 't', 's', 't', 'a', 'r', '2026-10-11 09:00:00.000000');
+        CREATE TABLE mocksession (id INTEGER PRIMARY KEY, problem_id VARCHAR NOT NULL, day VARCHAR NOT NULL,
+            limit_minutes INTEGER NOT NULL, used_seconds INTEGER NOT NULL, solved BOOLEAN NOT NULL,
+            follow_up VARCHAR NOT NULL, checklist_done INTEGER NOT NULL, algorithms INTEGER NOT NULL,
+            coding INTEGER NOT NULL, communication INTEGER NOT NULL, problem_solving INTEGER NOT NULL);
+        INSERT INTO mocksession VALUES (1, 'G-200', '2026-10-11', 45, 1800, 1, 'stream it', 2, 4, 3, 2, 1);
+    """)
+    con.commit()
+    con.close()
+    engine = create_engine(f"sqlite:///{old}")
+    from sqlmodel import SQLModel
+    SQLModel.metadata.create_all(engine)
+    changes = db.migrate(engine)
+    assert "dailyschedule.date->date_str" in changes and "mocksession.used_seconds->duration_seconds" in changes
+    with Session(engine) as s:
+        day = s.get(DailySchedule, "2026-10-11")
+        assert day.total_minutes == 25 and day.morning_completed
+        story = s.get(StarStory, 1)
+        assert story.dimension == "Disagreement" and story.created_at.day == 11
+        m = s.get(MockSession, 1)
+        assert m.duration_seconds == 1800 and m.date.year == 2026 and m.solved
+        assert (m.clarified_constraints, m.clean_code, m.follow_up_handled) == (True, True, False)
+        assert m.score == 50
+        s.add(MockSession(problem_id="G-207", duration_seconds=60))  # new rows insert fine after the upgrade
+        s.commit()

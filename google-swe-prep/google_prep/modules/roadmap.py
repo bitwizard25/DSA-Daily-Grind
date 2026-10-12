@@ -6,17 +6,17 @@ from rich.table import Table
 from rich.text import Text
 
 from google_prep.core import readiness, scheduler
-from google_prep.ui.formatters import banner, bar, crumbs, keys as key_bar, pct, rule
+from google_prep.ui.formatters import banner, bar, crumbs, gauge, keys as key_bar, nav, pct, rule
 
 
 def build(session, today: date) -> tuple[Group, dict[str, str]]:
     r = readiness.record_snapshot(session, today)
     day = scheduler.day_number(session, today)
-    head = banner("8-WEEK NORTH STAR READINESS ROADMAP",
-                  f"Overall Readiness Score: [accent]{r.index:.0f}% / 100%[/accent]",
-                  f"Target Interview Date: [header]{scheduler.interview_date(session):%b %d, %Y}[/header]")
+    head = banner("ROADMAP · 8-WEEK NORTH STAR",
+                  f"Readiness [accent]{r.index:.0f}%[/accent]",
+                  f"Interview [header]{scheduler.interview_date(session):%b %d, %Y}[/header]")
 
-    parts = [crumbs(scheduler.breadcrumb(session, today, "Roadmap")), head, Text("")]
+    parts = [crumbs(scheduler.breadcrumb(session, today, "Roadmap")), nav("Roadmap"), head, Text("")]
     comp = Table.grid(padding=(0, 3))
     for name, value, weight in [("Pattern Mastery", r.pattern_mastery, 40), ("Mock Speed", r.mock_speed, 30),
                                 ("Dry-Run Accuracy", r.dry_run, 15), ("STAR Stories", r.star, 15)]:
@@ -30,7 +30,14 @@ def build(session, today: date) -> tuple[Group, dict[str, str]]:
     pace_txt = (f"[danger]behind by {pace['behind']}[/danger]" if pace["behind"] else "[ok]on track[/ok]")
     comp.add_row("[body]Problem pace[/body]",
                  f"{pace['solved']}/{pace['total']} solved, plan says {pace['expected']} by today: {pace_txt}")
-    parts += [rule("  READINESS INDEX COMPONENTS"), comp, Text("")]
+    side = Table.grid(padding=(0, 4))
+    side.add_row(gauge(r.index / 100), comp)
+    # Krug ch 13: no false precision; show exactly how the number is made
+    terms = [(w / 100, getattr(r, k)) for k, w in (("pattern_mastery", 40), ("mock_speed", 30), ("dry_run", 15),
+                                                    ("star", 15))]
+    formula = " + ".join(f"{w:.2f}×{v * 100:.0f}%" for w, v in terms)
+    parts += [rule("  READINESS INDEX COMPONENTS"), side,
+              Text.from_markup(f"  [muted]Readiness = {formula} = [/muted][accent]{r.index:.0f}%[/accent]"), Text("")]
 
     phases = Table.grid(padding=(0, 2))
     for phase, (name, first, last) in scheduler.PHASES.items():
@@ -61,5 +68,6 @@ def build(session, today: date) -> tuple[Group, dict[str, str]]:
             n = mistakes[key]
             table.add_row(label, f"[{'danger' if n == worst else 'muted'}]{'■' * n or '·'} {n}[/]")
         parts += [rule("  MISTAKE PROFILE (last 20 logged)"), table, Text("")]
-    parts += [key_bar(("b", "Back to Today"), ("m", "Start Mock"), ("s", "Add STAR Story"), ("q", "Exit"))]
-    return Group(*parts), {"b": "today", "t": "today", "m": "mock", "s": "star_add", "q": "quit"}
+    parts += [key_bar(("b", "Back"), ("w", "Mock"), ("s", "STAR"), ("q", "Quit"))]
+    return Group(*parts), {"b": "today", "t": "today", "d": "warmup", "w": "mock", "r": "roadmap", "s": "star_list",
+                           "m": "micro_start", "q": "quit"}

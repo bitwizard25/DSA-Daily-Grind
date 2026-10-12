@@ -1,20 +1,21 @@
-"""Build a single-file executable for the current OS (spec section 8).
-Windows -> dist/google-prep.exe, macOS/Linux -> dist/google-prep. Run: python build.py"""
+"""Build the executable for the current OS (spec section 8).
+`python build.py`          -> dist/google-prep.exe (Windows) / dist/google-prep: one file, as the spec asks.
+`python build.py --onedir` -> dist/google-prep/ folder: starts ~2x faster (nothing to unpack per launch)."""
 import os
 import platform
 import subprocess
 import sys
 
 
-def build():
-    print(f"Building google-prep for {platform.system()}...")
+def build(onedir: bool = False):
+    print(f"Building google-prep for {platform.system()}{' (folder build)' if onedir else ''}...")
     sep = os.pathsep  # PyInstaller's --add-data separator (';' on Windows, ':' elsewhere)
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--name=google-prep",
-        "--onefile",
+        "--onedir" if onedir else "--onefile",
         "--noconfirm",
         f"--add-data=data{sep}data",
         f"--add-data=patterns_vault{sep}patterns_vault",
@@ -29,4 +30,4 @@ def build():
 
 
 if __name__ == "__main__":
-    build()
+    build(onedir="--onedir" in sys.argv)

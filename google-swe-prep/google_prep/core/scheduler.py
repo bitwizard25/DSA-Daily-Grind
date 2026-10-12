@@ -84,9 +84,14 @@ def week_and_day(session: Session, today: date) -> tuple[int, int]:
     return (day - 1) // 7 + 1, (day - 1) % 7 + 1
 
 
+APP_NAME = "[Google SWE II OS]"
+
+
 def breadcrumb(session: Session, today: date, *parts: str) -> str:
+    """Trunk test: app name, then Phase > Week > Day > section > topic > problem."""
     week, dow = week_and_day(session, today)
-    return " > ".join([f"Week {week}", f"Day {dow}", *[p for p in parts if p]])
+    phase = phase_for_day(day_number(session, today))
+    return f"{APP_NAME} " + " > ".join([f"Phase {phase}", f"Week {week}", f"Day {dow}", *[p for p in parts if p]])
 
 
 def phase_for_day(day: int) -> int:
@@ -108,7 +113,7 @@ def schedule_for(session: Session, day: date) -> DailySchedule:
     key = day.isoformat()
     row = session.get(DailySchedule, key)
     if row is None:
-        row = DailySchedule(date=key)
+        row = DailySchedule(date_str=key)
         session.add(row)
         session.commit()
     return row
@@ -120,7 +125,7 @@ def mark_done(session: Session, day: date, slot: str, minutes: int = 0, mode: st
         row.morning_completed = True
     elif slot == "evening":
         row.evening_completed = True
-    row.total_minutes_spent += max(0, minutes)
+    row.total_minutes += max(0, minutes)
     if mode:
         row.mode = mode
     session.add(row)
@@ -129,7 +134,7 @@ def mark_done(session: Session, day: date, slot: str, minutes: int = 0, mode: st
 
 def streak(session: Session, today: date) -> int:
     done = {
-        r.date
+        r.date_str
         for r in session.exec(select(DailySchedule)).all()
         if r.morning_completed or r.evening_completed
     }
@@ -231,7 +236,8 @@ def due_problems(session: Session, now: datetime) -> list[Problem]:
 
 
 def record_problem_review(session: Session, problem_id: str, grade: int, solved: bool,
-                          now: datetime) -> UserProgress:
+                          now: datetime, min_days: int | None = None) -> UserProgress:
+    """SM-2 on the problem. `min_days` applies the 3-tier floors (0 = back in today's queue)."""
     prog = session.exec(select(UserProgress).where(UserProgress.problem_id == problem_id)).first()
     state = sm2.CardState(prog.reps, prog.easiness_factor, prog.interval_days) if prog else sm2.CardState()
     new = sm2.review(state, grade)
@@ -240,6 +246,9 @@ def record_problem_review(session: Session, problem_id: str, grade: int, solved:
     prog.reps, prog.easiness_factor, prog.interval_days = new.reps, new.easiness_factor, new.interval_days
     prog.status = sm2.status_for(new.reps)
     prog.next_review_date = sm2.next_date(now, new)
+    if min_days is not None:
+        days = 0 if grade < 3 else max(new.interval_days, min_days)
+        prog.interval_days, prog.next_review_date = max(1, days), now + timedelta(days=days)
     if solved:
         prog.last_solved_at = now
     session.add(prog)
@@ -249,11 +258,11 @@ def record_problem_review(session: Session, problem_id: str, grade: int, solved:
 
 def log_attempt(session: Session, problem_id: str, minutes: int, solved: bool,
                 dry_run_ok: bool | None, grade: int, now: datetime, source: str = "solve",
-                mistake: str | None = None) -> None:
+                mistake: str | None = None, min_days: int | None = None) -> None:
     session.add(Attempt(problem_id=problem_id, day=now.date().isoformat(), minutes=minutes,
                         solved=solved, dry_run_ok=dry_run_ok, mistake=mistake, source=source))
     session.commit()
-    record_problem_review(session, problem_id, grade, solved, now)
+    record_problem_review(session, problem_id, grade, solved, now, min_days)
     mark_done(session, now.date(), "evening", minutes)
 
 
@@ -320,15 +329,18 @@ def pace(session: Session, today: date) -> dict:
             "per_day": max(0.0, (total - solved) / days_left)}
 
 
-def grade_drill(session: Session, drill_id: str, grade: int, now: datetime) -> DrillProgress:
+def grade_drill(session: Session, drill_id: str, grade: int, now: datetime, min_days: int = 0) -> DrillProgress:
+    """SM-2 on the drill, with the recall screen's floors: a miss comes back today, effort in
+    3+ days, an instant reflex in 7+ days (SM-2 stretches the gap further as reps build)."""
     prog = session.get(DrillProgress, drill_id)
     state = sm2.CardState(prog.reps, prog.easiness_factor, prog.interval_days) if prog else sm2.CardState()
     new = sm2.review(state, grade)
     if prog is None:
         prog = DrillProgress(drill_id=drill_id, next_review_date=now)
-    prog.reps, prog.easiness_factor, prog.interval_days = new.reps, new.easiness_factor, new.interval_days
+    days = 0 if grade < 3 else max(new.interval_days, min_days)
+    prog.reps, prog.easiness_factor, prog.interval_days = new.reps, new.easiness_factor, max(1, days)
     prog.status = sm2.status_for(new.reps)
-    prog.next_review_date = sm2.next_date(now, new)
+    prog.next_review_date = now + timedelta(days=days)
     prog.last_grade = grade
     session.add(prog)
     session.commit()

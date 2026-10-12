@@ -24,7 +24,8 @@ def count(model):
 def test_zero_args_in_the_morning_starts_the_warmup():
     r = run(input="\n3\n\n2\nq\n")  # reveal, Instant, reveal, Effort, stop
     assert r.exit_code == 0, r.output
-    assert "PATTERN RECALL" in r.output and "Week 1 > Day 1 > Recall" in r.output
+    assert "RECALL DRILL" in r.output and "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Recall > Drill 1/5" in r.output
+    assert "Graphs" not in r.output.split("Drill 1/5")[1].split("\n")[0]  # unlabeled: no topic in the breadcrumb
     assert "DRILLS LOGGED" in r.output and "Instant 1" in r.output
     assert count(DrillProgress) == 2
     with get_session() as s:
@@ -32,7 +33,7 @@ def test_zero_args_in_the_morning_starts_the_warmup():
 
 
 def test_zero_args_in_the_evening_starts_the_solve(monkeypatch):
-    r = run(input="1\ns\ny\ny\n", at="2026-10-12T19:30", monkeypatch=monkeypatch)
+    r = run(input="1\ns\n2\ny\n", at="2026-10-12T19:30", monkeypatch=monkeypatch)  # Solved with Effort, trace ok
     assert r.exit_code == 0, r.output
     assert "TIMED SOLVE" in r.output and "RESULT" in r.output
     assert count(Attempt) == 1 and count(MockSession) == 0  # practice solves are not mocks
@@ -42,20 +43,36 @@ def test_zero_args_after_both_sessions_shows_today(monkeypatch):
     with get_session() as s:
         scheduler.mark_done(s, datetime(2026, 10, 12).date(), "morning", 20)
     r = run(at="2026-10-12T09:00", monkeypatch=monkeypatch)
-    assert "GOOGLE SWE II OS" in r.output and "✓ Completed" in r.output
+    assert "NEXT: EVENING DEEP WORK" in r.output and "Done" in r.output and "Morning warmup" in r.output
 
 
 def test_today_screen_has_breadcrumb_and_no_greeting():
     r = run("today")
     assert r.exit_code == 0, r.output
-    assert "Week 1 > Day 1 > Today" in r.output
-    assert "Good morning" not in r.output and "MORNING WARMUP" in r.output and "EVENING DEEP WORK" in r.output
+    assert "[Google SWE II OS] Phase 1 > Week 1 > Day 1 > Today" in r.output
+    assert "[t] Today" in r.output and "[w] Mock" in r.output and "[s] STAR" in r.output  # section bar
+    assert "Good morning" not in r.output and "Welcome" not in r.output
+    assert "NEXT: MORNING WARMUP" in r.output and "[Enter] Start Today's 20-min Warmup" in r.output
+    assert "EVENING DEEP WORK" not in r.output and "Later" in r.output  # one dominant card, the rest is a status line
 
 
 def test_worked_hours_switch_to_micro_for_the_day():
     r = run("today", "--worked", "11")
     assert "micro-mode on" in r.output and "MICRO-MODE" in r.output
     assert "MICRO-MODE" in run("today").output  # stays on for the rest of the day
+
+
+def test_m_starts_micro_mode_in_one_key():
+    r = run("today", input="m\n\n2\n\n1\n")
+    assert r.exit_code == 0, r.output
+    assert "BUG HUNT" in r.output and "DRILLS LOGGED" in r.output
+    with get_session() as s:
+        assert scheduler.schedule_for(s, datetime(2026, 10, 12).date()).mode == "micro"
+
+
+def test_esc_goes_back_from_the_roadmap():
+    r = run("roadmap", input="\x1b\nq\n")
+    assert "ROADMAP" in r.output and "NEXT: MORNING WARMUP" in r.output
 
 
 def test_micro_mode_runs_two_drills():
@@ -66,14 +83,18 @@ def test_micro_mode_runs_two_drills():
 
 
 def test_mock_records_rubric_follow_up_and_mistake():
-    keys = "1\n2\nf\ns\nn\nn\n4\n3\n2\n3\n1\n"  # tick 1-2, follow-up, submit, not solved, no dry run, rubric, mistake
+    # tick 1-2, follow-up, submit | [1] Missed it | pillars: clarified y, complexity y, clean n, trace n, follow-up y | mistake
+    keys = "1\n2\nf\ns\n" + "1\n" + "y\ny\nn\nn\ny\n" + "1\n"
     r = run("mock", "--topic", "graphs", "--no-editor", input=keys)
     assert r.exit_code == 0, r.output
-    assert "Week 1 > Day 1 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
+    assert "Phase 1 > Week 1 > Day 1 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
     with get_session() as s:
         m = s.exec(scheduler.select(MockSession)).one()
         a = s.exec(scheduler.select(Attempt)).one()
-    assert (m.solved, m.checklist_done, m.algorithms, m.problem_solving) == (False, 2, 4, 3)
+    assert (m.solved, m.clarified_constraints, m.stated_complexity, m.clean_code, m.dry_run_passed,
+            m.follow_up_handled) == (False, True, True, False, False, True)
+    assert m.score == 50 and "Lean No Hire" in r.output and "SCORECARD · GOOGLE 4 PILLARS" in r.output
+    assert "back in today's re-solve queue" in r.output
     assert a.mistake == "pattern" and a.source == "mock" and a.dry_run_ok is False
 
 
@@ -86,12 +107,12 @@ def test_mock_abandon_logs_nothing():
 def test_crashed_mock_resumes_with_saved_state():
     session_store.save({"kind": "mock", "problem_id": "G-200", "minutes": 45, "practice": False,
                         "elapsed": 600.0, "ticks": [True, False, False, False], "shown": -1, "submitted": False})
-    r = run(input="\ns\ny\ny\n4\n4\n4\n4\n")  # zero-arg launch offers the resume first
+    r = run(input="\ns\n2\n" + "y\n" * 5)  # zero-arg launch offers the resume first; Effort, all checks pass
     assert r.exit_code == 0, r.output
-    assert "UNFINISHED SESSION" in r.output and "35:00 left" in r.output
+    assert "Session restored: Number of Islands (35m remaining)." in r.output and "Press [Enter] to resume." in r.output
     with get_session() as s:
         m = s.exec(scheduler.select(MockSession)).one()
-    assert m.problem_id == "G-200" and m.used_seconds >= 600 and m.checklist_done == 1
+    assert m.problem_id == "G-200" and m.duration_seconds >= 600 and m.score == 100 and "Strong Hire" in r.output
     assert session_store.load() is None
 
 
@@ -100,19 +121,19 @@ def test_crashed_recall_resumes_remaining_drills():
                         "counts": {"1": 0, "2": 2, "3": 0}, "seconds": 120, "day": "2026-10-12"})
     r = run("resume", input="\n\n3\n")
     assert r.exit_code == 0, r.output
-    assert "Recall drills · 1 left" in r.output and "Effort 2 · Instant 1" in r.output
+    assert "Session restored: Pattern recall (1 drill left)" in r.output and "Effort 2 · Instant 1" in r.output
     assert count(DrillProgress) == 1
 
 
 def test_discarding_a_saved_session():
     session_store.save({"kind": "recall", "mode": "warmup", "drill_ids": ["R-200"], "index": 0,
                         "counts": {"1": 0, "2": 0, "3": 0}, "seconds": 0, "day": "2026-10-12"})
-    r = run("resume", input="d\n")
-    assert session_store.load() is None and "GOOGLE SWE II OS" in r.output
+    r = run("resume", input="x\n")
+    assert session_store.load() is None and "NEXT: MORNING WARMUP" in r.output
 
 
 def test_solve_specific_problem():
-    r = run("solve", "G-5", "--no-editor", input="s\ny\nn\n5\n")
+    r = run("solve", "G-5", "--no-editor", input="s\n2\nn\n5\n")
     assert r.exit_code == 0, r.output
     with get_session() as s:
         a = s.exec(scheduler.select(Attempt)).one()
@@ -122,6 +143,7 @@ def test_solve_specific_problem():
 def test_roadmap():
     r = run("roadmap")
     assert r.exit_code == 0, r.output
+    assert "Readiness = 0.40×0% + 0.30×0% + 0.15×0% + 0.15×0% = 0%" in r.output  # transparent formula
     for text in ("Week 1 > Day 1 > Roadmap", "READINESS INDEX COMPONENTS", "Dry-Run Accuracy", "MILESTONE PHASES",
                  "Monotonic Queues", "Googlyness STAR Stories", "0/8 completed"):
         assert text in r.output, text
@@ -142,7 +164,8 @@ def test_star_add_list_review_show():
     assert "Saved story #2" in interactive.output
     assert "Ownership 1/2" in run("star", "list").output
     review = run("star", "review", "-d", "Ownership", input="\n")
-    assert "STAR Vault > Ownership" in review.output and "Fixed the 2am pager" in review.output
+    assert "STAR > Ownership" in review.output and "Fixed the 2am pager" in review.output
+    assert "Disagreement 0/2" in run("star", "list").output
     assert "MTTR" in run("star", "show", "1").output
     assert runner.invoke(app, ["star", "add", "-d", "nope"]).exit_code == 2
 

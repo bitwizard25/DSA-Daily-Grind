@@ -8,13 +8,17 @@
     "category": "graphs",
     "phase": 1,
     "key_pattern": "DFS/BFS flood fill",
+    "key_insight": "Each island is one connected component; flood-filling it marks every cell so it is counted exactly once.",
     "time_target": "O(R * C)",
     "space_target": "O(R * C)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 50.2,
     "statement": "Count islands of '1's connected horizontally or vertically in a grid.",
-    "edge_case": "Empty grid; recursion depth on a huge island.",
+    "edge_cases": [
+      "Empty grid",
+      "recursion depth on a huge island"
+    ],
     "google_follow_up": "What if land is added one cell at a time (Number of Islands II, union-find)?"
   },
   {
@@ -26,13 +30,17 @@
     "category": "graphs",
     "phase": 1,
     "key_pattern": "Cycle detection (Kahn or 3-colour DFS)",
+    "key_insight": "All courses can be finished exactly when the prerequisite graph has no directed cycle.",
     "time_target": "O(V + E)",
     "space_target": "O(V + E)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Decide if all courses can be finished given prerequisite pairs.",
-    "edge_case": "Self-dependency; disconnected components.",
+    "edge_cases": [
+      "Self-dependency",
+      "disconnected components"
+    ],
     "google_follow_up": "Return the minimum number of semesters needed."
   },
   {
@@ -44,13 +52,16 @@
     "category": "graphs",
     "phase": 1,
     "key_pattern": "Multi-source BFS",
+    "key_insight": "Start BFS from every rotten orange at once; the number of BFS levels is the minutes elapsed.",
     "time_target": "O(R * C)",
     "space_target": "O(R * C)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 42.3,
     "statement": "Return minutes until no fresh orange remains, or -1 if impossible.",
-    "edge_case": "No fresh oranges at all returns 0.",
+    "edge_cases": [
+      "No fresh oranges at all returns 0"
+    ],
     "google_follow_up": "What if rot spreads with different speeds per cell?"
   },
   {
@@ -62,14 +73,40 @@
     "category": "graphs",
     "phase": 1,
     "key_pattern": "Union-find (or DFS) over the adjacency matrix",
+    "key_insight": "Provinces are connected components; every union of two separate groups lowers the count by one.",
     "time_target": "O(N^2 α(N))",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 32.7,
     "statement": "Given an n x n matrix of direct connections between cities, count the groups of connected cities.",
-    "edge_case": "Diagonal self-connections; an isolated city is its own province.",
+    "edge_cases": [
+      "Diagonal self-connections",
+      "an isolated city is its own province"
+    ],
     "google_follow_up": "What if connections are added and removed over time?"
+  },
+  {
+    "id": "G-133",
+    "title": "Clone Graph",
+    "leetcode_id": 133,
+    "slug": "clone-graph",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 1,
+    "key_pattern": "DFS/BFS with an original -> copy hash map",
+    "key_insight": "Store each node's copy before visiting its neighbours, so cycles reuse the copy instead of looping.",
+    "time_target": "O(V + E)",
+    "space_target": "O(V)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 17.3,
+    "statement": "Return a deep copy of a connected undirected graph, given a reference to one of its nodes.",
+    "edge_cases": [
+      "Cycles: reuse the existing copy instead of recursing forever",
+      "Empty graph (null node)"
+    ],
+    "google_follow_up": "Replicate the graph across machines where nodes are sharded by id."
   },
   {
     "id": "G-210",
@@ -80,13 +117,16 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "Topological sort (Kahn's algorithm)",
+    "key_insight": "Repeatedly take a course with no remaining prerequisites; the order you remove them is a valid schedule.",
     "time_target": "O(V + E)",
     "space_target": "O(V + E)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Return an order in which to take all courses, or empty if impossible.",
-    "edge_case": "Cycle detection: output shorter than V.",
+    "edge_cases": [
+      "Cycle detection: output shorter than V"
+    ],
     "google_follow_up": "What if prerequisites change frequently?"
   },
   {
@@ -98,13 +138,16 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "BFS over wildcard pattern buckets",
+    "key_insight": "Words are nodes and one-letter edits are edges; BFS gives the fewest steps, and wildcard buckets (h*t) find neighbours fast.",
     "time_target": "O(N * L^2)",
     "space_target": "O(N * L^2)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Find the shortest transformation length from begin to end word, changing one letter at a time via a word list.",
-    "edge_case": "End word missing from the list.",
+    "edge_cases": [
+      "End word missing from the list"
+    ],
     "google_follow_up": "Bidirectional BFS: why is it faster?"
   },
   {
@@ -116,13 +159,16 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "Build edges from adjacent words, topological sort",
+    "key_insight": "Only the first differing character of two adjacent words gives an ordering edge; a topological sort of those edges is the alphabet.",
     "time_target": "O(C)",
     "space_target": "O(1) alphabet",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 17.4,
     "statement": "Given words sorted in an unknown alphabet, derive a valid order of its letters.",
-    "edge_case": "Prefix case like ['abc', 'ab'] is invalid.",
+    "edge_cases": [
+      "Prefix case like ['abc', 'ab'] is invalid"
+    ],
     "google_follow_up": "Return all valid orders, or detect if the order is unique."
   },
   {
@@ -134,13 +180,17 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "Dijkstra with a min-heap",
+    "key_insight": "Everyone has the signal at the largest shortest-path distance from the source.",
     "time_target": "O(E log V)",
     "space_target": "O(V + E)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 32.7,
     "statement": "Find how long it takes a signal from node k to reach all nodes, or -1.",
-    "edge_case": "Unreachable nodes; stale heap entries.",
+    "edge_cases": [
+      "Unreachable nodes",
+      "stale heap entries"
+    ],
     "google_follow_up": "What if edge weights can be negative?"
   },
   {
@@ -152,13 +202,16 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "Union-find on emails",
+    "key_insight": "Emails are the shared keys: union every email in an account, and each root's group is one person.",
     "time_target": "O(N α(N) + sort)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 25.4,
     "statement": "Merge accounts that share at least one email address.",
-    "edge_case": "Same name does not imply the same person.",
+    "edge_cases": [
+      "Same name does not imply the same person"
+    ],
     "google_follow_up": "What if accounts live in shards across data centres?"
   },
   {
@@ -170,14 +223,127 @@
     "category": "graphs",
     "phase": 2,
     "key_pattern": "DFS + memoisation (DAG longest path)",
+    "key_insight": "Strictly increasing moves form a DAG, so each cell's best path is computed once and memoised.",
     "time_target": "O(R * C)",
     "space_target": "O(R * C)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "Find the length of the longest strictly increasing path in a matrix (4 directions).",
-    "edge_case": "Equal neighbours are not increasing.",
+    "edge_cases": [
+      "Equal neighbours are not increasing"
+    ],
     "google_follow_up": "Return the path itself; solve with topological order instead of recursion."
+  },
+  {
+    "id": "G-310",
+    "title": "Minimum Height Trees",
+    "leetcode_id": 310,
+    "slug": "minimum-height-trees",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 2,
+    "key_pattern": "Topological peeling: trim leaves layer by layer",
+    "key_insight": "The best roots are the tree's centres; peeling leaves layer by layer leaves the 1 or 2 centre nodes.",
+    "time_target": "O(N)",
+    "space_target": "O(N)",
+    "google_frequency": "Very High",
+    "recency": "30d",
+    "recent_frequency": 29.0,
+    "statement": "Given a tree of n nodes as an edge list, return every node that, chosen as the root, gives the tree its minimum height.",
+    "edge_cases": [
+      "n == 1 returns [0]",
+      "the answer always has 1 or 2 nodes"
+    ],
+    "google_follow_up": "Edges are added one at a time: keep the answer updated without recomputing."
+  },
+  {
+    "id": "G-1631",
+    "title": "Path With Minimum Effort",
+    "leetcode_id": 1631,
+    "slug": "path-with-minimum-effort",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 2,
+    "key_pattern": "Dijkstra with a min-heap where path cost is the largest step so far",
+    "key_insight": "Dijkstra still works when a path costs its largest step, because that cost never decreases along a path.",
+    "time_target": "O(R * C log(R * C))",
+    "space_target": "O(R * C)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 23.9,
+    "statement": "In a grid of heights, find a path from top-left to bottom-right that minimises the largest absolute height difference between neighbouring cells on the path.",
+    "edge_cases": [
+      "A 1 x 1 grid needs 0 effort",
+      "relax with max(), not +"
+    ],
+    "google_follow_up": "The grid is 10^5 x 10^5 and stored as tiles on disk: how do you search it?"
+  },
+  {
+    "id": "G-417",
+    "title": "Pacific Atlantic Water Flow",
+    "leetcode_id": 417,
+    "slug": "pacific-atlantic-water-flow",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 2,
+    "key_pattern": "Reverse flood fill uphill from each ocean's border",
+    "key_insight": "Flip the direction: flood uphill from each ocean's border; cells reached from both oceans are the answer.",
+    "time_target": "O(R * C)",
+    "space_target": "O(R * C)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 23.9,
+    "statement": "Water flows to neighbouring cells of equal or lower height. Return every cell from which water can reach both the Pacific (top/left edges) and the Atlantic (bottom/right edges).",
+    "edge_cases": [
+      "Border cells already touch an ocean",
+      "Equal heights let water flow both ways"
+    ],
+    "google_follow_up": "Sensors update heights continuously: keep the answer fresh without a full recompute."
+  },
+  {
+    "id": "G-827",
+    "title": "Making A Large Island",
+    "leetcode_id": 827,
+    "slug": "making-a-large-island",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 2,
+    "key_pattern": "Label each island with its size, then try flipping every 0",
+    "key_insight": "Label each island with its size once; then each 0 gives 1 + the sizes of its distinct neighbouring islands.",
+    "time_target": "O(N^2)",
+    "space_target": "O(N^2)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 17.3,
+    "statement": "In an n x n binary grid you may change at most one 0 into a 1. Return the size of the largest island you can get.",
+    "edge_cases": [
+      "A grid of all 1s returns n * n",
+      "Count a neighbouring island once even if it touches the 0 on two sides"
+    ],
+    "google_follow_up": "You may flip up to K cells."
+  },
+  {
+    "id": "G-444",
+    "title": "Sequence Reconstruction",
+    "leetcode_id": 444,
+    "slug": "sequence-reconstruction",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 2,
+    "key_pattern": "Kahn's algorithm with a unique-choice check",
+    "key_insight": "The order is unique exactly when Kahn's algorithm never has two courses available at the same time.",
+    "time_target": "O(V + E)",
+    "space_target": "O(V + E)",
+    "google_frequency": "High",
+    "recency": "6m",
+    "recent_frequency": 17.4,
+    "statement": "Given a permutation nums and a list of subsequences, decide whether nums is the only shortest sequence that contains every subsequence.",
+    "edge_cases": [
+      "More than one zero in-degree node at any step means the order is not unique",
+      "Values outside 1..n inside the subsequences"
+    ],
+    "google_follow_up": "Subsequences arrive as a stream of execution logs: detect the moment the order becomes unique."
   },
   {
     "id": "G-787",
@@ -188,13 +354,16 @@
     "category": "graphs",
     "phase": 3,
     "key_pattern": "Bellman-Ford limited to K+1 rounds (or BFS by stops)",
+    "key_insight": "Allow at most K + 1 rounds of relaxation and copy distances per round so no path uses extra edges.",
     "time_target": "O(K * E)",
     "space_target": "O(V)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Find the cheapest price from src to dst with at most k stops.",
-    "edge_case": "Copy distances per round to avoid using more stops.",
+    "edge_cases": [
+      "Copy distances per round to avoid using more stops"
+    ],
     "google_follow_up": "Why does plain Dijkstra fail with the stop limit?"
   },
   {
@@ -206,13 +375,17 @@
     "category": "graphs",
     "phase": 3,
     "key_pattern": "Weighted graph BFS/DFS or weighted union-find",
+    "key_insight": "a / b = 2 is an edge a -> b weighted 2 and b -> a weighted 1/2; a query is the product of weights along a path.",
     "time_target": "O(Q * (V + E))",
     "space_target": "O(V + E)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 21.9,
     "statement": "Given equations like a/b = 2.0, answer queries such as a/c.",
-    "edge_case": "Unknown variables; x/x for a known x is 1.0.",
+    "edge_cases": [
+      "Unknown variables",
+      "x/x for a known x is 1.0"
+    ],
     "google_follow_up": "Answer 10^6 queries quickly (weighted union-find with path compression)."
   },
   {
@@ -224,32 +397,171 @@
     "category": "graphs",
     "phase": 3,
     "key_pattern": "BFS where nodes are bus routes (stop -> routes index)",
+    "key_insight": "Search over buses, not stops: each BFS level is one more bus taken.",
     "time_target": "O(sum of route lengths)",
     "space_target": "O(sum of route lengths)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Given bus routes as lists of stops, return the fewest buses needed to travel from a source stop to a target stop, or -1.",
-    "edge_case": "source == target needs 0 buses; visit each route only once.",
+    "edge_cases": [
+      "source == target needs 0 buses",
+      "visit each route only once"
+    ],
     "google_follow_up": "What if you must minimise total travel time with a penalty per transfer?"
   },
   {
-    "id": "G-310",
-    "title": "Minimum Height Trees",
-    "leetcode_id": 310,
-    "slug": "minimum-height-trees",
-    "difficulty": "Medium",
+    "id": "G-778",
+    "title": "Swim in Rising Water",
+    "leetcode_id": 778,
+    "slug": "swim-in-rising-water",
+    "difficulty": "Hard",
     "category": "graphs",
-    "phase": 2,
-    "key_pattern": "Topological peeling: trim leaves layer by layer",
-    "time_target": "O(N)",
-    "space_target": "O(N)",
+    "phase": 3,
+    "key_pattern": "Min-heap Dijkstra on the highest elevation along the path (or union-find by time)",
+    "key_insight": "The answer is the smallest possible highest cell on a path: Dijkstra on max(), or add cells by height until start and end connect.",
+    "time_target": "O(N^2 log N)",
+    "space_target": "O(N^2)",
+    "google_frequency": "High",
+    "recency": "6m",
+    "recent_frequency": 28.4,
+    "statement": "In an n x n grid of distinct elevations, the water level rises by one each second. Find the earliest time you can swim from the top-left to the bottom-right cell.",
+    "edge_cases": [
+      "The start and end cell elevations already bound the answer from below"
+    ],
+    "google_follow_up": "Answer the earliest time for 10^5 different (source, target) pairs."
+  },
+  {
+    "id": "G-2045",
+    "title": "Second Minimum Time to Reach Destination",
+    "leetcode_id": 2045,
+    "slug": "second-minimum-time-to-reach-destination",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "BFS keeping the two smallest distinct edge counts per node",
+    "key_insight": "All edges cost the same, so find the second-smallest edge count with BFS that keeps two distinct visits per node, then convert it to time with signal waits.",
+    "time_target": "O(V + E)",
+    "space_target": "O(V + E)",
     "google_frequency": "Very High",
     "recency": "30d",
-    "recent_frequency": 29.0,
-    "statement": "Given a tree of n nodes as an edge list, return every node that, chosen as the root, gives the tree its minimum height.",
-    "edge_case": "n == 1 returns [0]; the answer always has 1 or 2 nodes.",
-    "google_follow_up": "Edges are added one at a time: keep the answer updated without recomputing."
+    "recent_frequency": 36.7,
+    "statement": "Every edge of a city graph takes `time` minutes and every node has a signal that flips green/red every `change` minutes (you may only leave on green). Return the second smallest time to get from node 1 to node n.",
+    "edge_cases": [
+      "The second minimum must be strictly larger than the minimum",
+      "Arriving exactly when the signal turns red means waiting a full red phase"
+    ],
+    "google_follow_up": "Edges now have different travel times: what replaces BFS?"
+  },
+  {
+    "id": "G-332",
+    "title": "Reconstruct Itinerary",
+    "leetcode_id": 332,
+    "slug": "reconstruct-itinerary",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "Hierholzer's Eulerian path with lexically ordered destinations",
+    "key_insight": "Using every ticket once is an Eulerian path: DFS to the smallest destination first, append airports on the way back, then reverse.",
+    "time_target": "O(E log E)",
+    "space_target": "O(E)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 23.9,
+    "statement": "Given airline tickets [from, to], rebuild the itinerary that starts at JFK, uses every ticket exactly once and is lexically smallest.",
+    "edge_cases": [
+      "A dead-end destination must be appended last (post-order), not visited first",
+      "Duplicate tickets between the same two airports"
+    ],
+    "google_follow_up": "10^7 tickets are sharded across data centres: how do you validate the itinerary?"
+  },
+  {
+    "id": "G-126",
+    "title": "Word Ladder II",
+    "leetcode_id": 126,
+    "slug": "word-ladder-ii",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "BFS layer by layer building a parent map, then backtrack every path",
+    "key_insight": "BFS keeps only shortest-path parent links; backtracking from the end through those links lists every shortest path.",
+    "time_target": "O(N * L^2 + P)",
+    "space_target": "O(N * L)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 23.9,
+    "statement": "Return all shortest transformation sequences from beginWord to endWord, changing one letter at a time using only words from a list.",
+    "edge_cases": [
+      "Remove a level's words only after the whole level ends, or equal-length paths are lost",
+      "endWord missing from the list returns []"
+    ],
+    "google_follow_up": "The number of shortest paths explodes: stream them lazily instead of building the list."
+  },
+  {
+    "id": "G-1192",
+    "title": "Critical Connections in a Network",
+    "leetcode_id": 1192,
+    "slug": "critical-connections-in-a-network",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "Tarjan's bridges: discovery time + low-link",
+    "key_insight": "An edge is critical when the child cannot reach the parent or anything earlier without it: low[child] > disc[parent].",
+    "time_target": "O(V + E)",
+    "space_target": "O(V + E)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 17.3,
+    "statement": "Servers form an undirected network. Return every connection whose removal would leave some servers unable to reach others.",
+    "edge_cases": [
+      "Skip only the edge you came from, not every edge to the parent",
+      "10^5 servers overflow the recursion stack: use an iterative DFS"
+    ],
+    "google_follow_up": "Links fail and recover in real time: maintain the set of critical links."
+  },
+  {
+    "id": "G-305",
+    "title": "Number of Islands II",
+    "leetcode_id": 305,
+    "slug": "number-of-islands-ii",
+    "difficulty": "Hard",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "Online union-find on added land cells",
+    "key_insight": "Each new land cell adds an island and every successful union with a neighbouring island removes one.",
+    "time_target": "O(K * α(R * C))",
+    "space_target": "O(R * C)",
+    "google_frequency": "High",
+    "recency": "6m",
+    "recent_frequency": 17.4,
+    "statement": "Cells of an all-water grid are turned into land one at a time. After each addition, return the number of islands.",
+    "edge_cases": [
+      "Adding the same cell twice must not change the count",
+      "Union with each distinct neighbouring island only once"
+    ],
+    "google_follow_up": "Cells can also turn back into water: why does union-find break, and what replaces it?"
+  },
+  {
+    "id": "G-2812",
+    "title": "Find the Safest Path in a Grid",
+    "leetcode_id": 2812,
+    "slug": "find-the-safest-path-in-a-grid",
+    "difficulty": "Medium",
+    "category": "graphs",
+    "phase": 3,
+    "key_pattern": "Multi-source BFS for safeness, then a max-min path (Dijkstra or binary search + BFS)",
+    "key_insight": "First compute every cell's distance to the nearest thief with one multi-source BFS, then maximise the minimum along a path.",
+    "time_target": "O(N^2 log N)",
+    "space_target": "O(N^2)",
+    "google_frequency": "High",
+    "recency": "3m",
+    "recent_frequency": 23.9,
+    "statement": "Thieves sit on some cells of an n x n grid. A path's safeness is the smallest Manhattan distance from any path cell to any thief. Return the maximum safeness of a path from top-left to bottom-right.",
+    "edge_cases": [
+      "A thief on the start or end cell makes the answer 0",
+      "Safeness is a bottleneck (minimum along the path), not a sum"
+    ],
+    "google_follow_up": "Thieves move every second: update the safest path incrementally."
   },
   {
     "id": "G-236",
@@ -260,13 +572,16 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "Post-order: return the node found in each subtree",
+    "key_insight": "Post-order: the first node that finds p in one subtree and q in the other (or is one of them) is the answer.",
     "time_target": "O(N)",
     "space_target": "O(H)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Find the lowest common ancestor of two nodes in a binary tree.",
-    "edge_case": "One node is an ancestor of the other.",
+    "edge_cases": [
+      "One node is an ancestor of the other"
+    ],
     "google_follow_up": "What if nodes have parent pointers? What if p or q may be missing?"
   },
   {
@@ -278,13 +593,17 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "DFS with (low, high) bounds or in-order",
+    "key_insight": "Every node must sit inside the (low, high) range set by all its ancestors, not just its parent.",
     "time_target": "O(N)",
     "space_target": "O(H)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "Decide whether a binary tree is a valid binary search tree.",
-    "edge_case": "Duplicates; values at integer limits.",
+    "edge_cases": [
+      "Duplicates",
+      "values at integer limits"
+    ],
     "google_follow_up": "Do it iteratively with O(1) extra space (Morris traversal)."
   },
   {
@@ -296,13 +615,16 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "BFS level order, take the last node per level",
+    "key_insight": "The visible node is the last one on each BFS level.",
     "time_target": "O(N)",
     "space_target": "O(W)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Return the values visible when looking at a binary tree from the right side.",
-    "edge_case": "Left subtree deeper than the right one.",
+    "edge_cases": [
+      "Left subtree deeper than the right one"
+    ],
     "google_follow_up": "Return both the left and right views in one pass."
   },
   {
@@ -314,13 +636,16 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "In-order traversal with counter",
+    "key_insight": "In-order traversal of a BST visits values in sorted order; stop at the k-th.",
     "time_target": "O(H + K)",
     "space_target": "O(H)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "Return the k-th smallest value in a binary search tree.",
-    "edge_case": "k equal to the number of nodes.",
+    "edge_cases": [
+      "k equal to the number of nodes"
+    ],
     "google_follow_up": "What if the BST is modified often and you query often?"
   },
   {
@@ -332,13 +657,16 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "DFS height, update global left + right",
+    "key_insight": "The longest path through a node is its left height + right height; take the maximum over all nodes.",
     "time_target": "O(N)",
     "space_target": "O(H)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Return the length of the longest path between any two nodes in a binary tree.",
-    "edge_case": "Path need not pass through the root.",
+    "edge_cases": [
+      "Path need not pass through the root"
+    ],
     "google_follow_up": "Solve the same for an n-ary tree."
   },
   {
@@ -350,13 +678,16 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "Trie nodes with children map + end flag",
+    "key_insight": "Words that share a prefix share nodes, so each operation costs the word's length, not the dictionary's size.",
     "time_target": "O(L) per op",
     "space_target": "O(total chars)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Implement insert, search and startsWith for a prefix tree.",
-    "edge_case": "Prefix that is also a full word.",
+    "edge_cases": [
+      "Prefix that is also a full word"
+    ],
     "google_follow_up": "Add delete; compress the trie (radix tree)."
   },
   {
@@ -368,13 +699,17 @@
     "category": "trees",
     "phase": 1,
     "key_pattern": "BFS by level, reverse every other level (or fill a deque from alternating ends)",
+    "key_insight": "It is ordinary level-order traversal; only the output direction flips per level.",
     "time_target": "O(N)",
     "space_target": "O(W)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Return the level-order values of a binary tree, alternating left-to-right and right-to-left on each level.",
-    "edge_case": "Empty tree returns []; do not reverse the BFS queue itself, only the level output.",
+    "edge_cases": [
+      "Empty tree returns []",
+      "do not reverse the BFS queue itself, only the level output"
+    ],
     "google_follow_up": "Stream each level to a client as soon as it is complete, with memory bounded by one level."
   },
   {
@@ -386,13 +721,17 @@
     "category": "trees",
     "phase": 2,
     "key_pattern": "Pre-order with null markers",
+    "key_insight": "Pre-order with explicit null markers fixes the tree's shape, so one pass rebuilds it.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 17.4,
     "statement": "Design encode/decode functions that turn a binary tree into a string and back.",
-    "edge_case": "Negative and multi-digit values; empty tree.",
+    "edge_cases": [
+      "Negative and multi-digit values",
+      "empty tree"
+    ],
     "google_follow_up": "How would you make the encoding compact for a near-complete tree?"
   },
   {
@@ -404,13 +743,16 @@
     "category": "trees",
     "phase": 2,
     "key_pattern": "DFS returning best downward gain, update global",
+    "key_insight": "Return the best single downward branch (dropping negatives) to the parent; update the global answer with left + node + right.",
     "time_target": "O(N)",
     "space_target": "O(H)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 28.8,
     "statement": "Find the maximum sum of any path between two nodes in a binary tree.",
-    "edge_case": "All negative values: answer is the largest single node.",
+    "edge_cases": [
+      "All negative values: answer is the largest single node"
+    ],
     "google_follow_up": "Return the path itself, not just the sum."
   },
   {
@@ -422,13 +764,16 @@
     "category": "trees",
     "phase": 2,
     "key_pattern": "Recursion with inorder index map",
+    "key_insight": "Pre-order's first value is the root; its position in the in-order list splits the left and right subtrees.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 28.8,
     "statement": "Rebuild a binary tree given its pre-order and in-order traversals.",
-    "edge_case": "Skewed tree causing deep recursion.",
+    "edge_cases": [
+      "Skewed tree causing deep recursion"
+    ],
     "google_follow_up": "Why can pre-order + post-order not uniquely rebuild a tree?"
   },
   {
@@ -440,13 +785,16 @@
     "category": "trees",
     "phase": 2,
     "key_pattern": "Convert to graph (parent map) + BFS",
+    "key_insight": "Add parent links so the tree becomes an undirected graph, then BFS k steps from the target.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Return all nodes exactly distance k from a target node.",
-    "edge_case": "k == 0 returns the target itself.",
+    "edge_cases": [
+      "k == 0 returns the target itself"
+    ],
     "google_follow_up": "Answer many (target, k) queries efficiently."
   },
   {
@@ -458,14 +806,40 @@
     "category": "trees",
     "phase": 2,
     "key_pattern": "Trie + backtracking DFS with pruning",
+    "key_insight": "Put every word in a trie so one board DFS checks all words at once and stops on dead prefixes.",
     "time_target": "O(R * C * 4^L)",
     "space_target": "O(total chars)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 11.8,
     "statement": "Find all dictionary words that can be formed by adjacent letters in a board.",
-    "edge_case": "Same word found twice; remove found words from the trie.",
+    "edge_cases": [
+      "Same word found twice",
+      "remove found words from the trie"
+    ],
     "google_follow_up": "What if the dictionary has 10^6 words and the board is huge?"
+  },
+  {
+    "id": "G-1483",
+    "title": "Kth Ancestor of a Tree Node",
+    "leetcode_id": 1483,
+    "slug": "kth-ancestor-of-a-tree-node",
+    "difficulty": "Hard",
+    "category": "trees",
+    "phase": 2,
+    "key_pattern": "Binary lifting: precompute every node's 2^j-th ancestor",
+    "key_insight": "Store each node's 2^j-th ancestor; a k-th ancestor is one jump per set bit of k.",
+    "time_target": "O(N log N) build, O(log k) query",
+    "space_target": "O(N log N)",
+    "google_frequency": "Very High",
+    "recency": "30d",
+    "recent_frequency": 29.0,
+    "statement": "A tree is given as a parent[] array. Design getKthAncestor(node, k) that returns the k-th ancestor of node, or -1.",
+    "edge_cases": [
+      "k larger than the node's depth returns -1",
+      "The root's parent is -1: stop jumping there"
+    ],
+    "google_follow_up": "Reuse the lifting table to answer lowest-common-ancestor queries in O(log N)."
   },
   {
     "id": "G-987",
@@ -476,14 +850,39 @@
     "category": "trees",
     "phase": 3,
     "key_pattern": "DFS with (col, row, val) then sort",
+    "key_insight": "Record (column, row, value) for every node, then sort; ties at the same spot sort by value.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "Return node values grouped by column, sorted by row then value within a column.",
-    "edge_case": "Two nodes at the same row and column: sort by value.",
+    "edge_cases": [
+      "Two nodes at the same row and column: sort by value"
+    ],
     "google_follow_up": "How would you avoid the global sort?"
+  },
+  {
+    "id": "G-642",
+    "title": "Design Search Autocomplete System",
+    "leetcode_id": 642,
+    "slug": "design-search-autocomplete-system",
+    "difficulty": "Hard",
+    "category": "trees",
+    "phase": 3,
+    "key_pattern": "Trie of sentences with counts; top 3 by (count desc, text asc)",
+    "key_insight": "Keep a trie node per prefix with sentence counts; each typed character moves one node deeper and returns its top 3.",
+    "time_target": "O(L) per character with cached top-3",
+    "space_target": "O(total characters)",
+    "google_frequency": "High",
+    "recency": "6m",
+    "recent_frequency": 21.9,
+    "statement": "As a user types each character, return the 3 most frequent past sentences that start with the current prefix. '#' ends the sentence and records it.",
+    "edge_cases": [
+      "Ties in frequency sort by ASCII order",
+      "After '#', reset the prefix and add 1 to that sentence's count"
+    ],
+    "google_follow_up": "Serve 10^5 QPS across regions: what can be cached, and how stale may it be?"
   },
   {
     "id": "G-23",
@@ -494,13 +893,17 @@
     "category": "heaps",
     "phase": 1,
     "key_pattern": "Min-heap of list heads",
+    "key_insight": "Only the current head of each list can be next, so a heap of k heads finds it in O(log k).",
     "time_target": "O(N log K)",
     "space_target": "O(K)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Merge k sorted linked lists into one sorted list.",
-    "edge_case": "Some lists empty; k == 0.",
+    "edge_cases": [
+      "Some lists empty",
+      "k == 0"
+    ],
     "google_follow_up": "What if each list lives on a different machine and memory is 64MB?"
   },
   {
@@ -512,13 +915,17 @@
     "category": "heaps",
     "phase": 1,
     "key_pattern": "Count + size-K min-heap (or bucket sort)",
+    "key_insight": "Count, then keep a size-k min-heap so the least frequent of the current top k is evicted first.",
     "time_target": "O(N log K)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 42.3,
     "statement": "Return the k most frequent elements.",
-    "edge_case": "Ties in frequency; k equal to the number of distinct values.",
+    "edge_cases": [
+      "Ties in frequency",
+      "k equal to the number of distinct values"
+    ],
     "google_follow_up": "What if the input is a stream of 10^9 events (heavy hitters / count-min sketch)?"
   },
   {
@@ -530,13 +937,16 @@
     "category": "heaps",
     "phase": 1,
     "key_pattern": "Size-K min-heap or quickselect",
+    "key_insight": "A size-k min-heap holds the k largest values seen; its top is the k-th largest.",
     "time_target": "O(N log K)",
     "space_target": "O(K)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 32.7,
     "statement": "Return the k-th largest element in an unsorted array.",
-    "edge_case": "Duplicates count separately.",
+    "edge_cases": [
+      "Duplicates count separately"
+    ],
     "google_follow_up": "Average vs. worst case of quickselect; how to defend against the worst case?"
   },
   {
@@ -548,13 +958,16 @@
     "category": "heaps",
     "phase": 1,
     "key_pattern": "Sort by pickup + min-heap of drop-offs (or difference array)",
+    "key_insight": "Load only changes at pick-ups and drop-offs; process those events in order and check the running total.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "A car with a fixed capacity only drives east. Given trips [passengers, from, to], decide if it can complete every trip without exceeding capacity.",
-    "edge_case": "Drop-offs at a location happen before pick-ups at the same location.",
+    "edge_cases": [
+      "Drop-offs at a location happen before pick-ups at the same location"
+    ],
     "google_follow_up": "What if locations go up to 10^9 and trips arrive as a stream?"
   },
   {
@@ -566,13 +979,16 @@
     "category": "heaps",
     "phase": 2,
     "key_pattern": "Two heaps: max-heap low half, min-heap high half",
+    "key_insight": "A max-heap holds the smaller half and a min-heap the larger half; with sizes within one, the median is at the tops.",
     "time_target": "O(log N) add, O(1) median",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Design a structure that supports adding numbers and returning the running median.",
-    "edge_case": "Even count returns the average of the two middles.",
+    "edge_cases": [
+      "Even count returns the average of the two middles"
+    ],
     "google_follow_up": "What if 99% of numbers are in [0,100]?"
   },
   {
@@ -584,86 +1000,18 @@
     "category": "heaps",
     "phase": 2,
     "key_pattern": "Greedy by max frequency (formula or heap)",
+    "key_insight": "The most frequent task sets the frame: (maxFreq - 1) * (n + 1) + tasks tied at maxFreq, or the task count if larger.",
     "time_target": "O(N)",
     "space_target": "O(1)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Find the minimum time units to run tasks when identical tasks need n idle units between them.",
-    "edge_case": "n == 0; several tasks share the max frequency.",
+    "edge_cases": [
+      "n == 0",
+      "several tasks share the max frequency"
+    ],
     "google_follow_up": "Return the actual schedule, not just its length."
-  },
-  {
-    "id": "G-767",
-    "title": "Reorganize String",
-    "leetcode_id": 767,
-    "slug": "reorganize-string",
-    "difficulty": "Medium",
-    "category": "heaps",
-    "phase": 2,
-    "key_pattern": "Max-heap, place most frequent char not equal to last",
-    "time_target": "O(N log A)",
-    "space_target": "O(A)",
-    "google_frequency": "High",
-    "recency": "6m",
-    "recent_frequency": 28.4,
-    "statement": "Rearrange a string so no two adjacent characters are equal, or return empty if impossible.",
-    "edge_case": "Impossible when maxFreq > (n + 1) / 2.",
-    "google_follow_up": "Generalise to distance K apart."
-  },
-  {
-    "id": "G-502",
-    "title": "IPO",
-    "leetcode_id": 502,
-    "slug": "ipo",
-    "difficulty": "Hard",
-    "category": "heaps",
-    "phase": 2,
-    "key_pattern": "Sort projects by capital; push affordable profits into a max-heap; take the best k times",
-    "time_target": "O(N log N)",
-    "space_target": "O(N)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 17.3,
-    "statement": "Starting with capital w, finish at most k projects (each needs some capital and pays a profit) to maximise your final capital.",
-    "edge_case": "Stop early when no remaining project is affordable.",
-    "google_follow_up": "Projects arrive over time and k is unbounded: how do you decide online?"
-  },
-  {
-    "id": "G-1631",
-    "title": "Path With Minimum Effort",
-    "leetcode_id": 1631,
-    "slug": "path-with-minimum-effort",
-    "difficulty": "Medium",
-    "category": "heaps",
-    "phase": 2,
-    "key_pattern": "Dijkstra with a min-heap where path cost is the largest step so far",
-    "time_target": "O(R * C log(R * C))",
-    "space_target": "O(R * C)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 23.9,
-    "statement": "In a grid of heights, find a path from top-left to bottom-right that minimises the largest absolute height difference between neighbouring cells on the path.",
-    "edge_case": "A 1 x 1 grid needs 0 effort; relax with max(), not +.",
-    "google_follow_up": "The grid is 10^5 x 10^5 and stored as tiles on disk: how do you search it?"
-  },
-  {
-    "id": "G-373",
-    "title": "Find K Pairs with Smallest Sums",
-    "leetcode_id": 373,
-    "slug": "find-k-pairs-with-smallest-sums",
-    "difficulty": "Medium",
-    "category": "heaps",
-    "phase": 3,
-    "key_pattern": "Min-heap frontier over index pairs (seed first column, expand j+1)",
-    "time_target": "O(K log K)",
-    "space_target": "O(K)",
-    "google_frequency": "High",
-    "recency": "6m",
-    "recent_frequency": 25.4,
-    "statement": "Given two sorted arrays and k, return the k pairs (one element from each array) with the smallest sums.",
-    "edge_case": "k larger than len(a) * len(b); pushing the same pair twice.",
-    "google_follow_up": "What if both arrays are huge sorted files on disk?"
   },
   {
     "id": "G-1834",
@@ -674,32 +1022,17 @@
     "category": "heaps",
     "phase": 3,
     "key_pattern": "Sort by enqueue time; min-heap of (processing time, index); simulate the clock",
+    "key_insight": "Simulate the clock: push every task that has arrived, run the shortest, and jump ahead when nothing is waiting.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 17.4,
     "statement": "Each task has an enqueue time and a processing time. A single CPU always runs the shortest available task (ties by index). Return the order tasks are processed.",
-    "edge_case": "When the CPU is idle and the heap is empty, jump the clock to the next enqueue time.",
+    "edge_cases": [
+      "When the CPU is idle and the heap is empty, jump the clock to the next enqueue time"
+    ],
     "google_follow_up": "Now there are K CPUs and tasks carry priorities: what changes?"
-  },
-  {
-    "id": "G-778",
-    "title": "Swim in Rising Water",
-    "leetcode_id": 778,
-    "slug": "swim-in-rising-water",
-    "difficulty": "Hard",
-    "category": "heaps",
-    "phase": 3,
-    "key_pattern": "Min-heap Dijkstra on the highest elevation along the path (or union-find by time)",
-    "time_target": "O(N^2 log N)",
-    "space_target": "O(N^2)",
-    "google_frequency": "High",
-    "recency": "6m",
-    "recent_frequency": 28.4,
-    "statement": "In an n x n grid of distinct elevations, the water level rises by one each second. Find the earliest time you can swim from the top-left to the bottom-right cell.",
-    "edge_case": "The start and end cell elevations already bound the answer from below.",
-    "google_follow_up": "Answer the earliest time for 10^5 different (source, target) pairs."
   },
   {
     "id": "G-56",
@@ -710,13 +1043,16 @@
     "category": "intervals",
     "phase": 1,
     "key_pattern": "Sort by start, merge overlaps",
+    "key_insight": "After sorting by start, an interval can only overlap the last merged one, so one pass merges everything.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Merge all overlapping intervals and return the non-overlapping result.",
-    "edge_case": "Touching intervals like [1,4] and [4,5] should merge.",
+    "edge_cases": [
+      "Touching intervals like [1,4] and [4,5] should merge"
+    ],
     "google_follow_up": "What if intervals arrive one by one and you must keep the merged set?"
   },
   {
@@ -728,13 +1064,16 @@
     "category": "intervals",
     "phase": 1,
     "key_pattern": "Three-phase scan: before, overlap, after",
+    "key_insight": "Intervals ending before the new one stay, overlapping ones merge into it, and the rest follow.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Insert a new interval into a sorted list of non-overlapping intervals, merging if needed.",
-    "edge_case": "New interval before all or after all existing intervals.",
+    "edge_cases": [
+      "New interval before all or after all existing intervals"
+    ],
     "google_follow_up": "Do it with binary search when the list is huge."
   },
   {
@@ -746,68 +1085,17 @@
     "category": "intervals",
     "phase": 1,
     "key_pattern": "Min-heap of end times or sweep line",
+    "key_insight": "Rooms needed = the most meetings running at the same moment; sweep starts and ends in time order.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Given meeting time intervals, find the minimum number of conference rooms required.",
-    "edge_case": "A meeting ending exactly when another starts frees the room.",
+    "edge_cases": [
+      "A meeting ending exactly when another starts frees the room"
+    ],
     "google_follow_up": "What if you must also return which room each meeting uses?"
-  },
-  {
-    "id": "G-452",
-    "title": "Minimum Number of Arrows to Burst Balloons",
-    "leetcode_id": 452,
-    "slug": "minimum-number-of-arrows-to-burst-balloons",
-    "difficulty": "Medium",
-    "category": "intervals",
-    "phase": 1,
-    "key_pattern": "Greedy: sort by end, shoot at the earliest end, skip balloons it bursts",
-    "time_target": "O(N log N)",
-    "space_target": "O(1)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 23.9,
-    "statement": "Balloons span [x_start, x_end] on the x-axis. An arrow shot at x bursts every balloon covering x. Find the fewest arrows that burst them all.",
-    "edge_case": "Touching balloons like [1,2] and [2,3] share one arrow; avoid a - b comparators that overflow.",
-    "google_follow_up": "Balloons are added online: keep the minimum arrow count updated."
-  },
-  {
-    "id": "G-1288",
-    "title": "Remove Covered Intervals",
-    "leetcode_id": 1288,
-    "slug": "remove-covered-intervals",
-    "difficulty": "Medium",
-    "category": "intervals",
-    "phase": 1,
-    "key_pattern": "Sort by start ascending and end descending; count intervals that extend the max end",
-    "time_target": "O(N log N)",
-    "space_target": "O(1)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 28.8,
-    "statement": "Remove every interval that is covered by another interval and return how many remain.",
-    "edge_case": "Equal starts: the longer interval must come first or it will be counted twice.",
-    "google_follow_up": "For each removed interval, also return which interval covers it."
-  },
-  {
-    "id": "G-435",
-    "title": "Non-overlapping Intervals",
-    "leetcode_id": 435,
-    "slug": "non-overlapping-intervals",
-    "difficulty": "Medium",
-    "category": "intervals",
-    "phase": 2,
-    "key_pattern": "Greedy: sort by end, keep earliest finishing",
-    "time_target": "O(N log N)",
-    "space_target": "O(1)",
-    "google_frequency": "Very High",
-    "recency": "30d",
-    "recent_frequency": 29.0,
-    "statement": "Find the minimum number of intervals to remove so the rest do not overlap.",
-    "edge_case": "Touching endpoints are not overlapping.",
-    "google_follow_up": "Prove why sorting by end (not start) is optimal."
   },
   {
     "id": "G-759",
@@ -818,13 +1106,16 @@
     "category": "intervals",
     "phase": 3,
     "key_pattern": "Merge sorted interval lists with a heap",
+    "key_insight": "Merge everyone's busy time into one sorted timeline; the gaps are the common free time.",
     "time_target": "O(N log K)",
     "space_target": "O(K)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 17.4,
     "statement": "Given each employee's sorted working intervals, return the finite common free time slots.",
-    "edge_case": "Ignore infinite gaps before the first and after the last interval.",
+    "edge_cases": [
+      "Ignore infinite gaps before the first and after the last interval"
+    ],
     "google_follow_up": "What if schedules live in different time zones and services?"
   },
   {
@@ -836,13 +1127,16 @@
     "category": "intervals",
     "phase": 3,
     "key_pattern": "Sort by end + DP with binary search",
+    "key_insight": "Sort by end time; best = max(skip this job, take it + best before its start), found by binary search.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "6m",
     "recent_frequency": 17.4,
     "statement": "Choose non-overlapping jobs (start, end, profit) to maximise total profit.",
-    "edge_case": "A job may start exactly when another ends.",
+    "edge_cases": [
+      "A job may start exactly when another ends"
+    ],
     "google_follow_up": "What if you have K machines instead of one?"
   },
   {
@@ -854,50 +1148,18 @@
     "category": "intervals",
     "phase": 3,
     "key_pattern": "Sort by start; min-heap of free room ids + min-heap of (end, room)",
+    "key_insight": "Track free rooms by number and busy rooms by (end, number); a delayed meeting takes the earliest-freeing room and keeps its length.",
     "time_target": "O(M log M + M log N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "n rooms are numbered 0..n-1. Each meeting [start, end) goes to the lowest-numbered free room, or waits for the earliest room to free up and keeps its duration. Return the room that hosted the most meetings.",
-    "edge_case": "A delayed meeting keeps its original duration; ties on end time go to the lowest room id.",
+    "edge_cases": [
+      "A delayed meeting keeps its original duration",
+      "ties on end time go to the lowest room id"
+    ],
     "google_follow_up": "What if rooms have different capacities and meetings have sizes?"
-  },
-  {
-    "id": "G-715",
-    "title": "Range Module",
-    "leetcode_id": 715,
-    "slug": "range-module",
-    "difficulty": "Hard",
-    "category": "intervals",
-    "phase": 3,
-    "key_pattern": "Sorted list of disjoint intervals updated with bisect (or a segment tree)",
-    "time_target": "O(K + log N) per update",
-    "space_target": "O(N)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 17.3,
-    "statement": "Design a module that adds, removes and queries half-open ranges [left, right) of tracked numbers.",
-    "edge_case": "Removing the middle of a tracked range splits it into two ranges.",
-    "google_follow_up": "Coordinates go up to 10^9 with 10^6 operations: which structure do you switch to?"
-  },
-  {
-    "id": "G-1851",
-    "title": "Minimum Interval to Include Each Query",
-    "leetcode_id": 1851,
-    "slug": "minimum-interval-to-include-each-query",
-    "difficulty": "Hard",
-    "category": "intervals",
-    "phase": 3,
-    "key_pattern": "Offline sweep: sort intervals and queries, min-heap of (size, end)",
-    "time_target": "O((N + Q) log N)",
-    "space_target": "O(N + Q)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 17.3,
-    "statement": "For each query point, return the size of the smallest interval that contains it, or -1.",
-    "edge_case": "Intervals are inclusive; lazily pop heap entries whose end is before the query.",
-    "google_follow_up": "Queries must be answered online, in arrival order."
   },
   {
     "id": "G-198",
@@ -908,13 +1170,16 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "1D DP: rob or skip",
+    "key_insight": "best[i] = max(best[i - 1], best[i - 2] + nums[i]): skip this house or rob it.",
     "time_target": "O(N)",
     "space_target": "O(1)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 50.2,
     "statement": "Maximise money robbed from houses in a line without robbing two adjacent houses.",
-    "edge_case": "Single house.",
+    "edge_cases": [
+      "Single house"
+    ],
     "google_follow_up": "Houses in a circle (House Robber II) or a tree (III)."
   },
   {
@@ -926,13 +1191,16 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "Grid DP (or combinatorics)",
+    "key_insight": "Paths into a cell = paths from above + paths from the left.",
     "time_target": "O(R * C)",
     "space_target": "O(C)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Count the paths from top-left to bottom-right moving only right or down.",
-    "edge_case": "1 x N grid has exactly one path.",
+    "edge_cases": [
+      "1 x N grid has exactly one path"
+    ],
     "google_follow_up": "Add obstacles; what if the grid is 10^5 x 10^5?"
   },
   {
@@ -944,13 +1212,16 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "1D DP with one- and two-digit lookback",
+    "key_insight": "ways[i] = ways[i - 1] if the last digit is valid + ways[i - 2] if the last two digits are 10-26.",
     "time_target": "O(N)",
     "space_target": "O(1)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Count how many ways a digit string can be decoded where 'A'=1 ... 'Z'=26.",
-    "edge_case": "Zeros: '0', '06', '100' have no valid decoding.",
+    "edge_cases": [
+      "Zeros: '0', '06', '100' have no valid decoding"
+    ],
     "google_follow_up": "Add a '*' wildcard digit (Decode Ways II)."
   },
   {
@@ -962,13 +1233,16 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "DP over prefixes with a word set",
+    "key_insight": "ok[i] is true when some dictionary word ends at i and ok is true where that word starts.",
     "time_target": "O(N^2)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 23.9,
     "statement": "Decide if a string can be split into a sequence of dictionary words.",
-    "edge_case": "Reusing words is allowed.",
+    "edge_cases": [
+      "Reusing words is allowed"
+    ],
     "google_follow_up": "Return all sentences (Word Break II); what blows up?"
   },
   {
@@ -980,13 +1254,16 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "Expand around each of the 2N - 1 centres (interval DP also works)",
+    "key_insight": "Every palindrome mirrors around a centre; expanding from each of the 2n - 1 centres checks them all.",
     "time_target": "O(N^2)",
     "space_target": "O(1)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Return the longest substring of s that reads the same forwards and backwards.",
-    "edge_case": "Even-length palindromes need a centre between two characters.",
+    "edge_cases": [
+      "Even-length palindromes need a centre between two characters"
+    ],
     "google_follow_up": "How does Manacher's algorithm bring this down to O(N)?"
   },
   {
@@ -998,13 +1275,17 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "0/1 knapsack over reachable sums (loop sums downwards)",
+    "key_insight": "It is subset-sum to total / 2: track reachable sums, using each number once.",
     "time_target": "O(N * S)",
     "space_target": "O(S)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Decide whether an array can be split into two subsets with equal sums.",
-    "edge_case": "An odd total is impossible; iterate sums from high to low so each number is used once.",
+    "edge_cases": [
+      "An odd total is impossible",
+      "iterate sums from high to low so each number is used once"
+    ],
     "google_follow_up": "Split into K subsets with equal sums instead."
   },
   {
@@ -1016,13 +1297,17 @@
     "category": "dp",
     "phase": 1,
     "key_pattern": "Track the running max and min product (a negative swaps them)",
+    "key_insight": "A negative can turn the smallest product into the largest, so track both the max and min ending here.",
     "time_target": "O(N)",
     "space_target": "O(1)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 41.0,
     "statement": "Find the contiguous subarray with the largest product.",
-    "edge_case": "A zero resets the run; a negative number swaps the max and min.",
+    "edge_cases": [
+      "A zero resets the run",
+      "a negative number swaps the max and min"
+    ],
     "google_follow_up": "Return the subarray itself and handle products that overflow 64 bits."
   },
   {
@@ -1034,13 +1319,17 @@
     "category": "dp",
     "phase": 2,
     "key_pattern": "Unbounded knapsack, min coins",
+    "key_insight": "min coins for amount a = 1 + the min over coins of min coins for a - coin.",
     "time_target": "O(A * C)",
     "space_target": "O(A)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Find the fewest coins needed to make an amount, or -1.",
-    "edge_case": "Amount 0 returns 0; unreachable amounts.",
+    "edge_cases": [
+      "Amount 0 returns 0",
+      "unreachable amounts"
+    ],
     "google_follow_up": "Count the number of ways instead (Coin Change II). Loop order?"
   },
   {
@@ -1052,13 +1341,16 @@
     "category": "dp",
     "phase": 2,
     "key_pattern": "Patience sorting tails + binary search",
+    "key_insight": "Keep the smallest possible tail for every length; binary search where each number goes.",
     "time_target": "O(N log N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 32.7,
     "statement": "Return the length of the longest strictly increasing subsequence.",
-    "edge_case": "Equal values do not extend the sequence.",
+    "edge_cases": [
+      "Equal values do not extend the sequence"
+    ],
     "google_follow_up": "Reconstruct one LIS; count all LIS."
   },
   {
@@ -1070,13 +1362,16 @@
     "category": "dp",
     "phase": 2,
     "key_pattern": "2D DP on prefixes",
+    "key_insight": "If the last characters match, extend the LCS of both shorter prefixes; otherwise drop one character from either side.",
     "time_target": "O(M * N)",
     "space_target": "O(min(M, N))",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Return the length of the longest common subsequence of two strings.",
-    "edge_case": "No common characters returns 0.",
+    "edge_cases": [
+      "No common characters returns 0"
+    ],
     "google_follow_up": "Diff two 1GB files: what changes (Hirschberg / Myers)?"
   },
   {
@@ -1088,13 +1383,16 @@
     "category": "dp",
     "phase": 2,
     "key_pattern": "2D DP over prefixes",
+    "key_insight": "Each cell is the cheapest of insert, delete or replace applied to the shorter prefixes.",
     "time_target": "O(M * N)",
     "space_target": "O(min(M, N))",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 32.7,
     "statement": "Find the minimum insert/delete/replace operations to convert one word into another.",
-    "edge_case": "One string empty.",
+    "edge_cases": [
+      "One string empty"
+    ],
     "google_follow_up": "Reconstruct the actual edit script."
   },
   {
@@ -1106,14 +1404,39 @@
     "category": "dp",
     "phase": 2,
     "key_pattern": "Binary search on the answer with a greedy feasibility check (DP also works)",
+    "key_insight": "If a max part sum S is feasible, any larger S is too, so binary search S and greedily count parts.",
     "time_target": "O(N log S)",
     "space_target": "O(1)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 53.2,
     "statement": "Split an array into k non-empty contiguous parts so that the largest part sum is as small as possible.",
-    "edge_case": "k == len(nums) gives max(nums); k == 1 gives the total.",
+    "edge_cases": [
+      "k == len(nums) gives max(nums)",
+      "k == 1 gives the total"
+    ],
     "google_follow_up": "The array is a stream of 10^9 numbers: approximate the split with bounded memory."
+  },
+  {
+    "id": "G-42",
+    "title": "Trapping Rain Water",
+    "leetcode_id": 42,
+    "slug": "trapping-rain-water",
+    "difficulty": "Hard",
+    "category": "dp",
+    "phase": 2,
+    "key_pattern": "Monotonic decreasing stack of bars (or two pointers with running max)",
+    "key_insight": "Water above a bar = min(tallest bar to its left, tallest to its right) - its height; prefix maxima or two pointers compute it.",
+    "time_target": "O(N)",
+    "space_target": "O(1)",
+    "google_frequency": "Very High",
+    "recency": "30d",
+    "recent_frequency": 63.7,
+    "statement": "Compute how much rain water is trapped between bars of given heights.",
+    "edge_cases": [
+      "Fewer than 3 bars traps nothing"
+    ],
+    "google_follow_up": "What about the 2D version (Trapping Rain Water II)?"
   },
   {
     "id": "G-10",
@@ -1124,13 +1447,17 @@
     "category": "dp",
     "phase": 3,
     "key_pattern": "2D DP on text/pattern prefixes",
+    "key_insight": "x* either matches nothing (skip the pair) or one more character (consume text, keep the pair).",
     "time_target": "O(M * N)",
     "space_target": "O(M * N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Implement regex matching with '.' and '*' covering the entire string.",
-    "edge_case": "Patterns like 'a*' matching empty; leading '*' is invalid.",
+    "edge_cases": [
+      "Patterns like 'a*' matching empty",
+      "leading '*' is invalid"
+    ],
     "google_follow_up": "Add '+' and '?' operators."
   },
   {
@@ -1142,13 +1469,16 @@
     "category": "dp",
     "phase": 3,
     "key_pattern": "Interval DP: choose the last balloon to burst",
+    "key_insight": "Pick the balloon burst last in a range: its neighbours are then the range's fixed borders, so the halves are independent.",
     "time_target": "O(N^3)",
     "space_target": "O(N^2)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "Burst balloons to maximise coins where bursting i gives nums[left]*nums[i]*nums[right].",
-    "edge_case": "Pad with 1 on both ends.",
+    "edge_cases": [
+      "Pad with 1 on both ends"
+    ],
     "google_follow_up": "Why does choosing the first balloon to burst not work?"
   },
   {
@@ -1160,13 +1490,16 @@
     "category": "monotonic",
     "phase": 1,
     "key_pattern": "Monotonic decreasing stack of indices",
+    "key_insight": "Unresolved days wait on a decreasing stack; a warmer day resolves every colder day on top.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "For each day, return how many days you must wait until a warmer temperature (0 if never).",
-    "edge_case": "Equal temperatures do not count as warmer.",
+    "edge_cases": [
+      "Equal temperatures do not count as warmer"
+    ],
     "google_follow_up": "What if the series is a live feed and answers can be emitted late?"
   },
   {
@@ -1178,32 +1511,18 @@
     "category": "monotonic",
     "phase": 1,
     "key_pattern": "Monotonic decreasing stack of indices over two passes (circular)",
+    "key_insight": "For a circular array, run the monotonic stack over the indices twice (i mod n).",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "For each element of a circular array, return the next greater element, or -1.",
-    "edge_case": "All-equal values return -1 everywhere; only push indices in the first pass.",
+    "edge_cases": [
+      "All-equal values return -1 everywhere",
+      "only push indices in the first pass"
+    ],
     "google_follow_up": "Values stream in forever: emit each answer as soon as it is known."
-  },
-  {
-    "id": "G-402",
-    "title": "Remove K Digits",
-    "leetcode_id": 402,
-    "slug": "remove-k-digits",
-    "difficulty": "Medium",
-    "category": "monotonic",
-    "phase": 1,
-    "key_pattern": "Monotonic increasing stack of digits: pop while the top is bigger",
-    "time_target": "O(N)",
-    "space_target": "O(N)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 17.3,
-    "statement": "Remove k digits from a number string to make the smallest possible number.",
-    "edge_case": "Strip leading zeros, return '0' when empty, and drop from the end if k is left over.",
-    "google_follow_up": "The number has 10^9 digits arriving as a stream."
   },
   {
     "id": "G-84",
@@ -1214,13 +1533,17 @@
     "category": "monotonic",
     "phase": 2,
     "key_pattern": "Monotonic increasing stack with sentinel",
+    "key_insight": "A bar's widest rectangle reaches the nearest shorter bar on each side, found when the bar is popped from an increasing stack.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 29.0,
     "statement": "Given bar heights of a histogram, find the area of the largest rectangle.",
-    "edge_case": "All equal heights; strictly increasing heights (flush the stack at the end).",
+    "edge_cases": [
+      "All equal heights",
+      "strictly increasing heights (flush the stack at the end)"
+    ],
     "google_follow_up": "How does this extend to the maximal rectangle of 1s in a binary matrix?"
   },
   {
@@ -1232,50 +1555,18 @@
     "category": "monotonic",
     "phase": 2,
     "key_pattern": "Monotonic deque of indices",
+    "key_insight": "A decreasing deque drops values that can never be a window maximum again; its front is the current maximum.",
     "time_target": "O(N)",
     "space_target": "O(K)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 50.2,
     "statement": "Return the maximum of every contiguous window of size k.",
-    "edge_case": "k == 1 and k == n; evict indices that fall out of the window.",
+    "edge_cases": [
+      "k == 1 and k == n",
+      "evict indices that fall out of the window"
+    ],
     "google_follow_up": "What if you also need the median of every window?"
-  },
-  {
-    "id": "G-42",
-    "title": "Trapping Rain Water",
-    "leetcode_id": 42,
-    "slug": "trapping-rain-water",
-    "difficulty": "Hard",
-    "category": "monotonic",
-    "phase": 2,
-    "key_pattern": "Monotonic decreasing stack of bars (or two pointers with running max)",
-    "time_target": "O(N)",
-    "space_target": "O(1)",
-    "google_frequency": "Very High",
-    "recency": "30d",
-    "recent_frequency": 63.7,
-    "statement": "Compute how much rain water is trapped between bars of given heights.",
-    "edge_case": "Fewer than 3 bars traps nothing.",
-    "google_follow_up": "What about the 2D version (Trapping Rain Water II)?"
-  },
-  {
-    "id": "G-907",
-    "title": "Sum of Subarray Minimums",
-    "leetcode_id": 907,
-    "slug": "sum-of-subarray-minimums",
-    "difficulty": "Medium",
-    "category": "monotonic",
-    "phase": 2,
-    "key_pattern": "Previous/next smaller element via monotonic stack; sum each element's contribution",
-    "time_target": "O(N)",
-    "space_target": "O(N)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 17.3,
-    "statement": "Return the sum of min(subarray) over every contiguous subarray, modulo 10^9 + 7.",
-    "edge_case": "Duplicates: strict comparison on one side and non-strict on the other, or they are double counted.",
-    "google_follow_up": "Compute the sum of (max - min) over all subarrays instead."
   },
   {
     "id": "G-862",
@@ -1286,50 +1577,18 @@
     "category": "monotonic",
     "phase": 2,
     "key_pattern": "Prefix sums + monotonic increasing deque of indices",
+    "key_insight": "On prefix sums, an increasing deque of start indices: pop the front while the sum reaches k, pop the back when a smaller prefix arrives.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "High",
     "recency": "3m",
     "recent_frequency": 17.3,
     "statement": "Return the length of the shortest non-empty subarray whose sum is at least k, or -1. Values can be negative.",
-    "edge_case": "Negatives break a plain sliding window; drop deque tails whose prefix sum is not smaller.",
+    "edge_cases": [
+      "Negatives break a plain sliding window",
+      "drop deque tails whose prefix sum is not smaller"
+    ],
     "google_follow_up": "Answer it for 10^5 different values of k."
-  },
-  {
-    "id": "G-85",
-    "title": "Maximal Rectangle",
-    "leetcode_id": 85,
-    "slug": "maximal-rectangle",
-    "difficulty": "Hard",
-    "category": "monotonic",
-    "phase": 2,
-    "key_pattern": "Build a histogram per row, then largest-rectangle-in-histogram with a monotonic stack",
-    "time_target": "O(R * C)",
-    "space_target": "O(C)",
-    "google_frequency": "High",
-    "recency": "3m",
-    "recent_frequency": 28.8,
-    "statement": "Find the area of the largest rectangle containing only 1s in a binary matrix.",
-    "edge_case": "A 0 cell resets that column's height to 0.",
-    "google_follow_up": "Cells flip between 0 and 1 over time: recompute the answer fast."
-  },
-  {
-    "id": "G-1081",
-    "title": "Smallest Subsequence of Distinct Characters",
-    "leetcode_id": 1081,
-    "slug": "smallest-subsequence-of-distinct-characters",
-    "difficulty": "Medium",
-    "category": "monotonic",
-    "phase": 3,
-    "key_pattern": "Monotonic increasing stack with a last-occurrence check",
-    "time_target": "O(N)",
-    "space_target": "O(alphabet)",
-    "google_frequency": "Very High",
-    "recency": "30d",
-    "recent_frequency": 46.6,
-    "statement": "Return the lexicographically smallest subsequence of s that contains every distinct character exactly once.",
-    "edge_case": "Only pop a character if it appears again later; skip characters already in the stack.",
-    "google_follow_up": "The alphabet is all of Unicode and s is 1GB."
   },
   {
     "id": "G-1944",
@@ -1340,13 +1599,16 @@
     "category": "monotonic",
     "phase": 3,
     "key_pattern": "Monotonic decreasing stack scanned right to left",
+    "key_insight": "Right to left with a decreasing stack: each person sees everyone shorter they pop, plus the next taller person if there is one.",
     "time_target": "O(N)",
     "space_target": "O(N)",
     "google_frequency": "Very High",
     "recency": "30d",
     "recent_frequency": 36.7,
     "statement": "People stand in a line with distinct heights. For each person, count how many people to their right they can see over everyone in between.",
-    "edge_case": "You see the first taller person, but nobody behind them.",
+    "edge_cases": [
+      "You see the first taller person, but nobody behind them"
+    ],
     "google_follow_up": "People join and leave the queue: answer visibility queries quickly."
   }
 ]

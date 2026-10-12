@@ -8,7 +8,7 @@ from google_prep.core import scheduler
 from google_prep.models import Attempt, MockSession, ReadinessSnapshot, StarStory
 
 WEIGHTS = {"pattern_mastery": 0.40, "mock_speed": 0.30, "dry_run": 0.15, "star": 0.15}
-STAR_DIMENSIONS = ["Ambiguity", "Ownership", "Collaboration", "Humility"]
+STAR_DIMENSIONS = ["Ambiguity", "Ownership", "Disagreement", "Humility"]
 STARS_PER_DIMENSION = 2  # two stories per dimension so follow-up questions do not force a repeat
 MOCK_WINDOW = 5
 DRY_RUN_WINDOW = 10
@@ -42,7 +42,7 @@ def mock_score(m: MockSession) -> float:
     if not m.solved:
         return 0.0
     target = m.limit_minutes * 60 * CODING_SHARE
-    return min(1.0, target / max(1, m.used_seconds))
+    return min(1.0, target / max(1, m.duration_seconds))
 
 
 def mock_speed(session: Session) -> float:

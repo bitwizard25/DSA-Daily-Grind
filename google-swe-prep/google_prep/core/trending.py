@@ -106,7 +106,7 @@ def add_problem(session: Session, link_or_slug: str, phase: int) -> Problem:
         time_target="state it before coding", space_target="state it before coding",
         google_frequency="Very High" if t.window == "30d" else "High", recency=t.window,
         recent_frequency=t.frequency, statement=f"Read it on https://leetcode.com/problems/{slug}/",
-        edge_case="", google_follow_up="How does your solution change if the input does not fit in memory?",
+        edge_cases="[]", google_follow_up="How does your solution change if the input does not fit in memory?",
     )
     session.add(problem)
     session.commit()

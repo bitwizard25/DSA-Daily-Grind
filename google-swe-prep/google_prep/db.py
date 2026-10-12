@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from google_prep.models import Attempt, DrillProgress, MockSession, Problem, RecallDrill, UserProgress
+from google_prep.models import Attempt, DrillProgress, MockSession, Problem, RecallDrill, Setting, UserProgress
 
 CONTENT_TABLES = {"problem", "recalldrill"}  # rebuilt from bundled data; never hold user progress
 
@@ -30,14 +30,36 @@ def home_dir() -> Path:
     return path
 
 
+RENAMES = {  # (table, old column) -> new column, applied before anything else so data is kept
+    ("dailyschedule", "date"): "date_str",
+    ("dailyschedule", "total_minutes_spent"): "total_minutes",
+    ("starstory", "updated_at"): "created_at",
+    ("mocksession", "day"): "date",
+    ("mocksession", "used_seconds"): "duration_seconds",
+}
+LEGACY_RUBRIC = {"algorithms", "coding", "communication", "problem_solving", "checklist_done"}
+
+
+def _columns(conn, table: str) -> set[str]:
+    return {row[1] for row in conn.exec_driver_sql(f'PRAGMA table_info("{table}")')}
+
+
 def migrate(engine) -> list[str]:
-    """Bring an existing prep.db up to the current schema so an upgrade never crashes on (or
-    wipes) your progress: add new columns everywhere (nullable, as SQLite requires), and drop
-    columns that left the schema, but only in content tables rebuilt from bundled data."""
+    """Bring an existing prep.db up to the current schema without losing progress:
+    1. rename columns whose names changed (data kept),
+    2. add new columns (nullable, as SQLite requires),
+    3. convert the old 1-4 rubric scores into the 4 pass/fail pillars,
+    4. drop columns that left the schema: content tables (rebuilt from bundled data) and the
+       converted rubric columns, never other user data."""
     changes = []
     with engine.begin() as conn:
+        for (table, old), new in RENAMES.items():
+            cols = _columns(conn, table)
+            if old in cols and new not in cols:
+                conn.exec_driver_sql(f'ALTER TABLE "{table}" RENAME COLUMN "{old}" TO "{new}"')
+                changes.append(f"{table}.{old}->{new}")
         for table in SQLModel.metadata.sorted_tables:
-            existing = {row[1] for row in conn.exec_driver_sql(f'PRAGMA table_info("{table.name}")')}
+            existing = _columns(conn, table.name)
             if not existing:
                 continue  # missing tables are created by create_all
             for column in table.columns:
@@ -45,11 +67,37 @@ def migrate(engine) -> list[str]:
                     ddl_type = column.type.compile(engine.dialect)
                     conn.exec_driver_sql(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {ddl_type}')
                     changes.append(f"+{table.name}.{column.name}")
-            if table.name in CONTENT_TABLES:
-                for name in existing - {c.name for c in table.columns}:
-                    conn.exec_driver_sql(f'ALTER TABLE "{table.name}" DROP COLUMN "{name}"')
-                    changes.append(f"-{table.name}.{name}")
+        mock_cols = _columns(conn, "mocksession")
+        if {"algorithms", "coding", "problem_solving"} <= mock_cols:
+            conn.exec_driver_sql(
+                "UPDATE mocksession SET clarified_constraints = algorithms >= 3, stated_complexity = algorithms >= 3,"
+                " clean_code = coding >= 3, follow_up_handled = problem_solving >= 3,"
+                " dry_run_passed = COALESCE(dry_run_passed, 0),"
+                " score = 12.5 * ((algorithms >= 3) * 2) + 25 * (coding >= 3) + 25 * (problem_solving >= 3)")
+            changes.append("mocksession: rubric 1-4 -> pillars")
+        if "date" in mock_cols:  # old rows stored YYYY-MM-DD; DateTime needs a time part
+            conn.exec_driver_sql("UPDATE mocksession SET date = date || ' 00:00:00.000000' WHERE length(date) = 10")
+        if _columns(conn, "starstory"):  # spec v2 renamed the dimension
+            conn.exec_driver_sql("UPDATE starstory SET dimension = 'Disagreement' WHERE dimension = 'Collaboration'")
+        for table in SQLModel.metadata.sorted_tables:
+            existing = _columns(conn, table.name)
+            obsolete = existing - {c.name for c in table.columns}
+            if table.name not in CONTENT_TABLES:
+                obsolete &= LEGACY_RUBRIC if table.name == "mocksession" else set()
+            for name in obsolete:
+                conn.exec_driver_sql(f'ALTER TABLE "{table.name}" DROP COLUMN "{name}"')
+                changes.append(f"-{table.name}.{name}")
     return changes
+
+
+def data_hash() -> str:
+    """Fingerprint of the bundled problem and drill data."""
+    import hashlib
+
+    digest = hashlib.sha1()
+    for name in ("problems.json", "recall_drills.json"):
+        digest.update((resource_dir() / "data" / name).read_bytes())
+    return digest.hexdigest()
 
 
 @lru_cache(maxsize=None)
@@ -58,7 +106,12 @@ def _engine(url: str):
     SQLModel.metadata.create_all(engine)
     migrate(engine)
     with Session(engine) as session:
-        seed(session)
+        fingerprint = data_hash()
+        stored = session.get(Setting, "data_hash")
+        if stored is None or stored.value != fingerprint:  # re-seed only when the bundled data changed
+            seed(session)
+            session.merge(Setting(key="data_hash", value=fingerprint))
+            session.commit()
     return engine
 
 
@@ -81,7 +134,7 @@ def seed(session: Session) -> None:
     by_slug = {p["slug"]: p["id"] for p in problems}
     keep_ids = {p["id"] for p in problems}
     for row in problems:
-        session.merge(Problem(**row))
+        session.merge(Problem(**{**row, "edge_cases": json.dumps(row["edge_cases"])}))
     for row in drills:
         session.merge(RecallDrill(**row))
     session.flush()

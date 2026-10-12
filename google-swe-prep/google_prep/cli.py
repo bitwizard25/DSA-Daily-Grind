@@ -5,6 +5,7 @@ from typing import Optional
 
 import typer
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
@@ -20,7 +21,7 @@ from google_prep.modules import roadmap as roadmap_mod
 from google_prep.modules import star as star_mod
 from google_prep.modules import today as today_mod
 from google_prep.ui import keys
-from google_prep.ui.formatters import card, console, crumbs, keys as key_bar, show
+from google_prep.ui.formatters import banner, card, console, crumbs, keys as key_bar, nav, show
 from google_prep.ui.theme import DIFFICULTY_STYLE
 
 app = typer.Typer(help="Google SWE II interview OS. Run with no command to start the next best action.",
@@ -39,7 +40,8 @@ def wait_for(actions: dict[str, str]) -> str | None:
     """Wait for a screen's key. Skipped when output is piped but input is a terminal."""
     if not keys.interactive() and sys.stdin.isatty():
         return None
-    action = actions.get(keys.choose(set(actions) | {"q"}))
+    key = keys.choose(set(actions) | {"q", "esc"})
+    action = actions.get(key) or (actions.get("b") if key == "esc" else None)
     return None if action == "quit" else action
 
 
@@ -87,23 +89,24 @@ def run_problem(problem: Problem, minutes: int, practice: bool, editor: bool = T
 def describe(state: dict) -> str:
     if state.get("kind") == "recall":
         left = len(state["drill_ids"]) - state["index"]
-        return f"Recall drills · {left} left"
+        return f"Session restored: Pattern recall ({left} drill{'s' if left != 1 else ''} left)."
     with get_session() as session:
         p = session.get(Problem, state["problem_id"])
+    title = p.title if p else state["problem_id"]
+    if state.get("submitted"):
+        return f"Session restored: {title} (scorecard not finished)."
     left = max(0, state["minutes"] * 60 - state["elapsed"])
-    kind = "Solve" if state["practice"] else "Mock"
-    stage = "grading" if state.get("submitted") else f"{int(left) // 60:02d}:{int(left) % 60:02d} left"
-    return f"{kind} · {p.title if p else state['problem_id']} · {stage}"
+    return f"Session restored: {title} ({round(left / 60)}m remaining)."
 
 
 def screen_resume() -> str | None:
     state = session_store.load()
     if not state:
         return "today"
-    show(card("UNFINISHED SESSION (auto-saved)", [describe(state)]),
-         key_bar(("Enter", "Resume"), ("d", "Discard"), ("q", "Exit")))
-    key = keys.choose({"enter", "d", "q"}) if (keys.interactive() or not sys.stdin.isatty()) else "q"
-    if key == "d":
+    show(card("SESSION RESTORED", [escape(describe(state)), escape("Press [Enter] to resume.")]),
+         key_bar(("Enter", "Resume"), ("x", "Discard it"), ("q", "Quit")))
+    key = keys.choose({"enter", "x", "q", "esc"}) if (keys.interactive() or not sys.stdin.isatty()) else "q"
+    if key == "x":
         session_store.clear()
         return "today"
     if key != "enter":
@@ -160,9 +163,12 @@ def screen_roadmap() -> str | None:
 
 def screen_star_list() -> str | None:
     with get_session() as session:
-        show(crumbs(scheduler.breadcrumb(session, now().date(), "STAR Vault")), star_mod.list_view(session))
-    show(key_bar(("a", "Add Story"), ("v", "Review a Question"), ("b", "Back to Today"), ("q", "Exit")))
-    return wait_for({"a": "star_add", "v": "star_review", "b": "today", "t": "today"})
+        show(crumbs(scheduler.breadcrumb(session, now().date(), "STAR")), nav("STAR"),
+             banner("STAR STORIES", "Ambiguity · Ownership · Disagreement · Humility", "2 per dimension"),
+             star_mod.list_view(session))
+    show(key_bar(("a", "Add"), ("v", "Practice"), ("b", "Back"), ("q", "Quit")))
+    return wait_for({"a": "star_add", "v": "star_review", "b": "today", "t": "today", "d": "warmup", "w": "mock",
+                     "r": "roadmap", "m": "micro_start"})
 
 
 def action_star_add() -> None:
@@ -437,17 +443,23 @@ def setup(
 
 
 @app.command()
-def tui():
-    """Full-screen dashboard (t/r/s to switch views, m mock, Enter start, q exit)."""
-    from google_prep.ui.tui_app import PrepDashboard
+def ui():
+    """Full-screen cockpit: whiteboard mock + scorecard, roadmap gauge, STAR Studio (same database)."""
+    from google_prep.ui.tui_app import PrepUI
 
-    navigate(PrepDashboard(now=now).run())
+    navigate(PrepUI(now=now).run())
+
+
+@app.command(hidden=True)
+def tui():
+    """Old name for `ui`."""
+    ui()
 
 
 @star_app.command("add")
 def star_add(
     dimension: Optional[str] = typer.Option(None, "--dimension", "-d",
-                                            help="Ambiguity | Ownership | Collaboration | Humility"),
+                                            help="Ambiguity | Ownership | Disagreement | Humility"),
     title: Optional[str] = typer.Option(None, "--title", "-t"),
     situation: Optional[str] = typer.Option(None, "--situation", "-s"),
     task: Optional[str] = typer.Option(None, "--task"),
@@ -455,11 +467,11 @@ def star_add(
     result: Optional[str] = typer.Option(None, "--result", "-r"),
 ):
     """Draft a STAR story (prompts for anything not passed as an option)."""
-    dim = star_mod.resolve_dimension(dimension or typer.prompt("Dimension (Ambiguity/Ownership/Collaboration/Humility)"))
+    dim = star_mod.resolve_dimension(dimension or typer.prompt("Dimension (Ambiguity/Ownership/Disagreement/Humility)"))
     if dim is None:
         fail(f"Unknown dimension. Choose: {', '.join(star_mod.DIMENSIONS)}", 2)
     fields = {
-        "title": title or typer.prompt("Title (one line you can remember)"),
+        "title": title or typer.prompt("Title (e.g. 'Hapminds: cache migration under deadline')"),
         "situation": situation or typer.prompt("Situation (context, 1-2 sentences)"),
         "task": task or typer.prompt("Task (your responsibility)"),
         "action": action or typer.prompt("Action (what YOU did, specifically)"),
@@ -486,7 +498,7 @@ def star_review(dimension: Optional[str] = typer.Option(None, "--dimension", "-d
         if dimension and dim is None:
             fail(f"Unknown dimension. Choose: {', '.join(star_mod.DIMENSIONS)}", 2)
         dim, prompt = star_mod.review_prompt(session, dim)
-        show(crumbs(scheduler.breadcrumb(session, now().date(), "STAR Vault", dim)),
+        show(crumbs(scheduler.breadcrumb(session, now().date(), "STAR", dim)), nav("STAR"),
              star_mod.review_view(session, dim, prompt))
         if keys.read_key() == "q":
             return
