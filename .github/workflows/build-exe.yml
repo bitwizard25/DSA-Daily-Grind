@@ -1,0 +1,25 @@
+name: build-exe
+on:
+  workflow_dispatch:
+  push:
+    paths: ["google-swe-prep/**"]
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: google-swe-prep
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+      - run: python build_exe.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: google-swe-prep-${{ matrix.os }}
+          path: google-swe-prep/dist/*
