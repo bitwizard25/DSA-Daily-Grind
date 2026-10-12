@@ -78,9 +78,10 @@ def run_drills(kind: str, count: int = today_mod.WARMUP_DRILLS, resume: dict | N
 
 
 def run_problem(problem: Problem, minutes: int, practice: bool, editor: bool = True,
-                resume: dict | None = None) -> None:
+                resume: dict | None = None, external: bool = False) -> None:
     with get_session() as session:
-        mock_mod.run(session, problem, minutes=minutes, practice=practice, editor=editor, now=now(), resume=resume)
+        mock_mod.run(session, problem, minutes=minutes, practice=practice, editor=editor, now=now(), resume=resume,
+                     external=external)
 
 
 def describe(state: dict) -> str:
@@ -186,7 +187,7 @@ ACTIONS = {
     "deep": action_deep,
     "review_start": action_review,
     "roadmap": screen_roadmap,
-    "mock": lambda: mock(topic="all", minutes=45, problem=None, no_editor=False),
+    "mock": lambda: mock(topic="all", minutes=45, problem=None, no_editor=False, external=False),
     "star_list": screen_star_list,
     "star_add": action_star_add,
     "star_review": action_star_review,
@@ -240,10 +241,11 @@ def recall(count: int = typer.Option(5, "--count", "-n", min=1, max=50, help="Dr
 def mock(
     topic: str = typer.Option("all", "--topic", help="all | " + " | ".join(scheduler.CATEGORIES)),
     minutes: int = typer.Option(45, "--minutes", min=10, max=120),
-    problem: Optional[str] = typer.Option(None, "--problem", "-p", help="Problem id, e.g. G-12."),
-    no_editor: bool = typer.Option(False, "--no-editor", help="Do not auto-open the scratchpad."),
+    problem: Optional[str] = typer.Option(None, "--problem", "-p", help="Problem id, e.g. G-200."),
+    no_editor: bool = typer.Option(False, "--no-editor", help="With --external: do not auto-open the file."),
+    external: bool = typer.Option(False, "--external", help="Use Notepad/TextEdit instead of the built-in editor."),
 ):
-    """45-minute Google whiteboard simulation (weakest topic first)."""
+    """45-minute Google whiteboard: scoping, plain-text coding, follow-up, rubric."""
     if topic not in mock_mod.TOPICS:
         fail(f"Unknown topic '{topic}'. Choose: all, {', '.join(scheduler.CATEGORIES)}", 2)
     t = now()
@@ -257,7 +259,7 @@ def mock(
             target = scheduler.pick_target_problem(session, phase, t, mock_mod.TOPICS[topic])
             if target is None:
                 fail("No problem available for that topic.")
-    run_problem(target, minutes, practice=False, editor=not no_editor)
+    run_problem(target, minutes, practice=False, editor=not no_editor, external=external)
 
 
 @app.command()
@@ -265,6 +267,7 @@ def solve(
     problem: Optional[str] = typer.Argument(None, help="Problem id; default is today's target."),
     minutes: int = typer.Option(60, "--minutes", min=10, max=120),
     no_editor: bool = typer.Option(False, "--no-editor"),
+    external: bool = typer.Option(False, "--external", help="Use Notepad/TextEdit instead of the built-in editor."),
 ):
     """Timed deep-work solve (no rubric): today's evening problem or any problem id."""
     t = now()
@@ -276,7 +279,7 @@ def solve(
             target = scheduler.pick_target_problem(session, phase, t)
     if target is None:
         fail("No such problem.")
-    run_problem(target, minutes, practice=True, editor=not no_editor)
+    run_problem(target, minutes, practice=True, editor=not no_editor, external=external)
 
 
 @app.command()
@@ -381,6 +384,10 @@ def add(problem: str = typer.Argument(..., help="LeetCode slug or URL from `hot`
     """Import a trending problem into your bank."""
     with get_session() as session:
         phase = scheduler.phase_for_day(scheduler.day_number(session, now().date()))
+        existing = session.exec(scheduler.select(Problem).where(Problem.slug == trending.slug_of(problem))).first()
+        if existing:
+            console.print(f"[muted]Already in your bank: {existing.id} {existing.title}[/muted]")
+            return
         try:
             p = trending.add_problem(session, problem, phase)
         except KeyError as exc:

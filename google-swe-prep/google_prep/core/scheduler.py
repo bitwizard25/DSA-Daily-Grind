@@ -21,15 +21,13 @@ PHASES = {
     2: ("Google Core Patterns & Hard Follow-ups", 22, 42),
     3: ("Final Onsite Loop & Googlyness", 43, 56),
 }
-CATEGORIES = {
-    "arrays": "Arrays, Hashing & Search",
-    "pointers": "Two Pointers & Slid. Window",
-    "intervals": "Intervals & Scheduling",
-    "heaps": "Heaps & Priority Queues",
-    "trees": "Binary Trees & BST",
-    "graphs": "Graphs & Union-Find",
-    "dp": "Dynamic Programming",
-    "design": "Tries, Design & Backtracking",
+CATEGORIES = {  # the six Google categories, in plan order
+    "graphs": "Graphs",
+    "trees": "Trees",
+    "heaps": "Heaps",
+    "intervals": "Intervals",
+    "dp": "DP",
+    "monotonic": "Monotonic Queues",
 }
 MICRO_HOURS = 10  # a workday this long switches today to Emergency Micro-Mode
 WINDOW_RANK = {"30d": 0, "3m": 1, "6m": 2, "6m+": 3, "": 4}
@@ -261,7 +259,7 @@ def log_attempt(session: Session, problem_id: str, minutes: int, solved: bool,
 
 def attempts_on(session: Session, day: date) -> list[Problem]:
     ids = session.exec(select(Attempt.problem_id).where(Attempt.day == day.isoformat()).distinct()).all()
-    return [session.get(Problem, i) for i in ids]
+    return [p for p in (session.get(Problem, i) for i in ids) if p is not None]  # retired problems drop out
 
 
 # ---- recall drill selection ------------------------------------------------

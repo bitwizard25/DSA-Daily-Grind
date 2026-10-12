@@ -25,9 +25,9 @@ from google_prep.ui.theme import DIFFICULTY_STYLE, RED, YELLOW
 TOPICS = {"all": None, **{c: [c] for c in scheduler.CATEGORIES}}
 CHECKLIST = [
     "Clarified constraints and input size",
-    "Stated brute force vs. optimal approach with complexity",
-    "Wrote clean, modular code with descriptive names",
-    "Traced a test case line-by-line manually",
+    "Stated brute force vs. optimal with complexity",
+    "Wrote clean, modular code",
+    "Traced a test case line by line",
 ]
 GENERIC_FOLLOW_UPS = [
     "What if the input is a stream of 10^9 events and does not fit in memory?",
@@ -47,7 +47,7 @@ AUTOSAVE_SECONDS = 5
 
 
 def follow_ups(problem: Problem) -> list[str]:
-    return [problem.follow_up_prompt] + GENERIC_FOLLOW_UPS
+    return [problem.google_follow_up] + GENERIC_FOLLOW_UPS
 
 
 def hire_signal(avg: float) -> str:
@@ -61,16 +61,19 @@ def hire_signal(avg: float) -> str:
 
 
 def scratchpad(problem: Problem) -> Path:
+    """Plain .txt on purpose: a .py file can open in an IDE with autocomplete and linting."""
     folder = db.home_dir() / "scratchpads"
     folder.mkdir(exist_ok=True)
     slug = re.sub(r"[^a-z0-9]+", "_", problem.title.lower()).strip("_")
-    path = folder / f"{problem.id}_{slug}.py"
+    path = folder / f"{problem.id}_{slug}.txt"
     if not path.exists():
         path.write_text(
-            f"# {problem.title} ({problem.difficulty})\n#\n# {problem.statement}\n#\n"
-            "# Rules: no compiler, no autocomplete, no running it.\n"
-            "# 1) Clarify constraints  2) Brute force + complexity  3) Optimal + complexity\n"
-            "# 4) Code  5) Dry-run one test case line by line in comments below.\n\n",
+            f"# {problem.id} {problem.title} ({problem.difficulty})\n# {problem.statement}\n#\n"
+            "# 1) Clarifying questions and constraints:\n\n"
+            "# 2) Brute force + complexity:\n\n"
+            "# 3) Optimal approach + complexity:\n\n"
+            "# 4) Code:\n\n\n"
+            "# 5) Dry-run one test case line by line:\n\n",
             encoding="utf-8",
         )
     return path
@@ -137,14 +140,18 @@ def _state(problem: Problem, minutes: int, practice: bool, timer: Countdown, tic
 
 
 def run(session, problem: Problem, minutes: int = 45, practice: bool = False, editor: bool = True,
-        now: datetime | None = None, clock_fn=time.monotonic, resume: dict | None = None) -> dict | None:
-    """Timed round. State is auto-saved every few seconds and on every key, so a crash or a
-    closed window resumes with the same time left, checklist and follow-up."""
+        now: datetime | None = None, clock_fn=time.monotonic, resume: dict | None = None,
+        external: bool = False) -> dict | None:
+    """Timed round. In a terminal it opens the full-screen whiteboard with a built-in plain
+    editor; `external` keeps the timer screen and opens Notepad/TextEdit instead. State is
+    auto-saved every few seconds, so a crash or closed window resumes where it stopped."""
     resume = resume or {}
     when = now or clock.now()
     timer = Countdown(minutes * 60, clock_fn, elapsed=resume.get("elapsed", 0.0))
     pad = scratchpad(problem)
-    editor_msg = open_editor(pad) if editor else "editor launch skipped"
+    inline = keys.interactive() and not external
+    editor_msg = ("built-in editor" if inline else
+                  open_editor(pad) if editor else "editor launch skipped")
     ticks = list(resume.get("ticks", [False] * len(CHECKLIST)))
     fups = follow_ups(problem)
     shown = resume.get("shown", -1)
@@ -178,7 +185,21 @@ def run(session, problem: Problem, minutes: int = 45, practice: bool = False, ed
     outcome = "s"
     if not resume.get("submitted"):
         autosave(force=True)
-        if keys.interactive():
+        if inline:
+            from google_prep.ui.whiteboard import Whiteboard  # textual loads only when needed
+
+            def save_state(st: dict) -> None:
+                session_store.save(_state(problem, minutes, practice, timer, st["ticks"], st["shown"]))
+
+            res = Whiteboard(problem, minutes, practice, path, timer, ticks, shown, fups, CHECKLIST, pad,
+                             save_state, clock_fn).run()
+            if res is None:  # closed without a result: keep the auto-save for `resume`
+                show(Text("  Stopped. Session auto-saved: run google-prep to resume.", style="muted"))
+                return None
+            ticks[:] = res["ticks"]
+            shown = res["shown"]
+            outcome = "q" if res["outcome"] == "q" else "s"
+        elif keys.interactive():
             with keys.held(), Live(screen(), console=console, refresh_per_second=2) as live:
                 while True:
                     if shown < 0 and timer.fraction() >= FOLLOW_UP_AT:
@@ -208,14 +229,20 @@ def run(session, problem: Problem, minutes: int = 45, practice: bool = False, ed
         timer.toggle_pause()
     session_store.save(_state(problem, minutes, practice, timer, ticks, shown, submitted=True))
     with keys.held():
-        result = evaluate(session, problem, minutes, timer, ticks, fups[shown] if shown >= 0 else "", practice, when)
+        result = evaluate(session, problem, minutes, timer, ticks, fups[shown] if shown >= 0 else "", practice, when,
+                          path)
     session_store.clear()
     return result
 
 
 def evaluate(session, problem: Problem, minutes: int, timer: Countdown, ticks: list[bool],
-             follow_up: str, practice: bool, now: datetime) -> dict:
+             follow_up: str, practice: bool, now: datetime, path: str = "") -> dict:
     used = max(1, int(timer.elapsed()))
+    stage = "Self-grade" if practice else "Rubric"
+    show(crumbs(f"{path} > {stage}" if path else stage),
+         banner("PHASE 4: RUBRIC SELF-EVALUATION" if not practice else "SELF-GRADE",
+                f"{problem.title} · coding time used [warn]{mmss(used)}[/warn]",
+                "[muted]40:00–45:00[/muted]" if not practice else ""))
     solved = _ask("Did you reach a correct, complete solution?", [("y", "Yes"), ("n", "No")]) == "y"
     dry = _ask("Dry-run: did your hand trace of a test case match the expected output?",
                [("y", "Yes, matched"), ("n", "No / skipped")]) == "y"

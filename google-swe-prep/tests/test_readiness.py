@@ -7,7 +7,7 @@ from conftest import NOW
 
 
 def add_mock(session, used_seconds, solved=True, limit=45):
-    session.add(MockSession(problem_id="G-01", day=NOW.date().isoformat(), limit_minutes=limit,
+    session.add(MockSession(problem_id="G-200", day=NOW.date().isoformat(), limit_minutes=limit,
                             used_seconds=used_seconds, solved=solved, algorithms=3, coding=3,
                             communication=3, problem_solving=3))
     session.commit()
@@ -32,7 +32,7 @@ def test_mock_speed(session):
 
 def test_dry_run_accuracy_uses_recent_attempts(session):
     for ok in (True, True, False, None):
-        scheduler.log_attempt(session, "G-01", 30, True, ok, 4, NOW)
+        scheduler.log_attempt(session, "G-200", 30, True, ok, 4, NOW)
     assert readiness.dry_run_accuracy(session) == 2 / 3
 
 
@@ -54,7 +54,7 @@ def test_everything_maxed_is_100(session):
         session.add(StarStory(dimension=dim, title="t", situation="s", task="t", action="a", result="r"))
     session.commit()
     add_mock(session, 20 * 60)
-    scheduler.log_attempt(session, "G-01", 20, True, True, 5, NOW)
+    scheduler.log_attempt(session, "G-200", 20, True, True, 5, NOW)
     assert round(readiness.compute(session).index) == 100
 
 

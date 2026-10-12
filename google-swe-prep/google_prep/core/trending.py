@@ -19,14 +19,12 @@ from google_prep.models import Problem, TrendingProblem
 DEFAULT_SOURCE = "https://raw.githubusercontent.com/liquidslr/leetcode-company-wise-problems/main"
 WINDOWS = [("30d", "1. Thirty Days"), ("3m", "2. Three Months"), ("6m", "3. Six Months"),
            ("6m+", "4. More Than Six Months")]
-TOPIC_TO_CATEGORY = [  # first match wins
+TOPIC_TO_CATEGORY = [  # first match wins; anything else is outside the six Google categories
+    (("monotonic",), "monotonic"),
     (("union-find", "graph", "breadth-first", "topological", "shortest path"), "graphs"),
-    (("tree",), "trees"),
+    (("tree", "trie"), "trees"),
     (("heap", "priority queue"), "heaps"),
-    (("trie", "design", "backtracking"), "design"),
     (("line sweep", "interval"), "intervals"),
-    (("sliding window", "two pointers"), "pointers"),
-    (("binary search",), "arrays"),
     (("dynamic programming",), "dp"),
 ]
 
@@ -71,20 +69,20 @@ def sync(session: Session, company: str = "Google", source: str = DEFAULT_SOURCE
 
 
 def hot(session: Session, limit: int = 15, include_easy: bool = False) -> list[TrendingProblem]:
-    """Most recently asked problems that are not in your bank yet."""
+    """Most recently asked problems that fit the six categories and are not in your bank yet."""
     in_bank = {p.slug for p in session.exec(select(Problem)).all()}
     rows = [t for t in session.exec(select(TrendingProblem)).all()
-            if t.slug not in in_bank and (include_easy or t.difficulty != "Easy")]
+            if t.slug not in in_bank and (include_easy or t.difficulty != "Easy") and category_for(t.topics)]
     rows.sort(key=lambda t: (scheduler.WINDOW_RANK.get(t.window, 4), -t.frequency, t.title))
     return rows[:limit]
 
 
-def category_for(topics: str) -> str:
+def category_for(topics: str) -> str | None:
     low = topics.lower()
     for keywords, cat in TOPIC_TO_CATEGORY:
         if any(k in low for k in keywords):
             return cat
-    return "arrays"
+    return None
 
 
 def add_problem(session: Session, link_or_slug: str, phase: int) -> Problem:
@@ -96,16 +94,19 @@ def add_problem(session: Session, link_or_slug: str, phase: int) -> Problem:
     t = session.get(TrendingProblem, slug)
     if t is None:
         raise KeyError(f"'{slug}' is not in the synced data. Run `google-prep sync` first.")
+    category = category_for(t.topics)
+    if category is None:
+        raise KeyError(f"'{t.title}' ({t.topics or 'no topics'}) is outside the six Google categories.")
     n = len([p for p in session.exec(select(Problem)).all() if p.id.startswith("X-")]) + 1
     topics = ", ".join(t.topics.split(", ")[:3]) or "Unknown"
     problem = Problem(
         id=f"X-{n:02d}", title=t.title, leetcode_id=0, slug=slug,
         difficulty=t.difficulty if t.difficulty in ("Easy", "Medium", "Hard") else "Medium",
-        category=category_for(t.topics), phase=phase, key_pattern=topics,
+        category=category, phase=phase, key_pattern=topics,
         time_target="state it before coding", space_target="state it before coding",
         google_frequency="Very High" if t.window == "30d" else "High", recency=t.window,
         recent_frequency=t.frequency, statement=f"Read it on https://leetcode.com/problems/{slug}/",
-        edge_case="", follow_up_prompt="How does your solution change if the input does not fit in memory?",
+        edge_case="", google_follow_up="How does your solution change if the input does not fit in memory?",
     )
     session.add(problem)
     session.commit()

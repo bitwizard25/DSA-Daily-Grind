@@ -69,7 +69,7 @@ def test_mock_records_rubric_follow_up_and_mistake():
     keys = "1\n2\nf\ns\nn\nn\n4\n3\n2\n3\n1\n"  # tick 1-2, follow-up, submit, not solved, no dry run, rubric, mistake
     r = run("mock", "--topic", "graphs", "--no-editor", input=keys)
     assert r.exit_code == 0, r.output
-    assert "Week 1 > Day 1 > Mock > Graphs & Union-Find" in r.output and "GOOGLE FOLLOW-UP" in r.output
+    assert "Week 1 > Day 1 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
     with get_session() as s:
         m = s.exec(scheduler.select(MockSession)).one()
         a = s.exec(scheduler.select(Attempt)).one()
@@ -84,19 +84,19 @@ def test_mock_abandon_logs_nothing():
 
 
 def test_crashed_mock_resumes_with_saved_state():
-    session_store.save({"kind": "mock", "problem_id": "G-47", "minutes": 45, "practice": False,
+    session_store.save({"kind": "mock", "problem_id": "G-200", "minutes": 45, "practice": False,
                         "elapsed": 600.0, "ticks": [True, False, False, False], "shown": -1, "submitted": False})
     r = run(input="\ns\ny\ny\n4\n4\n4\n4\n")  # zero-arg launch offers the resume first
     assert r.exit_code == 0, r.output
     assert "UNFINISHED SESSION" in r.output and "35:00 left" in r.output
     with get_session() as s:
         m = s.exec(scheduler.select(MockSession)).one()
-    assert m.problem_id == "G-47" and m.used_seconds >= 600 and m.checklist_done == 1
+    assert m.problem_id == "G-200" and m.used_seconds >= 600 and m.checklist_done == 1
     assert session_store.load() is None
 
 
 def test_crashed_recall_resumes_remaining_drills():
-    session_store.save({"kind": "recall", "mode": "warmup", "drill_ids": ["R-01", "R-02", "R-03"], "index": 2,
+    session_store.save({"kind": "recall", "mode": "warmup", "drill_ids": ["R-200", "R-207", "R-994"], "index": 2,
                         "counts": {"1": 0, "2": 2, "3": 0}, "seconds": 120, "day": "2026-10-12"})
     r = run("resume", input="\n\n3\n")
     assert r.exit_code == 0, r.output
@@ -105,25 +105,25 @@ def test_crashed_recall_resumes_remaining_drills():
 
 
 def test_discarding_a_saved_session():
-    session_store.save({"kind": "recall", "mode": "warmup", "drill_ids": ["R-01"], "index": 0,
+    session_store.save({"kind": "recall", "mode": "warmup", "drill_ids": ["R-200"], "index": 0,
                         "counts": {"1": 0, "2": 0, "3": 0}, "seconds": 0, "day": "2026-10-12"})
     r = run("resume", input="d\n")
     assert session_store.load() is None and "GOOGLE SWE II OS" in r.output
 
 
 def test_solve_specific_problem():
-    r = run("solve", "G-05", "--no-editor", input="s\ny\nn\n5\n")
+    r = run("solve", "G-5", "--no-editor", input="s\ny\nn\n5\n")
     assert r.exit_code == 0, r.output
     with get_session() as s:
         a = s.exec(scheduler.select(Attempt)).one()
-    assert a.problem_id == "G-05" and a.mistake == "follow_up" and a.dry_run_ok is False
+    assert a.problem_id == "G-5" and a.mistake == "follow_up" and a.dry_run_ok is False
 
 
 def test_roadmap():
     r = run("roadmap")
     assert r.exit_code == 0, r.output
     for text in ("Week 1 > Day 1 > Roadmap", "READINESS INDEX COMPONENTS", "Dry-Run Accuracy", "MILESTONE PHASES",
-                 "Graphs & Union-Find", "Googlyness STAR Stories", "0/8 completed"):
+                 "Monotonic Queues", "Googlyness STAR Stories", "0/8 completed"):
         assert text in r.output, text
 
 
@@ -156,7 +156,8 @@ def test_setup_remind_version_hot_add():
     assert runner.invoke(app, ["remind", "--morning", "7am"]).exit_code == 2
     assert "1.0.0" in run("--version").output
     assert "Run: google-prep sync" in run("hot").output
-    assert runner.invoke(app, ["add", "split-array-largest-sum"]).exit_code == 1
+    assert "Already in your bank: G-410" in run("add", "split-array-largest-sum").output
+    assert runner.invoke(app, ["add", "generate-parentheses"]).exit_code == 1  # not synced yet
 
 
 def test_remind_commands_per_platform():
@@ -168,4 +169,4 @@ def test_remind_commands_per_platform():
 
 
 def test_no_manual_log_command():
-    assert runner.invoke(app, ["log", "G-01", "-m", "10"]).exit_code != 0
+    assert runner.invoke(app, ["log", "G-200", "-m", "10"]).exit_code != 0

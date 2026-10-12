@@ -49,14 +49,14 @@ def test_needs_micro():
 
 def test_target_prefers_recent_non_easy_in_weakest_topic(session):
     p = scheduler.pick_target_problem(session, 1, NOW)
-    assert p.category == "arrays"  # all tied at 0: plan order
+    assert p.category == "graphs"  # all tied at 0: plan order
     assert p.difficulty != "Easy" and p.recency == "30d"
 
 
 def test_target_moves_to_next_weakest_topic(session):
-    for prob in session.exec(scheduler.select(Problem).where(Problem.category == "arrays")).all()[:6]:
+    for prob in session.exec(scheduler.select(Problem).where(Problem.category == "graphs")).all()[:7]:
         scheduler.log_attempt(session, prob.id, 30, True, True, 5, NOW)
-    assert scheduler.pick_target_problem(session, 1, NOW).category != "arrays"
+    assert scheduler.pick_target_problem(session, 1, NOW).category != "graphs"
 
 
 def test_topic_filter_and_failed_problem_comes_back_first(session):
@@ -69,35 +69,35 @@ def test_topic_filter_and_failed_problem_comes_back_first(session):
 
 
 def test_sync_overrides_bundled_recency(session):
-    target = scheduler.pick_target_problem(session, 1, NOW, ["arrays"])
-    other = session.get(Problem, "G-03")  # Subarray Sum Equals K
+    target = scheduler.pick_target_problem(session, 3, NOW, ["heaps"])
+    other = session.get(Problem, "G-1834")  # Single-Threaded CPU: only in the 6-month data
     session.add(TrendingProblem(slug=other.slug, title=other.title, difficulty="Medium", window="30d", frequency=99))
     session.commit()
-    assert target.id != "G-03"
-    assert scheduler.pick_target_problem(session, 1, NOW, ["arrays"]).id == "G-03"
+    assert target.id != "G-1834"
+    assert scheduler.pick_target_problem(session, 3, NOW, ["heaps"]).id == "G-1834"
 
 
 def test_pick_drills_due_first_then_round_robin(session):
     first = scheduler.pick_drills(session, NOW, 8)
-    assert len({d.category for d in first}) == 8  # one per category before repeating
-    scheduler.grade_drill(session, "R-07", 2, NOW - timedelta(days=3))
-    assert scheduler.pick_drills(session, NOW, 1)[0].id == "R-07"
+    assert len({d.category for d in first[:6]}) == 6  # one per category before repeating
+    scheduler.grade_drill(session, "R-127", 2, NOW - timedelta(days=3))
+    assert scheduler.pick_drills(session, NOW, 1)[0].id == "R-127"
 
 
 def test_graded_drill_leaves_queue_until_due(session):
-    scheduler.grade_drill(session, "R-01", 5, NOW)
-    assert "R-01" not in [d.id for d in scheduler.pick_drills(session, NOW, 50)]
-    assert session.get(DrillProgress, "R-01").next_review_date == NOW + timedelta(days=1)
+    scheduler.grade_drill(session, "R-200", 5, NOW)
+    assert "R-200" not in [d.id for d in scheduler.pick_drills(session, NOW, 50)]
+    assert session.get(DrillProgress, "R-200").next_review_date == NOW + timedelta(days=1)
 
 
 def test_warmup_adapts_to_mistakes(session):
     kinds = lambda drills: sum(d.type == "bug_hunt" for d in drills)  # noqa: E731
     assert kinds(scheduler.pick_warmup(session, NOW)) == 1
-    for pid in ("G-01", "G-02"):
+    for pid in ("G-200", "G-207"):
         scheduler.log_attempt(session, pid, 30, False, False, 2, NOW, mistake="bug_edge")
     assert scheduler.dominant_mistake(session) == "bug_edge"
     assert kinds(scheduler.pick_warmup(session, NOW)) == 2
-    for pid in ("G-03", "G-04", "G-05"):
+    for pid in ("G-994", "G-547", "G-210"):
         scheduler.log_attempt(session, pid, 30, False, False, 2, NOW, mistake="pattern")
     assert kinds(scheduler.pick_warmup(session, NOW)) == 0
     assert scheduler.mistake_profile(session) == {"pattern": 3, "implementation": 0, "bug_edge": 2,

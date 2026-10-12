@@ -23,7 +23,7 @@ class Problem(SQLModel, table=True):
     recent_frequency: float = 0.0
     statement: str = ""
     edge_case: str = ""
-    follow_up_prompt: str
+    google_follow_up: str
 
 
 class UserProgress(SQLModel, table=True):
