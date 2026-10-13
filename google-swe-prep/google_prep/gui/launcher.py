@@ -18,8 +18,11 @@ from google_prep import db
 from google_prep.gui.api import Api
 from google_prep.gui.server import serve
 
-HEARTBEAT_TIMEOUT = 150  # seconds without a page heartbeat (sent every 30 s) before a browser-tab session ends
+HEARTBEAT_TIMEOUT = 600  # seconds without a page heartbeat (sent every 30 s) before a browser-tab session ends;
+# long, because a hidden or minimised window may send heartbeats only once a minute
+SLEEP_GAP = 30  # a 2-second wait that took longer than this means the computer slept: not the page's fault
 HANDOFF_SECONDS = 5  # a window process that exits faster than this handed off to an already-open browser
+CLOSE_GRACE = 40  # after the window process ends, listen this long for the page (it pings every 30 s)
 APP_MUTEX = "GoogleSWEIIOS.Running"  # must match AppMutex in installer/google-prep.iss
 
 
@@ -58,7 +61,8 @@ def open_window(url: str) -> subprocess.Popen | None:
     profile.mkdir(exist_ok=True)
     args = [browser, f"--app={url}", f"--user-data-dir={profile}", "--window-size=1440,920",
             "--no-first-run", "--no-default-browser-check", "--disable-features=Translate",
-            "--disable-sync", "--disable-extensions"]
+            "--disable-sync", "--disable-extensions",
+            "--disable-background-mode"]  # no hidden copy left running after the window closes
     try:
         return subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
@@ -205,17 +209,62 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if proc is not None:
             started = time.monotonic()
+            _log(f"started on {url.split('?')[0]} with its own window")
             proc.wait()  # the window closed: we are done ...
             if time.monotonic() - started >= HANDOFF_SECONDS:
+                if not _page_still_open(server):
+                    _log("window closed: stopping")
+                    return 0
+                # Edge can swap its process (an update, a relaunch) while the window stays open
+                _log("window process ended but the page is still open: serving on heartbeats")
+                _wait_for_page(server)
                 return 0
             # ... unless the browser handed the page to a copy that was already running and exited.
             # That first copy marks the app as running; this window-less helper must not keep the
             # installer waiting after every window is closed.
             _release(mutex)
-        while args.no_browser or time.monotonic() - server.last_seen < HEARTBEAT_TIMEOUT:
-            time.sleep(2)
+        _log("window handed off to a running browser: serving while the page sends heartbeats")
+        _wait_for_page(server, forever=args.no_browser)
     except KeyboardInterrupt:
         pass
     finally:
         server.shutdown()
     return 0
+
+
+def _page_still_open(server) -> bool:
+    """True if the page sends a heartbeat (or any request) after its window process ended."""
+    ended = time.monotonic()
+    while time.monotonic() - ended < CLOSE_GRACE:
+        if server.last_seen > ended:
+            return True
+        time.sleep(1)
+    return server.last_seen > ended
+
+
+def _wait_for_page(server, forever: bool = False) -> None:
+    """Serve until the page has been silent for HEARTBEAT_TIMEOUT. Time the computer spends asleep
+    does not count: after a nap the open window must still work."""
+    last = time.monotonic()
+    while True:
+        now = time.monotonic()
+        if now - last > SLEEP_GAP:
+            _log(f"woke up after {round(now - last)} s asleep: keeping the app running")
+            server.last_seen = now
+        last = now
+        if not forever and now - server.last_seen >= HEARTBEAT_TIMEOUT:
+            _log(f"no heartbeat for {round(now - server.last_seen)} s: the page is closed, stopping")
+            return
+        time.sleep(2)
+
+
+def _log(message: str) -> None:
+    """A short history of why the app started and stopped (~/.google_prep/gui.log), for support."""
+    try:
+        path = db.home_dir() / "gui.log"
+        if path.exists() and path.stat().st_size > 200_000:
+            path.write_text("", encoding="utf-8")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
+    except OSError:
+        pass

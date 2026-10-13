@@ -570,3 +570,40 @@ def test_full_time_pace_serves_three_new_problems_a_day(api, session):
     assert seen == ["G-1", "G-217", "G-242"]  # Foundations in order
     done = api.today()
     assert done["kind"] == "done" and any("3 of 3" in s["text"] for s in done["status"])
+
+
+def test_a_sleeping_computer_does_not_stop_the_app(monkeypatch, home):
+    """After the laptop sleeps (a nap, a closed lid) the open window must keep working: time asleep is
+    not 'the page went quiet'. A page that really is gone still stops the app."""
+    clock = {"t": 1000.0}
+    sleeps = []
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        clock["t"] += 3 * 3600 if len(sleeps) == 1 else 2  # the first wait spans a 3-hour sleep
+
+    monkeypatch.setattr(launcher.time, "monotonic", lambda: clock["t"])
+    monkeypatch.setattr(launcher.time, "sleep", fake_sleep)
+
+    class Server:
+        last_seen = 1000.0
+
+    launcher._wait_for_page(Server)
+    waited = 2 * (len(sleeps) - 1)  # seconds of real (awake) silence before it stopped
+    assert waited >= launcher.HEARTBEAT_TIMEOUT - 2  # it did not stop on waking up
+    log = (home / "gui.log").read_text(encoding="utf-8")
+    assert "woke up after 10800 s asleep" in log and "no heartbeat" in log
+
+
+def test_window_process_ending_while_the_page_is_open_keeps_the_app(monkeypatch):
+    """Edge can replace its process while the window stays open. The page's next heartbeat proves it."""
+    monkeypatch.setattr(launcher, "CLOSE_GRACE", 0)
+
+    class Closed:
+        last_seen = 0.0
+
+    class StillOpen:
+        last_seen = float("inf")  # a heartbeat arrives after the process ended
+
+    assert not launcher._page_still_open(Closed)
+    assert launcher._page_still_open(StillOpen)

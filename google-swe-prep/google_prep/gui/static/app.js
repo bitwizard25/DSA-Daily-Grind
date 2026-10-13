@@ -230,7 +230,7 @@ async function api(name, payload = {}, opts = {}) {
       body: JSON.stringify(payload),
     });
   } catch (_) {
-    throw new ApiError("The app stopped. Start Google SWE II OS again: your work is saved.");
+    throw new ApiError("The app closed in the background. Close this window and open Google SWE II OS again from the Start menu or the desktop: your work is saved.");
   }
   let data = null;
   try { data = await res.json(); } catch (_) { data = null; }
@@ -1702,5 +1702,6 @@ async function boot() {
   if (!location.hash) history.replaceState(null, "", `${location.search}#/today`);
   await route(); // an unfinished drill or mock shows as the first thing on Today (auto-recovery)
   setInterval(() => api("heartbeat").catch(() => {}), 30000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") api("heartbeat").catch(() => {}); });
 }
 boot();
