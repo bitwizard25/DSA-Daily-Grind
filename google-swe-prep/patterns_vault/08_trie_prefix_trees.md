@@ -1,32 +1,66 @@
-# Tries (Prefix Trees)
+# Tries (prefix trees): words that start the same way
 
-**Use when:**
-- "prefix", "starts with", "autocomplete", "type-ahead", "dictionary of words".
-- Many words must be found at once in a grid or text (one DFS for all words).
-- "longest common prefix", "replace each word with its shortest root".
-- Repeated prefix queries where sorting + `bisect` would be rebuilt too often.
+> In one line: a trie stores words letter by letter, so all words with the same start share one path from the top.
 
-## Python templates
+## When to use it
+- "prefix", "starts with", "autocomplete" or "type-ahead" (suggest words while the user types).
+- Many questions of the same kind: "does any word start with `ap`?"
+- Many words to find at once, for example in a grid of letters (Word Search II).
+- One big word list, and many lookups by the first letters of a word.
 
-### Dict-of-children trie: insert, search, startsWith
+## The idea in plain words
+A **prefix** is the start of a word: `"a"`, `"ap"` and `"app"` are prefixes of `"apple"`.
+
+A **trie** (say "try"), also called a **prefix tree**, is a tree of letters.
+- A **node** is one box in the tree. The top node is the **root**: it stands for the empty prefix `""`.
+- Each node has **children**: one child for each letter that can come next.
+  In Python, `children` is a **dict** (a key → value map, like C++ `unordered_map`), for example `{"p": node}`.
+- A path from the root spells a prefix. Words with the same start share the same first nodes.
+- Each node has an **end flag** (`end = True`). It means "a whole word ends here", not only a prefix.
+
+The words `"app"`, `"apple"` and `"bat"` give this trie. A star `*` marks a node whose end flag is True:
+
+```
+root
+├── a ── p ── p* ── l ── e*
+└── b ── a ── t*
+```
+
+All three basic operations walk down one letter at a time:
+1. `insert(word)`: for each letter, go to that child. If it is missing, create it first. At the last letter, set `end = True`.
+2. `search(word)`: for each letter, go to that child. If it is missing, the answer is False. At the end, return the end flag.
+3. `starts_with(prefix)`: the same walk as `search`. If the walk finishes, the answer is True. The end flag does not matter.
+
+Each operation costs **O(L)** (big-O: how the work grows). L is the word length. The number of stored words does not matter.
+
+**Autocomplete**: walk down to the node of the prefix. Then visit every node below it and collect the words.
+To visit every node, use **DFS** (depth-first search): go deep down one branch, come back, then try the next branch.
+A function that calls itself, like this DFS, is called **recursive**.
+
+**Word Search II** (the idea): find many words in a grid of letters.
+1. Put all the words in one trie.
+2. Start a path from each cell. Step to a neighbour cell only if the trie has a child for its letter.
+3. When you reach a node that holds a word, record the word.
+A path stops as soon as no word starts with it. Cutting off useless paths early is called **pruning**.
+
+## Python template
+
+### Trie: insert, search, starts_with
+
+A **class** is like a C++ `struct` with functions inside. `__init__` is the constructor. `self` is like `this`.
+`None` means "no node here", like `nullptr`. Test it with `is None` or `is not None`.
 
 ```python
-from collections import defaultdict
-
-
 class TrieNode:
-    __slots__ = ("children", "end")  # optional: no per-instance __dict__
-
     def __init__(self):
-        self.children = {}           # char -> TrieNode
-        self.end = False             # a whole word ends here
+        self.children = {}  # letter -> TrieNode
+        self.end = False    # True when a whole word ends here
 
-
-class Trie:                          # G-208
+class Trie:
     def __init__(self):
         self.root = TrieNode()
 
-    def insert(self, word):          # O(L)
+    def insert(self, word):
         node = self.root
         for ch in word:
             if ch not in node.children:
@@ -34,303 +68,153 @@ class Trie:                          # G-208
             node = node.children[ch]
         node.end = True
 
-    def _walk(self, s):              # node for prefix s, or None
+    def walk(self, text):
+        # the node for this prefix, or None if some letter is missing
         node = self.root
-        for ch in s:
-            node = node.children.get(ch)
-            if node is None:
+        for ch in text:
+            if ch not in node.children:
                 return None
+            node = node.children[ch]
         return node
 
-    def search(self, word):          # O(L): must end on a word
-        node = self._walk(word)
+    def search(self, word):
+        node = self.walk(word)
         return node is not None and node.end
 
-    def starts_with(self, prefix):   # O(L): any node is enough
-        return self._walk(prefix) is not None
+    def starts_with(self, prefix):
+        return self.walk(prefix) is not None
 
-
-t = Trie()
-t.insert("apple")
-assert t.search("apple")
-assert not t.search("app")           # a prefix, not a word
-assert t.starts_with("app")
-t.insert("app")
-assert t.search("app")
-assert not t.starts_with("b")
-assert t.starts_with("")             # empty prefix matches the root
-
-
-def make_node():                     # a "trie" of nested defaultdicts
-    return defaultdict(make_node)
-
-
-auto = make_node()
-node = auto
-for ch in "cat":
-    node = node[ch]
-node = auto
-for ch in "dog":                     # meant as a lookup...
-    node = node[ch]
-assert "d" in auto                   # ...but every miss inserted a node
-
-
-END = "$"                            # dict-of-dicts variant; END must not be a letter
-root = {}
-for w in ["car", "cart"]:
-    node = root
-    for ch in w:
-        node = node.setdefault(ch, {})
-    node[END] = True
-
-
-def dd_search(word):
-    node = root
-    for ch in word:
-        if ch not in node:
-            return False
-        node = node[ch]
-    return END in node
-
-
-assert dd_search("car") and dd_search("cart") and not dd_search("ca")
+trie = Trie()
+trie.insert("apple")
+print(trie.search("apple"))  # True
+# "app" is only a prefix so far, not a word
+print(trie.search("app"))  # False
+print(trie.starts_with("app"))  # True
+trie.insert("app")
+print(trie.search("app"))  # True
+print(trie.starts_with("b"))  # False
 ```
 
-### Word Search II: one trie, one DFS, pruning
+### Autocomplete: every word that starts with a prefix
 
 ```python
 class TrieNode:
-    __slots__ = ("children", "word")
-
     def __init__(self):
         self.children = {}
-        self.word = None             # the full word that ends here
+        self.end = False
 
-
-def find_words(board, words):        # G-212
+def build(words):
     root = TrieNode()
-    for w in words:
+    for word in words:
         node = root
-        for ch in w:
+        for ch in word:
             if ch not in node.children:
                 node.children[ch] = TrieNode()
             node = node.children[ch]
-        node.word = w
+        node.end = True
+    return root
 
+def collect(node, path, result):
+    # DFS: path is the text from the root down to this node
+    if node.end:
+        result.append(path)
+    # sorted(a dict) gives its keys A to Z, so the words come out sorted
+    for ch in sorted(node.children):
+        collect(node.children[ch], path + ch, result)
+
+def suggest(root, prefix):
+    node = root
+    for ch in prefix:
+        if ch not in node.children:
+            return []
+        node = node.children[ch]
+    result = []
+    collect(node, prefix, result)
+    return result
+
+root = build(["car", "card", "care", "cat", "dog"])
+print(suggest(root, "car"))  # ['car', 'card', 'care']
+print(suggest(root, "ca"))  # ['car', 'card', 'care', 'cat']
+print(suggest(root, "x"))  # []
+```
+
+### Word Search II: one trie for all the words
+
+```python
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.word = None  # the full word that ends here
+
+def find_words(board, words):
+    root = TrieNode()
+    for word in words:
+        node = root
+        for ch in word:
+            if ch not in node.children:
+                node.children[ch] = TrieNode()
+            node = node.children[ch]
+        node.word = word
     rows, cols = len(board), len(board[0])
     found = []
-
-    def dfs(r, c, parent):
+    # dfs sits inside find_words, so it can use board, rows, cols and found
+    def dfs(r, c, node):
         ch = board[r][c]
-        node = parent.children[ch]
+        if ch not in node.children:
+            return  # pruning: no word continues with this letter
+        node = node.children[ch]
         if node.word is not None:
             found.append(node.word)
-            node.word = None         # report each word once
-        board[r][c] = "#"            # mark visited (no extra set)
-        for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
-            if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] in node.children:
+            node.word = None  # record each word only once
+        board[r][c] = "#"  # mark as used: "#" is in no word, so paths stop here
+        # try the 4 neighbour cells: down, up, right, left
+        for nr, nc in [(r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)]:
+            if 0 <= nr < rows and 0 <= nc < cols:
                 dfs(nr, nc, node)
-        board[r][c] = ch             # restore on the way back
-        if not node.children and node.word is None:
-            del parent.children[ch]  # prune: nothing left to find below this node
+        board[r][c] = ch  # give the cell back for other paths
 
     for r in range(rows):
         for c in range(cols):
-            if board[r][c] in root.children:
-                dfs(r, c, root)
+            dfs(r, c, root)
     return found
 
-
+# list("oaan") gives ['o', 'a', 'a', 'n']: one row of letters we can change
 board = [list("oaan"), list("etae"), list("ihkr"), list("iflv")]
-before = [row[:] for row in board]
-assert sorted(find_words(board, ["oath", "pea", "eat", "rain"])) == ["eat", "oath"]
-assert board == before               # the board is restored
-assert find_words([["a", "b"], ["c", "d"]], ["abcb"]) == []   # a cell is used once per word
-assert sorted(find_words([["a", "a"]], ["a", "aa", "aaa"])) == ["a", "aa"]
-assert sorted(find_words([["a", "b"]], ["ab", "ba", "ab"])) == ["ab", "ba"]   # no duplicates
+print(sorted(find_words(board, ["oath", "pea", "eat", "rain"])))  # ['eat', 'oath']
 ```
 
-### Autocomplete: top-k by count (cached per node)
-
-```python
-import random
-
-
-class Node:
-    __slots__ = ("children", "hot")
-
-    def __init__(self):
-        self.children = {}
-        self.hot = []                # top K sentences under this prefix, best first
-
-
-class AutocompleteSystem:            # G-642
-    K = 3
-
-    def __init__(self, sentences, times):
-        self.root = Node()
-        self.count = {}              # sentence -> times typed
-        for s, t in zip(sentences, times):
-            self._add(s, t)
-        self.typed = []
-        self.node = self.root        # trie node of the typed prefix; None = no match
-
-    def _rank(self, s):
-        return (-self.count[s], s)   # higher count first, then ASCII order
-
-    def _add(self, s, times):        # O(L * K log K)
-        self.count[s] = self.count.get(s, 0) + times
-        node = self.root
-        for ch in s:
-            if ch not in node.children:
-                node.children[ch] = Node()
-            node = node.children[ch]
-            if s not in node.hot:
-                node.hot.append(s)
-            node.hot.sort(key=self._rank)
-            del node.hot[self.K:]    # counts only grow, so a dropped sentence never returns
-                                     # unless its own count grows, which re-adds it here
-
-    def input(self, c):              # LeetCode's name; methods still see the builtin input()
-        if c == "#":
-            self._add("".join(self.typed), 1)
-            self.typed = []
-            self.node = self.root
-            return []
-        self.typed.append(c)
-        if self.node is not None:
-            self.node = self.node.children.get(c)   # one step per keystroke
-        return list(self.node.hot) if self.node else []
-
-
-ac = AutocompleteSystem(["i love you", "island", "iroman", "i love leetcode"], [5, 3, 2, 2])
-assert ac.input("i") == ["i love you", "island", "i love leetcode"]
-assert ac.input(" ") == ["i love you", "i love leetcode"]
-assert ac.input("a") == []
-assert ac.input("#") == []
-assert ac.input("i") == ["i love you", "island", "i love leetcode"]
-assert ac.input(" ") == ["i love you", "i love leetcode", "i a"]
-assert ac.input("a") == ["i a"]
-assert ac.input("#") == []
-
-
-def brute(count, prefix, k=3):
-    hits = [s for s in count if s.startswith(prefix)]
-    return sorted(hits, key=lambda s: (-count[s], s))[:k]
-
-
-random.seed(642)
-start = ["".join(random.choice("ab ") for _ in range(random.randint(1, 4))) for _ in range(8)]
-start = list(dict.fromkeys(start))   # unique sentences, order kept
-ac = AutocompleteSystem(start, [random.randint(1, 3) for _ in start])
-for _ in range(300):
-    typed = ""
-    for ch in "".join(random.choice("ab ") for _ in range(random.randint(1, 4))):
-        typed += ch
-        assert ac.input(ch) == brute(ac.count, typed)
-    assert ac.input("#") == []
-```
-
-The array-pool trie common in C++ contest code, for comparison with the dict version.
-
-```cpp
-#include <array>
-#include <cassert>
-#include <string>
-#include <vector>
-
-struct Trie {
-    std::vector<std::array<int, 26>> next{std::array<int, 26>{}};   // node 0 = root; 0 = no child
-    std::vector<bool> end{false};
-
-    void insert(const std::string& w) {
-        int u = 0;
-        for (char ch : w) {
-            int c = ch - 'a';
-            if (!next[u][c]) {
-                int id = static_cast<int>(next.size());
-                next.push_back({});      // may reallocate: take no reference into next before this
-                end.push_back(false);
-                next[u][c] = id;
-            }
-            u = next[u][c];
-        }
-        end[u] = true;
-    }
-
-    int walk(const std::string& s) const {
-        int u = 0;
-        for (char ch : s) {
-            u = next[u][ch - 'a'];
-            if (!u) return -1;
-        }
-        return u;
-    }
-
-    bool search(const std::string& w) const { int u = walk(w); return u != -1 && end[u]; }
-    bool startsWith(const std::string& p) const { return walk(p) != -1; }
-};
-
-int main() {
-    Trie t;
-    t.insert("apple");
-    assert(t.search("apple"));
-    assert(!t.search("app"));
-    assert(t.startsWith("app"));
-    t.insert("app");
-    assert(t.search("app"));
-    return 0;
-}
-```
-
-## C++ -> Python mapping
-
-| C++ STL / idiom | Python equivalent | Time complexity |
+## Coming from C++
+| C++ you remember | Python you write | Note |
 |---|---|---|
-| `TrieNode* children[26]` / `array<int, 26>` | `children = {}` (dict of char -> node) | average O(1) per step |
-| `children[c - 'a']` | `children.get(ch)` / `ch in children` | average O(1) |
-| `if (!child) child = new TrieNode();` | `if ch not in children: children[ch] = TrieNode()` | average O(1) |
-| `bool isEnd` | `end = True`, or store the word itself at the node | O(1) |
-| `delete` a pruned subtree | `del parent.children[ch]` (GC frees it) | average O(1) |
-| `unordered_map<string, int>` counts | `dict` / `Counter` | average O(1) per op, O(L) to hash |
-| `partial_sort` / `priority_queue` for top k | `sorted(xs, key=...)[:k]` / `heapq.nsmallest(k, xs, key=...)` | O(m log m) / O(m log k) |
-| comparator "count desc, text asc" | key `(-count, text)` | O(1) per compare + string compare |
-| `s.compare(0, p.size(), p) == 0` | `s.startswith(p)` | O(len(p)) |
-| `s.substr(0, i)` | `s[:i]` (a new string) | O(i) |
-| `std::string` push_back while typing | `list` of chars, `"".join(...)` at the end | O(1) per char, O(L) join |
+| `struct Node { Node* kids[26]; bool end; };` | `class TrieNode:` with `self.children = {}` | a dict, not a fixed array of 26 |
+| `Node* root = new Node();` | `root = TrieNode()` | no `new`, no `delete` |
+| `this->end = true;` | `self.end = True` | `self` is like `this` |
+| `if (!node->kids[c - 'a'])` | `if ch not in node.children:` | the letter is the key, no `- 'a'` |
+| `node = node->kids[c - 'a'];` | `node = node.children[ch]` | |
+| `if (node == nullptr)` | `if node is None:` | `None` is like `nullptr` |
+| `for (char c : word)` | `for ch in word:` | a loop over a string gives its letters |
+| `s.substr(0, p.size()) == p` | `s.startswith(p)` | checks one word only |
 
-## Complexity
-
-| Operation | Time | Space |
+## How fast is it?
+| What you do | Time | In plain words |
 |---|---|---|
-| insert / search / starts_with | O(L) | O(L) new nodes per insert, worst case |
-| Build from words | O(total chars) | O(total chars) nodes |
-| Word Search II | O(R * C * 4 * 3^(L-1)) worst case | O(total chars) + O(L) stack |
-| Autocomplete keystroke (cached `hot`) | O(1) step + O(K) copy | |
-| Autocomplete `#` (record a sentence) | O(L * K log K) | O(L) new nodes; each node keeps at most K references |
-| Autocomplete without a cache | O(subtree size + m log K) per keystroke | m = matches |
-| Sorted list + `bisect` instead of a trie | O(L log N + matches * L) per query, O(N) per insert | O(total chars) |
+| `insert`, `search`, `starts_with` | O(L) | L = letters in the word; the number of stored words does not matter |
+| Build a trie from all words | O(total letters) | each letter of each word is handled once |
+| Memory | O(total letters) | at most one node per letter; shared starts save nodes |
+| Autocomplete | O(P + K × L) | P = prefix letters to walk down; then K nodes below it, each `path + ch` copies up to L letters |
+| Prefix check without a trie | O(N × P) | test `startswith` on all N words, P letters each |
+| Word Search II | O(R × C × 3^L) worst case | R × C start cells; L = longest word; each step has at most 3 new cells; pruning cuts most paths |
 
-## Gotchas for C++ developers
+## Common mistakes
+- Mistake: `search` returns True for `"app"` when only `"apple"` was added. Fix: return the end flag, `node.end`.
+- Mistake: `starts_with` checks the end flag. Fix: any node at the end of the walk is enough.
+- Mistake: `node.children[ch] = TrieNode()` without a check. It erases the words below that letter. Fix: create it only `if ch not in node.children`.
+- Mistake: one DFS on the grid for each word in Word Search II. It is far too slow. Fix: one trie and one DFS for all words.
+- Mistake: forgetting to give the cell back (`board[r][c] = ch`). Later paths cannot use it. Fix: restore it after the loop.
+- Mistake: the same word appears twice in the answer. Fix: set `node.word = None` after you record it.
 
-- `search` must check the end flag; `starts_with` must not. `"app"` is a prefix of `"apple"`, not a word.
-- `node.children.setdefault(ch, TrieNode())` builds a new TrieNode on **every** call, even on a hit.
-- Arguments are evaluated before the call. Use `if ch not in children` when node creation is costly.
-- A nested `defaultdict` trie inserts nodes on every lookup miss. Use `in` / `.get` when searching.
-- A dict-based node with one child costs roughly 250 bytes in CPython. The children dict dominates.
-- `__slots__` saves only a little here. For 10^6 nodes, plan for hundreds of MB.
-- Word Search II: build one trie for all words. One DFS per word repeats work.
-- Set `node.word = None` after a hit, or the same word is reported again from another path.
-- Restore the cell after the DFS (`board[r][c] = ch`), even when the word was found.
-- Prune leaves that hold no word. Without pruning, large boards with long shared prefixes time out.
-- Top-k order "count desc, text asc": negate the count, keep the text as is. A string cannot be negated.
-- Strings compare by code point: `" " < "A" < "a"`. Same as `std::string` with ASCII chars.
-- Index arrays (`ord(ch) - ord("a")`) work in Python too, but the dict version handles any alphabet.
-- Common follow-ups: **deletion** (unset the end flag, drop nodes left empty) and **radix tree** compression.
-
-## In the Google bank
-
-- **Basic trie:** G-208 Implement Trie (Prefix Tree).
-- **Trie + grid DFS with pruning:** G-212 Word Search II.
-- **Trie with counts, top 3:** G-642 Design Search Autocomplete System.
-- **Prefix checks over a word set:** G-139 Word Break (a trie walk from each index is an alternative to slicing).
+## Practice in the app
+- **G-208 Implement Trie (Prefix Tree)**: the first template above.
+- **G-212 Word Search II**: the third template. For big boards, also delete a child node once it has no children and no word.
+- **G-642 Design Search Autocomplete System**: a trie of sentences, each with a count. Sort by `(-count, sentence)`: biggest count first, ties A to Z. Show the first 3.
+- **G-139 Word Break**: mainly dynamic programming (note 10). A trie helps find the words that start at each index.

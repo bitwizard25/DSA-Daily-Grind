@@ -472,6 +472,16 @@ def test_unclear_steps_are_kept_for_review(api):
         api.lesson_unclear("d9-s99", True)
 
 
+@pytest.mark.fasttrack
+def test_quick_checks_belong_to_steps_and_explain_in_both_modes(api):
+    day = api.fasttrack()["days"][0]
+    steps = {s["id"] for s in day["sections"]}
+    assert all(e["section"] in steps for e in day["exercises"])
+    ex = day["exercises"][0]
+    res = api.fasttrack_answer(ex["id"], 0)
+    assert res["explanation"] and res["explanation_simple"]
+
+
 def test_hints_are_served(api):
     hints = api.hints()["hints"]
     assert isinstance(hints, dict)

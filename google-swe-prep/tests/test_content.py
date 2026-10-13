@@ -1,18 +1,16 @@
-"""The Phase 0 lessons and the concept vault teach by example, so every example must be right:
-each Python block runs with its asserts passing, each C++ block compiles (g++ -std=c++17) and runs,
-and each predict-the-output exercise prints exactly the option marked correct."""
+"""The Phase 0 lessons and the concept vault teach by example, so every example must be right and
+easy to read for a returning learner (see tests/snippets.py):
+- every Python block runs, and every `print(...)  # output` comment is exactly what it prints;
+- any C++ block compiles (g++ -std=c++17) and runs;
+- each quick check prints exactly the option marked correct;
+- lesson text and notes stay short, teach each new word once, and avoid expert trivia."""
 import json
-import os
-import platform
 import re
-import shutil
-import subprocess
-import sys
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import pytest
 
+import snippets
 from google_prep import db
 from google_prep.core import scheduler
 from google_prep.modules import fasttrack
@@ -24,63 +22,41 @@ SPEC_NOTES = [
     "06_linked_lists.md", "07_trees_bst.md", "08_trie_prefix_trees.md", "09_graphs_union_find.md",
     "10_dynamic_programming.md",
 ]
-BLOCK = re.compile(r"```(python|cpp)\n(.*?)```", re.S)
-# GCC on Linux is the reference compiler; other platforms' toolchains differ (clang has no bits/ headers).
-HAVE_GCC = shutil.which("g++") is not None and platform.system() == "Linux"
+HAVE_GCC = snippets.have_gcc()
 
 
-def run_python(code: str, tmp: Path) -> subprocess.CompletedProcess:
-    src = tmp / f"s{abs(hash(code))}.py"
-    src.write_text(code, encoding="utf-8")
-    return subprocess.run([sys.executable, "-I", str(src)], capture_output=True, text=True, timeout=60)
-
-
-def run_cpp(code: str, tmp: Path) -> subprocess.CompletedProcess:
-    stem = f"c{abs(hash(code))}"
-    src, exe = tmp / f"{stem}.cpp", tmp / stem
-    src.write_text(code, encoding="utf-8")
-    r = subprocess.run(["g++", "-std=c++17", "-O0", "-o", str(exe), str(src)], capture_output=True, text=True, timeout=120)
-    return r if r.returncode else subprocess.run([str(exe)], capture_output=True, text=True, timeout=20)
-
-
-def failures(jobs, tmp: Path) -> list[str]:
-    """Run (label, lang, code) jobs in parallel; return the ones that failed."""
+def run_all(checks) -> list[str]:
+    """Run (label, check, code) jobs in parallel; return the failures."""
     def one(job):
-        label, lang, code = job
-        r = (run_python if lang == "python" else run_cpp)(code, tmp)
-        return None if r.returncode == 0 else f"{label} [{lang}]\n{code}\n--- stderr ---\n{r.stderr[-1200:]}"
+        label, check, code = job
+        err = check(code)
+        return None if err is None else f"{label}\n{code}\n--- problem ---\n{err}"
 
-    with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 2)) as pool:
-        return [f for f in pool.map(one, jobs) if f]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        return [f for f in pool.map(one, checks) if f]
 
 
 # ---- the 12 vault notes ---------------------------------------------------------------------------
 def test_vault_has_the_spec_notes():
     assert sorted(p.name for p in VAULT.glob("*.md")) == sorted(SPEC_NOTES)
-    for name in SPEC_NOTES:
-        text = (VAULT / name).read_text(encoding="utf-8")
-        assert text.startswith("# "), name
-        langs = {lang for lang, _ in BLOCK.findall(text)}
-        assert langs == {"python", "cpp"}, f"{name}: needs C++ next to Python, got {langs}"
-        assert "|" in text, f"{name}: needs a complexity table"
 
 
 @pytest.mark.parametrize("name", SPEC_NOTES)
-def test_vault_python_blocks_run(name, tmp_path):
-    blocks = [(name, lang, code) for lang, code in BLOCK.findall((VAULT / name).read_text(encoding="utf-8"))
-              if lang == "python"]
-    assert blocks
-    bad = failures(blocks, tmp_path)
-    assert not bad, "\n\n".join(bad)
+def test_vault_note_is_plain_and_complete(name):
+    text = (VAULT / name).read_text(encoding="utf-8")
+    problems = snippets.lint_note(text, name)
+    assert not problems, "\n".join(problems)
+    assert "## Coming from C++" in text and "|" in text  # a short C++ -> Python table, and a speed table
 
 
-@pytest.mark.skipif(not HAVE_GCC, reason="C++ examples are checked with GCC on Linux")
 @pytest.mark.parametrize("name", SPEC_NOTES)
-def test_vault_cpp_blocks_compile_and_run(name, tmp_path):
-    blocks = [(name, lang, code) for lang, code in BLOCK.findall((VAULT / name).read_text(encoding="utf-8"))
-              if lang == "cpp"]
-    assert blocks
-    bad = failures(blocks, tmp_path)
+def test_vault_code_runs_and_comments_tell_the_truth(name):
+    text = (VAULT / name).read_text(encoding="utf-8")
+    jobs = [(f"{name} python", snippets.check_python, code) for lang, code in snippets.BLOCK.findall(text) if lang == "python"]
+    if HAVE_GCC:
+        jobs += [(f"{name} cpp", snippets.check_cpp, code) for lang, code in snippets.BLOCK.findall(text) if lang == "cpp"]
+    assert any(lang == "python" for lang, _ in snippets.BLOCK.findall(text)), f"{name}: needs a Python template"
+    bad = run_all(jobs)
     assert not bad, "\n\n".join(bad)
 
 
@@ -91,39 +67,49 @@ def test_patterns_point_at_existing_notes():
 
 # ---- Phase 0 lessons ----------------------------------------------------------------------------
 @pytest.mark.parametrize("day", fasttrack.DAYS)
-def test_lesson_schema(day):
+def test_lesson_is_plain_and_complete(day):
     lesson = fasttrack.load_day(day)
     assert lesson["day"] == day and lesson["minutes"] == 60
     assert (VAULT / lesson["vault"]).exists()
     ids = [s["id"] for s in lesson["sections"]] + [e["id"] for e in lesson["exercises"]]
-    assert len(ids) == len(set(ids))
-    assert all(i.startswith(f"d{day}-") for i in ids)
+    assert len(ids) == len(set(ids)) and all(i.startswith(f"d{day}-") for i in ids)
     assert len(lesson["exercises"]) >= 5  # spec: at least 5 interactive syntax exercises
-    for s in lesson["sections"]:
-        assert s["title"] and s["points"] and s["cpp"].strip() and s["python"].strip() and s["gotcha"]
-    for e in lesson["exercises"]:
-        assert len(e["options"]) == 3 and len(set(e["options"])) == 3 and e["answer"] in (0, 1, 2)
-        assert e["prompt"] and e["explanation"] and e["topic"]
+    problems = snippets.lint_lesson(lesson)
+    assert not problems, "\n".join(problems)
 
 
 @pytest.mark.parametrize("day", fasttrack.DAYS)
-def test_lesson_examples_run(day, tmp_path):
+def test_lesson_examples_run_and_comments_tell_the_truth(day):
     lesson = fasttrack.load_day(day)
-    jobs = [(s["id"], "python", s["python"]) for s in lesson["sections"]]
-    if HAVE_GCC:
-        jobs += [(s["id"], "cpp", s["cpp"]) for s in lesson["sections"]]
-    bad = failures(jobs, tmp_path)
+    bad = run_all([(s["id"], snippets.check_python, s["python"]) for s in lesson["sections"]])
     assert not bad, "\n\n".join(bad)
 
 
 @pytest.mark.parametrize("day", fasttrack.DAYS)
-def test_exercise_answers_match_real_output(day, tmp_path):
+def test_exercise_answers_match_real_output(day):
     for e in fasttrack.load_day(day)["exercises"]:
-        r = run_python(e["code"], tmp_path)
-        assert r.returncode == 0, (e["id"], r.stderr)
-        out = r.stdout.strip()
+        out = fasttrack.run_snippet(e["code"])
         assert out == e["options"][e["answer"]], (e["id"], out, e["options"])
         assert sum(o == out for o in e["options"]) == 1, e["id"]
+
+
+@pytest.mark.parametrize("day", fasttrack.DAYS)
+def test_simple_mode_has_every_text(day):
+    """The language switch must never show an empty field."""
+    lesson = fasttrack.load_day(day)
+    for s in lesson["sections"]:
+        for key in ("title", "summary", "analogy", "gotcha"):
+            assert fasttrack.text(s, key, "simple") and fasttrack.text(s, key, "standard"), (s["id"], key)
+    for g in lesson["glossary"]:
+        assert g["meaning_simple"] and g["meaning"], g["key"]
+
+
+def test_hindi_hints_are_short_and_cover_the_glossary():
+    hints = fasttrack.load_hints()
+    assert len(hints) >= 40
+    for key, hint in hints.items():
+        assert key == key.lower() and 0 < len(hint) <= 45, (key, hint)
+        assert not re.search("[\u0900-\u097F]", hint), f"{key}: use Roman-script Hinglish"
 
 
 def test_day1_covers_the_spec_syllabus():

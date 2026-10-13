@@ -52,20 +52,32 @@ Chromium browser. The same database is used by both front ends, so you can switc
 Keys in the window: `Enter` does the highlighted main action on every screen; `t f d w r s v` jump to
 Today, Fast-Track, Drills, Mock, Roadmap, STAR, Vault; `?` lists everything.
 
-## Days 1–2: C++ → Python fast-track (Phase 0)
+## Days 1–2: Python from zero, the interview way (Phase 0)
 
-The plan starts with two 60-minute modules for C++ programmers switching to Python. Today serves them
-on Days 1 and 2; the Google problem bank starts on Day 3.
+Two 60-minute modules for someone who used C++ and learned a little Python long ago. Today serves them on
+Days 1 and 2; the Google problem bank starts on Day 3.
 
-| Day | Covers |
+| Day | Steps |
 |---|---|
-| 1 | Arbitrary-precision `int`, `//` and `%` on negatives vs C++ truncation, `int(a / b)`, `inf`, bitwise NOT and 32-bit masks, string immutability and `''.join`, slicing, references and the `[[0] * c] * r` aliasing bug, shallow vs deep copy |
-| 2 | `list` as vector/stack (never `pop(0)`), `deque`, `heapq` (min-heap, negate for max, tuples), `dict` / `defaultdict` / `Counter`, `set`, classes for ListNode/TreeNode, tuple swaps, `bisect` = lower/upper_bound, sorting with keys, `@lru_cache` |
+| 1 | How Python code looks · variables and None · if/elif/else, and/or/not · loops and `range` · functions · numbers never overflow (`**`, `float('inf')`) · `/`, `//`, `%` with negative numbers · strings, slicing, `''.join` · lists and the shared-row trap · copies, `enumerate`, `zip` · optional: bit tricks |
+| 2 | list as array and stack · `deque` · `heapq` · `dict` · `defaultdict` and `Counter` · `set` · nodes (`ListNode`, `TreeNode`) · sorting with `key` · `bisect` · recursion and `@lru_cache` |
 
-Each section puts the C++ you know next to the Python to write, plus one trap. Each day ends with
-10 predict-the-output exercises; the answer shows what Python really prints (the snippet is run).
-Every code block in the lessons and the vault is executed (Python) or compiled and run (C++,
-`g++ -std=c++17`) by the test suite, so the side-by-side examples are known to be correct.
+Every step has the same small shape, one step per screen:
+
+1. **New words** for this step (at most 3), shown with their meaning. A **Words you know** list grows as you go.
+2. **Try it**: a tiny example; each `print` shows what it prints.
+3. **What happened**: 1 to 3 short lines. **Remember**: one line to keep.
+4. **Explain another way** (`e`): an everyday comparison, for when the first explanation does not click.
+5. **Coming from C++**: 1 to 3 one-line rows, e.g. `v.push_back(x)` → `nums.append(x)`.
+6. **Watch out**: the one mistake people make here. **Quick check**: one question (`1`/`2`/`3`).
+
+**I did not get this** (`u`) puts a step on a review list shown at the end of the day.
+**Language**: *Standard* (technical English, every term explained the first time) or *Simple + Hindi hints*
+(plain English, and the first time a technical word appears on a page it gets a short Hinglish hint, e.g.
+"overflow (limit se bada ho jaana)"). Switch at the top of a lesson or a note, or in Settings.
+
+Every Python example in the lessons and the vault is run by the test suite, and every `# output` comment
+is checked against what Python really prints, so the simple examples are also correct.
 
 ## Daily use
 

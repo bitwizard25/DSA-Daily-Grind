@@ -1,402 +1,165 @@
-# Stacks and Monotonic Stacks
+# Stacks and the monotonic stack
 
-**Use when:**
-- **Matching or nesting**: brackets, "valid parentheses", decode `3[a2[c]]`, undo, simplify a path.
-- **Next greater / next smaller** element, "how many days until warmer", "first taller to the right".
-- **Span, visible, blocked by**: stock span, people who can see over others.
-- **Largest rectangle** under bars, water trapped between bars, "sum of subarray minimums".
+> In one line: a stack gives back the last item you put in; for "next bigger" questions, it holds the items still waiting for an answer.
 
-## Python template(s)
+## When to use it
+- **Matching pairs** or nesting: brackets like `([]{})`, open and close tags, "undo the last step".
+- **Next greater** or **next smaller** element: "how many days until a warmer day?"
+- "The first taller person to the right", "who can see whom", "which bar blocks the view".
+- **Largest rectangle** in a bar chart, or rain water trapped between bars.
 
-### Stack basics with `list`
+## The idea in plain words
+A **stack** is like a pile of plates. You put a plate on top (**push**) and take the top plate off (**pop**).
+The last plate in is the first plate out: **LIFO** (last in, first out).
+In Python a plain `list` is the stack: `append(x)` pushes, `pop()` pops and returns the item, `st[-1]` reads the top.
 
-- `append`, `pop()` and `st[-1]` work at the **end** of a list: O(1) (amortized for `append`).
-- `pop()` **returns** the value. On an empty list it raises `IndexError`: guard with `if st:`.
+**Monotonic** means "always increasing or always decreasing".
+A **monotonic stack** is a stack whose values, from bottom to top, always keep that one order.
+
+**Next greater element**: for each number, find the first bigger number to its right.
+1. Walk through the list from left to right.
+2. The stack holds the **indexes** of items that still wait for their answer.
+3. A new value `x` arrives. Look at the value of the index on top. If `x` is bigger, `x` is its answer.
+4. Pop that index and write its answer. Repeat while the top value is smaller than `x`.
+5. Push the index of `x`: now it waits too.
+6. Indexes still on the stack at the end have no bigger value to the right. Their answer stays -1.
+
+Step 4 removes every smaller value before a push. So the values on the stack always go down from bottom to top.
+That is why it is called a **decreasing** monotonic stack.
+
+Example: `nums = [2, 1, 5, 3]`.
+- `2` arrives: the stack is empty, push it. Waiting values: 2.
+- `1` arrives: 1 is not bigger than 2, push it. Waiting values: 2, 1.
+- `5` arrives: 5 answers 1, then 5 answers 2. Push 5. Waiting values: 5.
+- `3` arrives: 3 is not bigger than 5, push it. Waiting values: 5, 3.
+- End: 5 and 3 never got an answer. Result: `[5, 5, -1, -1]`.
+
+The inner `while` loop looks slow, but each index is pushed once and popped at most once.
+So the whole walk is O(N): about N steps, not N × N.
+
+## Python template
+
+### A list as a stack
 
 ```python
-st = []
-st.append(1)                     # push
-st.append(2)
-assert st[-1] == 2               # top
-assert st.pop() == 2             # pop returns the value (C++ pop() is void)
-assert len(st) == 1 and st       # non-empty list is truthy
-st.pop()
-assert not st                    # st.empty()
-try:
-    st.pop()
-except IndexError:
-    pass
-else:
-    raise AssertionError("pop on an empty list must raise")
-
-
-def is_valid(s):                 # Valid Parentheses
-    pairs = {")": "(", "]": "[", "}": "{"}
-    st = []
-    for ch in s:
-        if ch in pairs:
-            if not st or st.pop() != pairs[ch]:
-                return False
-        else:
-            st.append(ch)
-    return not st                # leftover openers are invalid
-
-assert is_valid("()[]{}") and is_valid("{[()]}")
-assert not is_valid("(]") and not is_valid("(") and not is_valid(")")
-
-
-def decode_string(s):            # Decode String: "3[a2[c]]" -> "accaccacc"
-    st = []                      # (parts before "[", repeat count)
-    cur, num = [], 0
-    for ch in s:
-        if ch.isdigit():
-            num = num * 10 + int(ch)
-        elif ch == "[":
-            st.append((cur, num))
-            cur, num = [], 0
-        elif ch == "]":
-            prev, k = st.pop()
-            prev.append("".join(cur) * k)
-            cur = prev
-        else:
-            cur.append(ch)
-    return "".join(cur)
-
-assert decode_string("3[a2[c]]") == "accaccacc"
-assert decode_string("2[abc]3[cd]ef") == "abcabccdcdcdef"
-assert decode_string("10[a]") == "a" * 10
-
-
-class MinStack:                  # Min Stack: every operation O(1)
-    def __init__(self):
-        self.st = []             # (value, min of the stack up to here)
-
-    def push(self, x):
-        m = min(x, self.st[-1][1]) if self.st else x
-        self.st.append((x, m))
-
-    def pop(self):
-        self.st.pop()
-
-    def top(self):
-        return self.st[-1][0]
-
-    def get_min(self):
-        return self.st[-1][1]
-
-ms = MinStack()
-for x in (5, 3, 7, 3):
-    ms.push(x)
-assert ms.get_min() == 3 and ms.top() == 3
-ms.pop()
-ms.pop()
-assert ms.get_min() == 3 and ms.top() == 3
-ms.pop()
-assert ms.get_min() == 5 and ms.top() == 5
+stack = []
+stack.append(10)
+stack.append(20)
+print(stack[-1])  # 20
+print(stack.pop())  # 20
+print(stack)  # [10]
+# an empty list counts as False, so "not stack" means "the stack is empty"
+print(not stack)  # False
 ```
 
-### Explicit stack instead of recursion
-
-- Python's default recursion limit is **1000 frames**. A skewed tree or a long path raises `RecursionError`.
-- Replace the call stack with a `list`. Same O(N) time and O(H) space.
+### Matching brackets
 
 ```python
-import sys
+def is_valid(text):
+    # a dict: each closing bracket -> its opening bracket
+    pairs = {")": "(", "]": "[", "}": "{"}
+    stack = []
+    for ch in text:
+        if ch in pairs:
+            # a closing bracket must match the last opening bracket
+            if not stack:
+                return False
+            if stack.pop() != pairs[ch]:
+                return False
+        else:
+            stack.append(ch)
+    # opening brackets that were never closed make the text invalid
+    return not stack
 
 
-class TreeNode:
-    def __init__(self, val, left=None, right=None):
-        self.val, self.left, self.right = val, left, right
-
-
-def kth_smallest(root, k):       # G-230: iterative in-order traversal
-    st, node = [], root
-    while st or node:
-        while node:              # go left as far as possible
-            st.append(node)
-            node = node.left
-        node = st.pop()
-        k -= 1
-        if k == 0:
-            return node.val
-        node = node.right
-    return None
-
-#       5
-#      / \
-#     3   6
-#    / \
-#   2   4
-root = TreeNode(5, TreeNode(3, TreeNode(2), TreeNode(4)), TreeNode(6))
-assert [kth_smallest(root, k) for k in range(1, 6)] == [2, 3, 4, 5, 6]
-
-# A 10000-node left chain: 10000 -> 9999 -> ... -> 1
-N = 10_000
-chain = None
-for v in range(1, N + 1):
-    chain = TreeNode(v, left=chain)
-
-
-def inorder_recursive(node, out):
-    if node:
-        inorder_recursive(node.left, out)
-        out.append(node.val)
-        inorder_recursive(node.right, out)
-
-assert sys.getrecursionlimit() < N           # CPython default is 1000
-try:
-    inorder_recursive(chain, [])
-    raised = False
-except RecursionError:
-    raised = True
-assert raised                                # recursion would be N frames deep
-assert kth_smallest(chain, 1) == 1           # the list stack grows to N: fine
-assert kth_smallest(chain, N) == N
+print(is_valid("([]{})"))  # True
+print(is_valid("(]"))  # False
+print(is_valid("(("))  # False
 ```
 
 ### Monotonic stack: next greater element
 
-- Keep **indexes whose answer is still unknown**. For "next greater" their values are **non-increasing** bottom to top.
-- A new value `x` pops every smaller top: `x` is their answer. Each index is pushed once and popped once: O(N).
+```python
+def next_greater(nums):
+    answer = [-1] * len(nums)
+    # indexes still waiting; their values go down from bottom to top
+    stack = []
+    for i in range(len(nums)):
+        x = nums[i]
+        while stack and nums[stack[-1]] < x:
+            j = stack.pop()
+            answer[j] = x
+        stack.append(i)
+    return answer
 
-| Want for each `i` | Pop while | Stack values, bottom to top |
-|---|---|---|
-| next strictly greater | `a[st[-1]] < x` | non-increasing |
-| next greater or equal | `a[st[-1]] <= x` | strictly decreasing |
-| next strictly smaller | `a[st[-1]] > x` | non-decreasing |
-| next smaller or equal | `a[st[-1]] >= x` | strictly increasing |
-| previous strictly greater | `a[st[-1]] <= x`, then read `st[-1]` before pushing `i` | strictly decreasing |
-| previous strictly smaller | `a[st[-1]] >= x`, then read `st[-1]` before pushing `i` | strictly increasing |
+
+print(next_greater([2, 1, 5, 3]))  # [5, 5, -1, -1]
+print(next_greater([4, 4]))  # [-1, -1]
+```
+
+### Store indexes to get a distance
+
+Days to wait for a warmer day (0 if it never comes). The index tells you **how far** the answer is.
 
 ```python
-def next_greater(a):             # value of the next strictly greater, -1 if none
-    ans = [-1] * len(a)
-    st = []                      # indexes; values non-increasing
-    for i, x in enumerate(a):
-        while st and a[st[-1]] < x:
-            ans[st.pop()] = x    # x is the answer for every popped index
-        st.append(i)
-    return ans
-
-assert next_greater([2, 1, 2, 4, 3]) == [4, 2, 4, -1, -1]
-assert next_greater([5, 5]) == [-1, -1]          # strictly greater only
+def days_to_warmer(temps):
+    answer = [0] * len(temps)
+    stack = []
+    for i in range(len(temps)):
+        while stack and temps[stack[-1]] < temps[i]:
+            j = stack.pop()
+            answer[j] = i - j
+        stack.append(i)
+    return answer
 
 
-def daily_temperatures(t):       # G-739: days to wait, 0 if never
-    ans = [0] * len(t)
-    st = []
-    for i, x in enumerate(t):
-        while st and t[st[-1]] < x:
-            j = st.pop()
-            ans[j] = i - j       # distance needs the index, not the value
-        st.append(i)
-    return ans
-
-assert daily_temperatures([73, 74, 75, 71, 69, 72, 76, 73]) == [1, 1, 4, 2, 1, 1, 0, 0]
-assert daily_temperatures([30, 60, 90]) == [1, 1, 0]
-
-
-def next_greater_circular(a):    # G-503: walk the array twice
-    n = len(a)
-    ans = [-1] * n
-    st = []
-    for k in range(2 * n):
-        i = k % n
-        while st and a[st[-1]] < a[i]:
-            ans[st.pop()] = a[i]
-        if k < n:
-            st.append(i)         # push each index only once
-    return ans
-
-assert next_greater_circular([1, 2, 1]) == [2, -1, 2]
-assert next_greater_circular([1, 2, 3, 4, 3]) == [2, 3, 4, -1, 4]
-
-
-def previous_smaller(a):         # index of the previous strictly smaller, -1 if none
-    ans = []
-    st = []
-    for i, x in enumerate(a):
-        while st and a[st[-1]] >= x:
-            st.pop()
-        ans.append(st[-1] if st else -1)
-        st.append(i)
-    return ans
-
-assert previous_smaller([3, 1, 4, 1, 5]) == [-1, -1, 1, -1, 3]
-
-
-def can_see_persons_count(h):    # G-1944: distinct heights, scan right to left
-    ans = [0] * len(h)
-    st = []                      # heights to the right; decreasing bottom to top
-    for i in range(len(h) - 1, -1, -1):
-        seen = 0
-        while st and st[-1] < h[i]:
-            st.pop()             # i sees it, and it hides from everyone left of i
-            seen += 1
-        ans[i] = seen + (1 if st else 0)   # plus the first taller person
-        st.append(h[i])
-    return ans
-
-assert can_see_persons_count([10, 6, 8, 5, 11, 9]) == [3, 1, 2, 1, 1, 0]
-assert can_see_persons_count([5, 1, 2, 3, 10]) == [4, 1, 1, 1, 0]
+print(days_to_warmer([73, 74, 75, 71, 69, 72, 76, 73]))  # [1, 1, 4, 2, 1, 1, 0, 0]
 ```
 
-### Monotonic stack: areas between bars
+### Pick the pop rule
 
-- **Largest rectangle (G-84)**: increasing stack. A lower bar at `i` ends the top's rectangle at `i - 1`.
-- The left edge is the new top + 1. A **sentinel** bar of height 0 at `i == n` flushes the stack.
-
-```python
-def largest_rectangle(heights):  # G-84
-    n = len(heights)
-    st = []                      # indexes; heights increasing
-    best = 0
-    for i in range(n + 1):
-        h = heights[i] if i < n else 0     # sentinel, no list copy
-        while st and heights[st[-1]] >= h:
-            height = heights[st.pop()]
-            left = st[-1] if st else -1    # first lower bar on the left
-            best = max(best, height * (i - left - 1))
-        st.append(i)
-    return best
-
-assert largest_rectangle([2, 1, 5, 6, 2, 3]) == 10
-assert largest_rectangle([2, 4]) == 4
-assert largest_rectangle([3, 3, 3]) == 9
-assert largest_rectangle([]) == 0
-
-
-def trap_stack(h):               # G-42 with a decreasing stack
-    st = []
-    water = 0
-    for i, x in enumerate(h):
-        while st and h[st[-1]] < x:
-            bottom = st.pop()
-            if not st:
-                break            # no wall on the left
-            left = st[-1]
-            water += (min(h[left], x) - h[bottom]) * (i - left - 1)
-        st.append(i)
-    return water
-
-assert trap_stack([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]) == 6
-assert trap_stack([4, 2, 0, 3, 2, 5]) == 9
-
-
-def sum_subarray_mins(a):        # Sum of Subarray Minimums: a[i] is the min of left*right subarrays
-    n = len(a)
-    left = [0] * n               # i - previous strictly smaller index
-    right = [0] * n              # next smaller-or-equal index - i
-    st = []
-    for i in range(n):
-        while st and a[st[-1]] >= a[i]:
-            st.pop()
-        left[i] = i - (st[-1] if st else -1)
-        st.append(i)
-    st = []
-    for i in range(n - 1, -1, -1):
-        while st and a[st[-1]] > a[i]:     # one side strict, one not: no double count
-            st.pop()
-        right[i] = (st[-1] if st else n) - i
-        st.append(i)
-    return sum(x * l * r for x, l, r in zip(a, left, right))
-
-assert sum_subarray_mins([3, 1, 2, 4]) == 17
-assert sum_subarray_mins([11, 81, 94, 43, 3]) == 444
-assert sum_subarray_mins([1, 1]) == 3              # [1], [1], [1, 1]
-brute = lambda a: sum(min(a[i:j + 1]) for i in range(len(a)) for j in range(i, len(a)))
-for arr in ([2, 2, 2], [5, 1, 5, 1], [4, 2, 3, 2, 4]):
-    assert sum_subarray_mins(arr) == brute(arr)
-```
-
-C++ side by side:
-
-```cpp
-#include <cassert>
-#include <stack>
-#include <vector>
-
-std::vector<int> dailyTemperatures(const std::vector<int>& t) {
-    std::vector<int> ans(t.size(), 0);
-    std::stack<int> st;                          // indexes
-    for (int i = 0; i < (int)t.size(); ++i) {
-        while (!st.empty() && t[st.top()] < t[i]) {
-            int j = st.top();
-            st.pop();                            // pop() returns void
-            ans[j] = i - j;
-        }
-        st.push(i);
-    }
-    return ans;
-}
-
-int main() {
-    std::vector<int> want{1, 1, 4, 2, 1, 1, 0, 0};
-    assert(dailyTemperatures({73, 74, 75, 71, 69, 72, 76, 73}) == want);
-
-    // std::stack has no iteration and no indexing; a vector used as a stack does.
-    std::vector<int> v;
-    v.push_back(1);
-    v.push_back(2);
-    assert(v.back() == 2 && v[0] == 1);
-    v.pop_back();
-    assert(v.size() == 1);
-    return 0;
-}
-```
-
-## C++ -> Python mapping
-
-| C++ STL / idiom | Python equivalent | Time complexity |
+| You want, for each item | Pop while the top value is | Stack values, bottom to top |
 |---|---|---|
-| `std::stack<int> st;` | `st = []` | O(1) |
-| `st.push(x)` | `st.append(x)` | O(1) amortized |
-| `st.top()` | `st[-1]` | O(1) |
-| `int v = st.top(); st.pop();` | `v = st.pop()` | O(1) |
-| `st.empty()` | `not st` | O(1) |
-| `st.size()` | `len(st)` | O(1) |
-| `vector<int>` as a stack (`back`, `pop_back`) | the same `list` | O(1) |
-| `std::stack<std::pair<int, int>>` | list of tuples: `st.append((x, m))` | O(1) amortized |
-| `std::string` as a char stack | `list` of chars, then `"".join(st)` | O(1) per op, O(N) join |
-| `vector<int> ans(n, -1)` | `ans = [-1] * n` | O(N) |
-| recursion with a deep call stack | explicit `list` stack | same as recursion |
-| `st.push(i)` only for `i < n` in a `2n` loop | `if k < n: st.append(i)` | O(1) |
+| next **greater** | smaller than `x` (`<`) | going down (decreasing) |
+| next **smaller** | bigger than `x` (`>`) | going up (increasing) |
+| previous **greater** | smaller than or equal to `x` (`<=`) | going down |
+| previous **smaller** | bigger than or equal to `x` (`>=`) | going up |
 
-## Complexity
+For "next": the answer is written when an item is **popped**.
+For "previous": after the pops, the top item (if any) is the answer for `x`. Read it, then push `x`.
 
-| Operation | Time | Space |
+## Coming from C++
+| C++ you remember | Python you write | Note |
 |---|---|---|
-| `st.append(x)` | O(1) amortized | O(1) |
-| `st.pop()`, `st[-1]`, `len(st)` | O(1) | O(1) |
-| `st.pop(0)`, `st.insert(0, x)` | O(N) | O(1) |
-| `x in st` | O(N) | O(1) |
-| Monotonic stack pass (next greater, spans) | O(N): each index pushed once, popped at most once | O(N) |
-| Circular next greater (loop `2n`) | O(N) | O(N) |
-| Largest rectangle in histogram | O(N) | O(N) |
-| Sum of subarray minimums (two passes) | O(N) | O(N) |
-| Brute-force next greater | O(N^2) | O(1) |
-| Iterative DFS / in-order with a stack | O(N) | O(H), H = tree height |
+| `stack<int> st;` | `st = []` | a list is the stack |
+| `st.push(x);` | `st.append(x)` | adds on top |
+| `st.top()` | `st[-1]` | index -1 is the last item |
+| `int v = st.top(); st.pop();` | `v = st.pop()` | Python `pop()` returns the item |
+| `st.empty()` | `not st` | an empty list counts as False |
+| `st.size()` | `len(st)` | the number of items |
+| `vector<int> ans(n, -1);` | `ans = [-1] * n` | n copies of -1 |
+| `while (!st.empty() && a[st.top()] < x)` | `while st and a[st[-1]] < x:` | `and` stops early if `st` is empty |
 
-## Gotchas for C++ developers
+## How fast is it?
+| What you do | Time | In plain words |
+|---|---|---|
+| `st.append(x)`, `st.pop()`, `st[-1]` | O(1) | the same speed for any size |
+| `st.pop(0)`, `st.insert(0, x)` | O(N) | every other item moves; a stack never needs it |
+| Next greater with two nested loops | O(N²) | for each item, look at everything to its right |
+| Next greater with a monotonic stack | O(N) | each index is pushed once and popped at most once |
+| Matching brackets | O(N) | one pass over the text |
 
-- `st.pop()` **returns** the value. No `top()` then `pop()` pair; `st.top()` does not exist.
-- `st[-1]` on an empty list raises `IndexError`. Write `while st and a[st[-1]] < x:`; `and` short-circuits.
-- Store **indexes** to fill `ans[popped]` or a width (G-739, G-84). Store values only if pops write nothing (G-1944).
-- `<` vs `<=` in the pop condition decides how **duplicates** behave. Test `[2, 2]` and `[1, 1]`.
-- `heights.append(0)` as a sentinel mutates the caller's list. Use an `i == n` check, or `heights + [0]` (an O(N) copy).
-- Default recursion limit is 1000 frames. `sys.setrecursionlimit` raises it, but very deep recursion can still crash.
-- `queue.LifoQueue` is a **thread-safe** stack with locks: slow and pointless in an interview. Use `list`.
-- `"".join(cur) * k` builds the string once; `+=` inside the loop can degrade to O(N^2).
-- Python ints never overflow: sum of subarray minimums is exact; LeetCode still asks for `% (10**9 + 7)`.
+## Common mistakes
+- Mistake: `st.top()` as in C++. A Python list has no `top`. Fix: read the top with `st[-1]`.
+- Mistake: `st[-1]` or `st.pop()` on an empty list stops the program with an IndexError. Fix: check first with `while st and ...`.
+- Mistake: pushing values when you need a distance or a position. Fix: push **indexes**, and read the value with `nums[i]`.
+- Mistake: `if` instead of `while` for popping. One new value can answer many waiting items. Fix: use `while`.
+- Mistake: mixing up `<` and `<=` in the pop rule, so equal values get the wrong answer. Fix: test with a repeat like `[4, 4]`.
+- Mistake: forgetting the items left on the stack at the end. Fix: fill the answer list first with the "no answer" value (-1 or 0).
 
-## In the Google bank
-
-- **G-739 Daily Temperatures**: decreasing stack of indexes; answer is `i - j` on pop.
-- **G-503 Next Greater Element II**: loop `2n` with `i = k % n`; push only when `k < n`.
-- **G-84 Largest Rectangle in Histogram**: increasing stack + sentinel height 0 at `i == n`.
-- **G-1944 Number of Visible People in a Queue**: scan right to left; count pops, plus one if a taller person remains.
-- **G-42 Trapping Rain Water**: decreasing stack; each pop fills a layer between the new top and the current bar.
-- **G-230 Kth Smallest Element in a BST**: iterative in-order with an explicit stack; stop at the k-th pop.
-- **G-98 Validate Binary Search Tree**: the same iterative in-order; values must strictly increase.
-- **G-332 Reconstruct Itinerary**: iterative Hierholzer with a stack of airports; reverse the finished path.
-- **G-200 Number of Islands**: DFS with an explicit stack avoids `RecursionError` on a huge island.
+## Practice in the app
+- **G-739 Daily Temperatures**: decreasing stack of indexes; when day `i` pops day `j`, the answer for `j` is `i - j`.
+- **G-503 Next Greater Element II**: the list is circular (after the end comes the start), so walk it twice and use index `i % n`; push only in the first round.
+- **G-1944 Number of Visible People in a Queue**: walk from right to left; a person sees everyone shorter that they pop, plus the next person who is not shorter, if there is one.
+- **G-84 Largest Rectangle in Histogram**: increasing stack; when a lower bar comes, pop and measure the popped bar's rectangle.
+- **G-42 Trapping Rain Water**: decreasing stack of bars; each pop fills one layer of water between two walls.
