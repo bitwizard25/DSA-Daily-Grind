@@ -24,9 +24,25 @@ OUTCOME_DAYS = {"1": 0, "2": 3, "3": 7}
 OUTCOME_GRADE = {"1": 2, "2": 4, "3": 5}  # SM-2 quality
 
 
-def outcome_for(choice: str, over_time: bool) -> str:
-    """An over-time solve cannot be an instant reflex."""
-    return "2" if choice == "3" and over_time else choice
+# The honesty question, asked before anything else. Copying answers is how hundreds of "solved"
+# problems turn into no skill, so a seen answer never counts as solved.
+HELP = {"none": "No help: all my own work", "hint": "A hint or a nudge",
+        "answer": "I saw the answer (solution, video or AI code)"}
+HELP_KEYS = {"1": "none", "2": "hint", "3": "answer"}
+AGAIN = {"1": "back in today's re-solve queue", "2": "re-solve in 3 days", "3": "re-solve next week"}
+AGAIN_ANSWER = "code it again from memory tomorrow, without looking"
+
+
+def outcome_for(choice: str, over_time: bool, help: str = "none") -> str:  # noqa: A002
+    """An over-time solve cannot be an instant reflex, nor can one that needed a hint.
+    After seeing the answer it is a miss: it is not your solve yet."""
+    if help == "answer":
+        return "1"
+    return "2" if choice == "3" and (over_time or help == "hint") else choice
+
+
+def again_for(outcome: str, help: str = "none") -> str:  # noqa: A002
+    return AGAIN_ANSWER if help == "answer" else AGAIN[outcome]
 
 
 def from_ticks(ticks: list[bool]) -> dict[str, bool]:

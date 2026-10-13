@@ -248,6 +248,7 @@ const ICONS = {
   roadmap: "M3 20h18 M6 16v-5 M11 16V6 M16 16v-8 M21 16V11",
   star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
   vault: "M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h10",
+  role: "M4 8h16v11H4z M9 8V5h6v3 M4 13h16",
 };
 const SECTIONS = [
   { name: "today", label: "Today", key: "t" },
@@ -256,6 +257,7 @@ const SECTIONS = [
   { name: "mock", label: "Mock & Solve", key: "w" },
   { name: "roadmap", label: "Roadmap", key: "r" },
   { name: "star", label: "STAR Stories", key: "s" },
+  { name: "role", label: "Role Prep", key: "j" },
   { name: "vault", label: "Concept Vault", key: "v" },
 ];
 const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
@@ -362,10 +364,10 @@ function askAboutUnfinished(conflict) {
 
 function openHelp() {
   const rows = [
-    ["Enter", "Do the highlighted main action"], ["t f d w r s v", "Today · Fast-Track · Drills · Mock · Roadmap · STAR · Vault"],
+    ["Enter", "Do the highlighted main action"], ["t f d w r s j v", "Today · Fast-Track · Drills · Mock · Roadmap · STAR · Role prep · Vault"],
     ["m", "Micro-Mode (on Today)"], ["Space", "Reveal a drill answer"], ["1 2 3", "Missed · Effort · Instant (also answers lesson exercises)"],
     ["y / n", "Yes / No on the scorecard"], ["Ctrl+S", "Save now (whiteboard) · save a STAR story"], ["Ctrl+Enter", "Submit the whiteboard and grade it"],
-    ["Alt+1…4", "Tick the live checklist while coding"], ["Tab", "Indent 4 spaces in the code pad"],
+    ["Alt+1…4", "Tick the live checklist while coding"], ["Alt+H", "I'm stuck: what to try, then a hint (after the struggle time)"], ["Tab", "Indent 4 spaces in the code pad"],
     ["Esc", "Leave the code pad · close a dialog · back to Today"], ["?", "This list"],
   ];
   openModal("Keyboard", h("div", { class: "keys-help" }, rows.map(([k, t]) => [h("span", null, k.split(" ").map((x) => [kbd(x), " "])), h("span", null, t)])),
@@ -1005,7 +1007,7 @@ ROUTES.board = async (ctx) => {
   const p = data.problem;
   const B = {
     problem_id: p.id, practice: data.practice, minutes: data.minutes, elapsed: data.elapsed,
-    ticks: data.ticks.slice(), shown: data.shown, paused: false, done: false,
+    ticks: data.ticks.slice(), shown: data.shown, paused: false, done: false, hints: (data.hints || []).length,
   };
   const total = B.minutes * 60;
   let saveTimer = null;
@@ -1037,6 +1039,38 @@ ROUTES.board = async (ctx) => {
     return { box, label: h("label", null, box, h("span", null, h("b", null, `Alt+${i + 1}`), "  ", item)) };
   });
   const pauseBtn = btn("Pause", togglePause, { cls: "ghost", test: "pause" });
+  const hintCard = h("section", { class: "card hints", hidden: true, "data-test": "hints" });
+
+  function renderHints(list) {
+    hintCard.hidden = !list.length;
+    hintCard.replaceChildren(h("h2", null, "Hints you opened"), h("ol", null, list.map((x) => h("li", null, rich(x)))),
+      h("p", { class: "muted small" }, "Noted on the scorecard. Close the hint and write the code yourself."));
+  }
+  async function stuck() {
+    if (B.done) return;
+    if (B.elapsed >= data.hint_unlock) {
+      const next = B.hints + 1;
+      if (next > data.hint_total) { toast("No more hints. Write what you have and trace it by hand."); return; }
+      const ok = await confirmBox(`Open hint ${next} of ${data.hint_total}?`,
+        "It is a nudge, not code. The scorecard will note that you used a hint, so this cannot count as an Instant Reflex.",
+        "Open the hint", "Keep trying", true);
+      if (!ok || B.done) return;
+    }
+    let res;
+    try { res = await api("mock_hint", { problem_id: B.problem_id, elapsed: B.elapsed }); } catch (err) { toast(err.message, true); return; }
+    if (res.locked) {
+      await openModal("Struggle a little longer", h("div", null,
+        h("p", null, "Hints open in ", h("b", null, mmss(res.wait)), ". The struggle is the practice: it is what makes the pattern stick. Copying is how hundreds of \"solved\" problems turn into no skill."),
+        h("p", { class: "q" }, "Try these first:"),
+        h("ol", { class: "bullets" }, res.tips.map((t) => h("li", null, rich(t))))),
+      [{ label: "Back to it", value: true, primary: true, key: "Enter" }]);
+      code.focus();
+      return;
+    }
+    B.hints = res.hints.length;
+    renderHints(res.hints);
+    save(false);
+  }
 
   function showTab(which) {
     const isCode = which === "code";
@@ -1087,6 +1121,7 @@ ROUTES.board = async (ctx) => {
     lastSaved = performance.now();
     const payload = {
       problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, ticks: B.ticks, shown: B.shown,
+      hints: B.hints,
     };
     if (withText) { payload.code = code.value; payload.trace = trace.value; dirty = false; }
     try {
@@ -1147,6 +1182,7 @@ ROUTES.board = async (ctx) => {
       h("p", { class: "statement" }, rich(p.statement)),
       h("p", { class: "muted small" }, "First 5 minutes: ask about input size, ranges, empty input and duplicates. Say the complexity before you code.")),
     h("section", { class: "card checklist" }, h("h2", null, "Live interview checklist"), checks.map((c) => c.label)),
+    hintCard,
     DEBUG ? btn("+5 min (debug)", () => { B.elapsed += 300; tick(); }, { cls: "ghost small", test: "ff" }) : null);
   const right = h("div", { class: "wb-right" },
     h("div", { class: "tabs", role: "tablist" }, tabCode, tabTrace, h("span", { class: "hint" }, savedTag, " · Ctrl+S saves · Tab = 4 spaces · Esc leaves the pad")),
@@ -1156,10 +1192,12 @@ ROUTES.board = async (ctx) => {
     h("div", { class: "wb-top" },
       h("div", null, h("div", { class: "muted small" }, B.practice ? `Timed solve · ${B.minutes} min` : "Mock interview · 45 min"), clock),
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
-      h("div", { class: "row" }, pauseBtn, btn("Abandon", abandon, { cls: "ghost" }),
+      h("div", { class: "row" }, btn("I'm stuck", stuck, { cls: "ghost", key: "Alt+H", test: "stuck", title: `Hints open after ${Math.round(data.hint_unlock / 60)} minutes of trying` }),
+        pauseBtn, btn("Abandon", abandon, { cls: "ghost" }),
         btn("Submit & grade", () => submit(), { cls: "primary", key: "Ctrl+Enter", test: "submit" }))),
     banner, h("div", { class: "wb-body" }, left, right)));
   renderBanner();
+  renderHints(data.hints || []);
   paint();
   const loop = setInterval(tick, 250);
   const onVisibility = () => { if (document.visibilityState === "hidden") save(true, true); };
@@ -1186,6 +1224,7 @@ ROUTES.board = async (ctx) => {
         return true;
       }
       if (e.altKey && e.key.toLowerCase() === "p") { togglePause(); return true; }
+      if (e.altKey && e.key.toLowerCase() === "h") { stuck(); return true; }
       if (typing && e.key === "Escape") { document.activeElement.blur(); return true; }
       if (!typing && e.key === "Escape") { go("#/today"); return true; }
       return false;
@@ -1223,17 +1262,18 @@ async function scorecard(ctx, B, data) {
   });
   if (!ctx.alive()) return {};
   setCrumbs(sc.crumbs, ctx);
-  const answers = { outcome: null, checks: {}, mistake: null };
+  const answers = { help: null, outcome: null, checks: {}, mistake: null };
   let step = 0;
   let needsMistake = false;
-  const steps = () => ["outcome", ...sc.questions.map((q) => q.field), ...(needsMistake ? ["mistake"] : [])];
+  const graded = () => ["help", ...(answers.help === "answer" ? [] : ["outcome"]), ...sc.questions.map((q) => q.field)];
+  const steps = () => [...graded(), ...(needsMistake ? ["mistake"] : [])];
   const main = h("section", { class: "card score-main" });
   const side = h("section", { class: "card score-side" });
   let keyHandler = () => false;
 
   async function advance() {
-    if (step === 1 + sc.questions.length) {
-      // outcome + every check answered: decide whether to ask what went wrong
+    if (step === graded().length) {
+      // help, outcome and every check answered: decide whether to ask what went wrong
       const res = await api("mock_needs_mistake", { outcome: answers.outcome, dry_run_passed: Boolean(answers.checks.dry_run_passed), elapsed: B.elapsed, minutes: B.minutes });
       needsMistake = res.needs;
     }
@@ -1242,7 +1282,11 @@ async function scorecard(ctx, B, data) {
   }
   function choose(value) {
     const name = steps()[step];
-    if (name === "outcome") answers.outcome = value;
+    if (name === "help") {
+      if (answers.help === "answer" && value !== "answer") answers.outcome = null;
+      answers.help = value;
+      if (value === "answer") answers.outcome = "1"; // a seen answer is a miss: it is not your solve yet
+    } else if (name === "outcome") answers.outcome = value;
     else if (name === "mistake") answers.mistake = value;
     else answers.checks[name] = value;
     step += 1;
@@ -1258,9 +1302,23 @@ async function scorecard(ctx, B, data) {
     const name = all[step];
     const header = h("div", { class: "row" }, h("span", { class: "kicker" }, `Step ${step + 1} of ${all.length}`),
       h("div", { class: "spacer" }), step ? btn("Back", back, { cls: "ghost small", key: "Backspace" }) : null);
-    if (name === "outcome") {
+    if (name === "help") {
+      const opts = sc.help.filter((o) => !(sc.hints_used && o.value === "none"));
+      main.replaceChildren(header, h("p", { class: "q" }, "Did you use any help?"),
+        h("p", { class: "muted" }, "Be honest. Only work you did alone builds the skill. A seen answer comes back tomorrow, to code again from memory."),
+        sc.hints_used ? h("p", { class: "note" }, `You opened ${plural(sc.hints_used, "hint")} in the app, so "No help" is not an option.`) : null,
+        h("div", { class: "grades" }, opts.map((o) => h("button", {
+          type: "button", class: `grade g${o.key}`, "data-help": o.value, onclick: () => choose(o.value),
+        }, h("span", { class: "top" }, kbd(o.key), o.label),
+          h("span", { class: "again" }, o.value === "answer" ? sc.again_answer : o.value === "hint" ? "counts at most as Solved with Effort" : "counts as your own solve")))));
+      keyHandler = (k) => {
+        const o = opts.find((x) => x.key === k);
+        return o ? (choose(o.value), true) : false;
+      };
+    } else if (name === "outcome") {
       main.replaceChildren(header, h("p", { class: "q" }, "How did it go?"),
         sc.over_time ? h("p", { class: "note" }, "Over the 35-min coding target: Instant Reflex will count as Effort.") : null,
+        answers.help === "hint" ? h("p", { class: "note" }, "You used a hint: Instant Reflex will count as Effort.") : null,
         h("div", { class: "grades" }, sc.outcomes.map((o) => h("button", {
           type: "button", class: `grade g${o.key}`, "data-grade": o.key, onclick: () => choose(o.key),
         }, h("span", { class: "top" }, kbd(o.key), o.label), h("span", { class: "again" }, o.again)))));
@@ -1292,7 +1350,8 @@ async function scorecard(ctx, B, data) {
       h("ul", { class: "answers" }, all.map((field, i) => {
         let label;
         let val;
-        if (field === "outcome") { label = "Outcome"; val = answers.outcome ? sc.outcomes.find((o) => o.key === answers.outcome).label : null; }
+        if (field === "help") { label = "Help used"; val = answers.help ? sc.help.find((o) => o.value === answers.help).label : null; }
+        else if (field === "outcome") { label = "Outcome"; val = answers.outcome ? sc.outcomes.find((o) => o.key === answers.outcome).label : null; }
         else if (field === "mistake") { label = "Biggest cost"; val = answers.mistake ? sc.mistakes.find((m) => m.key === answers.mistake).label : null; }
         else { label = sc.questions.find((q) => q.field === field).question; val = field in answers.checks ? (answers.checks[field] ? "Yes" : "No") : null; }
         const cls = val === "Yes" ? "ok-t" : val === "No" ? "bad-t" : "";
@@ -1309,7 +1368,7 @@ async function scorecard(ctx, B, data) {
     try {
       res = await api("mock_grade", {
         problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, outcome: answers.outcome,
-        checks: answers.checks, mistake: answers.mistake, shown: B.shown,
+        checks: answers.checks, mistake: answers.mistake, shown: B.shown, help: answers.help,
       });
     } catch (err) { toast(err.message, true); finishing = false; step -= 1; render(); return; }
     await refreshState();
@@ -1343,6 +1402,8 @@ function showResult(ctx, res, B, data) {
       h("ul", { class: "bullets" },
         h("li", null, "Coding time ", h("b", null, mmss(res.used_seconds)), ` of ${B.minutes}:00`, res.over_time && solved ? h("span", { class: "warn-t" }, " (over the 35-min coding target)") : null),
         h("li", null, "Dry-run matched: ", h("b", { class: res.dry_run_ok ? "ok-t" : "bad-t" }, res.dry_run_ok ? "yes" : "no")),
+        h("li", null, "Help: ", h("b", { class: res.help === "none" ? "ok-t" : res.help === "answer" ? "bad-t" : null }, res.help_label)),
+        res.help === "answer" ? h("li", null, "Close the answer now. Tomorrow it is first in your re-solve queue: code it from a blank pad.") : null,
         res.mistake_label ? h("li", null, "Tomorrow's warmup leans on: ", h("b", null, res.mistake_label)) : null),
       B.practice ? null : h("div", { class: "pillars" }, pillars.map(([name, value]) => h("div", { class: "meter" },
         h("span", null, name), bar(value / 25, toneFor(value / 25)), h("span", { class: "val" }, `${Math.round(value)}/25`))),
@@ -1500,6 +1561,48 @@ ROUTES.star = async (ctx) => {
       return false;
     },
   };
+};
+
+// ---------------------------------------------------------------- Role prep
+ROUTES.role = async (ctx) => {
+  const data = await api("role_prep");
+  setCrumbs(data.crumbs, ctx);
+  let done = data.done;
+  const meter = h("div", { class: "meter" });
+  const paintMeter = () => meter.replaceChildren(h("span", null, "Ready"), bar(done / data.total, toneFor(done / data.total)),
+    h("span", { class: "val", "data-test": "role-done" }, `${done}/${data.total}`));
+  const pending = new Map();
+  async function saveItem(id, fields) {
+    try {
+      const res = await api("role_prep_save", { item_id: id, ...fields });
+      done = res.done;
+      paintMeter();
+      return true;
+    } catch (err) { toast(err.message, true); return false; }
+  }
+  function flush() {
+    for (const [id, run] of pending) { clearTimeout(run.timer); run.go(); pending.delete(id); }
+  }
+  const cards = data.items.map((item) => {
+    const notes = h("textarea", { rows: "3", "aria-label": `Notes: ${item.title}`, placeholder: "Your notes, in your words. Saved on this computer.", value: item.notes });
+    notes.addEventListener("input", () => {
+      const old = pending.get(item.id);
+      if (old) clearTimeout(old.timer);
+      const go = () => saveItem(item.id, { notes: notes.value });
+      pending.set(item.id, { go, timer: setTimeout(() => { pending.delete(item.id); go(); }, 700) });
+    });
+    const box = h("input", { type: "checkbox", checked: item.done, "data-test": `role-${item.id}`,
+      onchange: (e) => saveItem(item.id, { done: e.target.checked }) });
+    return h("section", { class: "card role-item" },
+      h("label", { class: "role-head" }, box, h("span", null, h("b", null, item.title), h("span", { class: "muted small" }, item.why))),
+      h("ul", { class: "bullets" }, item.prompts.map((x) => h("li", null, rich(x)))),
+      h("div", { class: "field" }, notes),
+      item.star ? h("div", { class: "row" }, btn("Write it as a STAR story", () => go("#/star"), { cls: "ghost small" })) : null);
+  });
+  paintMeter();
+  mount(ctx, h("div", { class: "page" }, pageTitle("Role prep", data.intro),
+    h("section", { class: "card" }, meter), h("div", { class: "role-list" }, cards)));
+  return { cleanup: flush, beforeLeave: async () => { flush(); return true; }, isDirty: () => pending.size > 0 };
 };
 
 // ---------------------------------------------------------------- Concept vault

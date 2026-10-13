@@ -34,9 +34,10 @@ def test_zero_args_in_the_morning_starts_the_warmup():
 
 
 def test_zero_args_in_the_evening_starts_the_solve(monkeypatch):
-    r = run(input="1\ns\n2\ny\n", at="2026-10-12T19:30", monkeypatch=monkeypatch)  # Solved with Effort, trace ok
+    r = run(input="1\ns\n1\n2\ny\n", at="2026-10-12T19:30", monkeypatch=monkeypatch)  # no help, Effort, trace ok
     assert r.exit_code == 0, r.output
     assert "TIMED SOLVE" in r.output and "RESULT" in r.output
+    assert "Foundations > Two Sum" in r.output  # the Foundations set comes before the Google bank
     assert count(Attempt) == 1 and count(MockSession) == 0  # practice solves are not mocks
 
 
@@ -84,8 +85,9 @@ def test_micro_mode_runs_two_drills():
 
 
 def test_mock_records_rubric_follow_up_and_mistake():
-    # tick 1-2, follow-up, submit | [1] Missed it | pillars: clarified y, complexity y, clean n, trace n, follow-up y | mistake
-    keys = "1\n2\nf\ns\n" + "1\n" + "y\ny\nn\nn\ny\n" + "1\n"
+    # tick 1-2, follow-up, submit | no help, [1] Missed it | pillars: clarified y, complexity y, clean n, trace n,
+    # follow-up y | mistake
+    keys = "1\n2\nf\ns\n" + "1\n1\n" + "y\ny\nn\nn\ny\n" + "1\n"
     r = run("mock", "--topic", "graphs", "--no-editor", input=keys)
     assert r.exit_code == 0, r.output
     assert "Phase 1 > Week 1 > Day 3 > Mock > Graphs" in r.output and "GOOGLE FOLLOW-UP" in r.output
@@ -108,7 +110,7 @@ def test_mock_abandon_logs_nothing():
 def test_crashed_mock_resumes_with_saved_state():
     session_store.save({"kind": "mock", "problem_id": "G-200", "minutes": 45, "practice": False,
                         "elapsed": 600.0, "ticks": [True, False, False, False], "shown": -1, "submitted": False})
-    r = run(input="\ns\n2\n" + "y\n" * 5)  # zero-arg launch offers the resume first; Effort, all checks pass
+    r = run(input="\ns\n1\n2\n" + "y\n" * 5)  # zero-arg launch offers the resume first; no help, Effort, all pass
     assert r.exit_code == 0, r.output
     assert "Session restored: Number of Islands (35m remaining)." in r.output and "Press [Enter] to resume." in r.output
     with get_session() as s:
@@ -134,11 +136,23 @@ def test_discarding_a_saved_session():
 
 
 def test_solve_specific_problem():
-    r = run("solve", "G-5", "--no-editor", input="s\n2\nn\n5\n")
+    r = run("solve", "G-5", "--no-editor", input="s\n1\n2\nn\n5\n")
     assert r.exit_code == 0, r.output
     with get_session() as s:
         a = s.exec(scheduler.select(Attempt)).one()
-    assert a.problem_id == "G-5" and a.mistake == "follow_up" and a.dry_run_ok is False
+    assert a.problem_id == "G-5" and a.mistake == "follow_up" and a.dry_run_ok is False and a.help == "none"
+
+
+def test_a_seen_answer_is_not_a_solve_and_comes_back_tomorrow(monkeypatch):
+    # submit | help: saw the answer (no outcome question) | trace n | mistake: pattern
+    r = run("solve", "G-1", "--no-editor", input="s\n3\nn\n1\n", at="2026-10-12T19:30", monkeypatch=monkeypatch)
+    assert r.exit_code == 0, r.output
+    assert "How did it go?" not in r.output and "code it again from memory tomorrow" in r.output
+    with get_session() as s:
+        a = s.exec(scheduler.select(Attempt)).one()
+        prog = s.exec(scheduler.select(scheduler.UserProgress)).one()
+    assert a.help == "answer" and a.solved is False and prog.last_solved_at is None
+    assert prog.next_review_date == datetime(2026, 10, 13)  # first thing tomorrow, not later today
 
 
 def test_roadmap():

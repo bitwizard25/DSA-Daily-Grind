@@ -88,7 +88,7 @@ def test_mock_round_trip(api, home):
 
 def test_problem_card_and_bank(api):
     rows = api.problems()["problems"]
-    assert len(rows) == 75
+    assert len(rows) == 75 + 28
     assert api.problem_card(rows[0]["id"])["problem"]["title"] == rows[0]["title"]
     with pytest.raises(ApiError):
         api.problem_card("nope")
@@ -500,3 +500,52 @@ def test_simple_mode_serves_plain_problem_and_drill_texts(api):
     assert all(d["prompt"] == plain_drills[d["id"]]["prompt"] for d in drills)
     api.set_language("standard")
     assert api.problem_card(target["id"])["problem"]["statement"] == standard
+
+
+def test_hints_stay_locked_while_you_struggle_then_count_as_help(api):
+    board = api.mock_start("G-1", practice=True)
+    assert board["hints"] == [] and board["hint_unlock"] == 25 * 60 and board["stuck_tips"]
+    early = api.mock_hint("G-1", 10 * 60.0)
+    assert early["locked"] and early["wait"] == 15 * 60 and early["tips"] and early["hints"] == []
+    first = api.mock_hint("G-1", 26 * 60.0)
+    assert not first["locked"] and first["hints"] == ["Pattern: Hash map of seen values."] and first["more"]
+    api.mock_save("G-1", True, 60, 27 * 60.0, [False] * 4, -1)  # an autosave never forgets an opened hint
+    assert api.mock_start(resume=True)["hints"] == first["hints"]
+    second = api.mock_hint("G-1", 28 * 60.0)
+    assert second["hints"][1].startswith("Key idea:") and not second["more"]
+    assert len(api.mock_hint("G-1", 29 * 60.0)["hints"]) == 2  # only two levels, never code
+    sc = api.mock_scorecard("G-1", True, 60, 30 * 60.0, [False] * 4, -1)
+    assert sc["hints_used"] == 2 and [o["value"] for o in sc["help"]] == ["none", "hint", "answer"]
+    res = api.mock_grade("G-1", True, 60, 30 * 60.0, "3", {"dry_run_passed": True}, None, -1, help="none")
+    assert res["help"] == "hint" and res["outcome"] == "2" and res["solved"]  # a hint caps it at Effort
+
+
+def test_a_seen_answer_is_logged_as_not_solved(api, session):
+    from sqlmodel import select
+
+    from google_prep.models import UserProgress
+
+    api.mock_start("G-217", practice=True)
+    res = api.mock_grade("G-217", True, 60, 1200.0, "3", {"dry_run_passed": True}, None, -1, help="answer")
+    assert not res["solved"] and res["outcome"] == "1" and res["again"].startswith("Code it again from memory")
+    assert res["outcome_label"] == "Saw the answer: not solved yet"
+    prog = session.exec(select(UserProgress)).one()
+    assert prog.last_solved_at is None and prog.next_review_date.hour == 0  # first thing tomorrow
+    assert api.state()["pace"]["solved"] == 0
+    with pytest.raises(ApiError):
+        api.mock_grade("G-217", True, 60, 1200.0, "2", {}, None, -1, help="maybe")
+
+
+def test_role_prep_checklist_saves_ticks_and_notes(api):
+    data = api.role_prep()
+    ids = [x["id"] for x in data["items"]]
+    assert data["done"] == 0 and data["total"] == len(ids) >= 10 and "recruiter" in ids
+    assert all(x["prompts"] and x["why"] for x in data["items"])
+    assert api.role_prep_save("recruiter", done=True)["done"] == 1
+    api.role_prep_save("numbers", notes="baseline, method, sample size")
+    again = {x["id"]: x for x in api.role_prep()["items"]}
+    assert again["recruiter"]["done"] and again["numbers"]["notes"] == "baseline, method, sample size"
+    assert not again["numbers"]["done"]
+    with pytest.raises(ApiError):
+        api.role_prep_save("nope", done=True)
+    assert launcher.ROUTES["role"] == "role"

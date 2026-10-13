@@ -160,8 +160,8 @@ def test_skipped_day1_is_served_on_day2(session):
 # ---- simple mode beyond the lessons ------------------------------------------------------------------
 def test_simple_texts_cover_the_bank_and_the_drills():
     texts = db.load_json("simple_text.json")
-    problems = {p["id"]: p for p in db.load_json("problems.json")}
-    drills = {d["id"]: d for d in db.load_json("recall_drills.json")}
+    problems = {p["id"]: p for p in db.bank_problems()}
+    drills = {d["id"]: d for d in db.bank_drills()}
     assert set(texts["problems"]) == set(problems) and set(texts["drills"]) == set(drills)
     for pid, t in texts["problems"].items():
         assert t["statement"] and len(t["statement"]) <= 220, pid

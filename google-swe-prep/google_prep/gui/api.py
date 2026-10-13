@@ -242,11 +242,15 @@ class Api:
             shown = int(state["shown"]) if state else -1
             submitted = bool(state.get("submitted")) if state else False
             started = (state or {}).get("started") or t.isoformat()
+            used_hints = int((state or {}).get("hints", 0))
             session_store.save({"kind": "mock", "problem_id": p.id, "minutes": minutes, "practice": bool(practice),
                                 "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
-                                "started": started, "submitted_at": (state or {}).get("submitted_at")})
+                                "started": started, "submitted_at": (state or {}).get("submitted_at"),
+                                "hints": used_hints})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
+                    "hints": self._hints(s, p)[:used_hints], "hint_unlock": mock.hint_unlock_seconds(bool(practice)),
+                    "hint_total": len(mock.hints(p)), "stuck_tips": mock.STUCK_TIPS,
                     "follow_ups": self._follow_ups(s, p), "checklist": mock.CHECKLIST,
                     "code": mock.scratchpad(p).read_text(encoding="utf-8"),
                     "trace": mock.trace_pad(p).read_text(encoding="utf-8"),
@@ -256,7 +260,8 @@ class Api:
                                       scheduler.CATEGORIES[p.category], p.title)}
 
     def mock_save(self, problem_id: str, practice: bool, minutes: int, elapsed: float, ticks: list,
-                  shown: int, code: str | None = None, trace: str | None = None, submitted: bool = False) -> dict:
+                  shown: int, code: str | None = None, trace: str | None = None, submitted: bool = False,
+                  hints: int = 0) -> dict:
         """Called on every keystroke (debounced) and every timer tick: nothing is ever lost."""
         with get_session() as s:
             p = s.get(Problem, problem_id)
@@ -274,8 +279,27 @@ class Api:
                             "practice": bool(practice), "elapsed": max(0.0, float(elapsed)), "ticks": list(ticks),
                             "shown": int(shown), "submitted": submitted,
                             "started": (prev.get("started") if same else None) or self.now().isoformat(),
-                            "submitted_at": submitted_at})
+                            "submitted_at": submitted_at, "hints": max(int(hints), int(prev.get("hints", 0)) if same else 0)})
         return {"saved_at": time.time()}
+
+    def mock_hint(self, problem_id: str, elapsed: float) -> dict:
+        """'I'm stuck'. Before the struggle time is up: what to try first. After it: the next hint
+        (the pattern's name, then the key idea), counted, so the scorecard knows a hint was used."""
+        state = session_store.load()
+        if not (state and state.get("kind") == "mock" and state.get("problem_id") == problem_id):
+            raise ApiError("Start the round first.")
+        wait = mock.hint_unlock_seconds(bool(state.get("practice"))) - max(float(elapsed), float(state.get("elapsed", 0)))
+        with get_session() as s:
+            p = s.get(Problem, problem_id)
+            if p is None:
+                raise ApiError(f"Unknown problem {problem_id}")
+            levels = self._hints(s, p)
+        used = int(state.get("hints", 0))
+        if wait > 0:
+            return {"locked": True, "wait": round(wait), "tips": mock.STUCK_TIPS, "hints": levels[:used]}
+        used = min(len(levels), used + 1)
+        session_store.save({**state, "hints": used})
+        return {"locked": False, "hints": levels[:used], "more": used < len(levels)}
 
     def mock_abandon(self) -> dict:
         session_store.clear()
@@ -294,12 +318,13 @@ class Api:
             questions = [{"field": f, "pillar": pillar, "pillar_name": rubric.PILLARS[pillar], "question": q,
                           "ticked": ticked[f]}
                          for f, pillar, q in rubric.CHECKS if not practice or f in rubric.PRACTICE_CHECKS]
+            state = session_store.load() or {}
             return {"practice": bool(practice), "used": used,
                     "over_time": used > int(minutes) * 60 * readiness.CODING_SHARE,
-                    "outcomes": [{"key": k, "label": v, "again": {"1": "back in today's re-solve queue",
-                                                                  "2": "re-solve in 3 days",
-                                                                  "3": "re-solve next week"}[k]}
-                                 for k, v in rubric.OUTCOMES.items()],
+                    "outcomes": [{"key": k, "label": v, "again": rubric.AGAIN[k]} for k, v in rubric.OUTCOMES.items()],
+                    "help": [{"key": k, "value": v, "label": rubric.HELP[v]} for k, v in rubric.HELP_KEYS.items()],
+                    "hints_used": int(state.get("hints", 0)) if state.get("problem_id") == problem_id else 0,
+                    "again_answer": rubric.AGAIN_ANSWER,
                     "questions": questions, "trace_rows": mock.trace_rows(trace),
                     "follow_up": fups[shown % len(fups)] if shown >= 0 else "",
                     "mistakes": [{"key": k, "label": v} for k, v in scheduler.MISTAKES.items()],
@@ -320,11 +345,17 @@ class Api:
         return {"needs": mock.needs_mistake(outcome != "1", bool(dry_run_passed), int(elapsed), int(minutes))}
 
     def mock_grade(self, problem_id: str, practice: bool, minutes: int, elapsed: float, outcome: str,
-                   checks: dict, mistake: str | None = None, shown: int = -1) -> dict:
+                   checks: dict, mistake: str | None = None, shown: int = -1, help: str = "none") -> dict:  # noqa: A002
+        if help not in rubric.HELP:
+            raise ApiError("Say whether you used help: none, a hint, or the answer.")
+        if help == "answer":
+            outcome = "1"
         if str(outcome) not in rubric.OUTCOMES:
             raise ApiError("Pick Missed it, Solved with Effort or Instant Reflex.")
         state = session_store.load()
         ours = bool(state and state.get("kind") == "mock" and state.get("problem_id") == problem_id)
+        if ours and help == "none" and int(state.get("hints", 0)):
+            help = "hint"  # noqa: A001  (the app's own hint was opened)
         t = self._sitting_time(state, int(minutes)) if ours else self.now()
         with get_session() as s:
             p = s.get(Problem, problem_id)
@@ -334,13 +365,14 @@ class Api:
             full.update({k: bool(v) for k, v in checks.items() if k in full})
             fups = mock.follow_ups(p)
             result = mock.record(s, p, int(minutes), max(1, int(elapsed)), str(outcome), full,
-                                 fups[shown % len(fups)] if shown >= 0 else "", bool(practice), mistake, t)
+                                 fups[shown % len(fups)] if shown >= 0 else "", bool(practice), mistake, t, help)
         if ours or not state:
             session_store.clear()
         pillars = rubric.pillar_scores(result["checks"])
-        again = {"1": "Back in today's re-solve queue", "2": "Re-solve in 3 days", "3": "Re-solve next week"}
+        label = "Saw the answer: not solved yet" if result["help"] == "answer" else rubric.OUTCOMES[result["outcome"]]
         return {**result, "pillars": {rubric.PILLARS[k]: round(v * 25, 1) for k, v in pillars.items()},
-                "outcome_label": rubric.OUTCOMES[result["outcome"]], "again": again[result["outcome"]],
+                "outcome_label": label, "again": result["again"][:1].upper() + result["again"][1:],
+                "help_label": rubric.HELP[result["help"]],
                 "mistake_label": scheduler.MISTAKES.get(result["mistake"] or ""),
                 "problem": {"id": p.id, "title": p.title}}
 
@@ -458,6 +490,36 @@ class Api:
             }
 
     # ---- STAR studio ------------------------------------------------------------------------
+    # ---- role prep ----------------------------------------------------------------------------
+    def role_prep(self) -> dict:
+        with get_session() as s:
+            data = db.load_json("role_prep.json")
+            saved = self._role_state(s)
+            items = [{**x, "done": bool(saved.get(x["id"], {}).get("done")), "notes": saved.get(x["id"], {}).get("notes", "")}
+                     for x in data["items"]]
+            return {"crumbs": _crumbs(s, self.now().date(), "Role prep"), "intro": data["intro"], "items": items,
+                    "done": sum(x["done"] for x in items), "total": len(items)}
+
+    def role_prep_save(self, item_id: str, done: bool | None = None, notes: str | None = None) -> dict:
+        if item_id not in {x["id"] for x in db.load_json("role_prep.json")["items"]}:
+            raise ApiError(f"Unknown item {item_id}")
+        with get_session() as s:
+            saved = self._role_state(s)
+            row = saved.setdefault(item_id, {})
+            if done is not None:
+                row["done"] = bool(done)
+            if notes is not None:
+                row["notes"] = str(notes)[:5000]
+            scheduler.set_setting(s, "role_prep", json.dumps(saved))
+        return {"ok": True, "done": sum(bool(v.get("done")) for v in saved.values())}
+
+    @staticmethod
+    def _role_state(s) -> dict:
+        try:
+            return dict(json.loads(scheduler.get_setting(s, "role_prep", "{}") or "{}"))
+        except (TypeError, ValueError):
+            return {}
+
     def star_list(self) -> dict:
         with get_session() as s:
             counts = readiness.star_counts(s)
@@ -611,6 +673,13 @@ class Api:
         return self.state()
 
     # ---- helpers -------------------------------------------------------------------------
+    @staticmethod
+    def _foundations_total() -> int:
+        return len(db.load_json("foundations.json")["problems"])
+
+    def _hints(self, s, p: Problem) -> list[str]:
+        return mock.hints(p, self._plain(s, "problems", p.id, "key_insight", p.key_insight))
+
     def _follow_ups(self, s, p: Problem) -> list[str]:
         fups = mock.follow_ups(p)
         return [self._plain(s, "problems", p.id, "follow_up", fups[0])] + fups[1:]
@@ -618,9 +687,12 @@ class Api:
     def _problem_card(self, p: Problem, full: bool = False) -> dict:
         with get_session() as s:
             statement = self._plain(s, "problems", p.id, "statement", p.statement)
+        label = scheduler.WINDOW_LABEL.get(p.recency, "")
+        if p.category == scheduler.FOUNDATIONS:
+            label = f"building block {p.sequence} of {self._foundations_total()}"
         out = {"id": p.id, "title": p.title, "difficulty": p.difficulty, "category": p.category,
                "category_name": scheduler.CATEGORIES[p.category], "leetcode_id": p.leetcode_id,
-               "statement": statement, "recency": p.recency, "recency_label": scheduler.WINDOW_LABEL.get(p.recency, ""),
+               "statement": statement, "recency": p.recency, "recency_label": label,
                "url": f"https://leetcode.com/problems/{p.slug}/"}
         if not full:  # the pre-start card may show targets; the whiteboard hides the pattern
             out.update(time_target=p.time_target, space_target=p.space_target)

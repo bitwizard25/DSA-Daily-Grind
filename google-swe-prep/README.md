@@ -88,6 +88,7 @@ is checked against what Python really prints, so the simple examples are also co
 | Mock | **Mock & Solve** (`w`) | Recommended weakest-topic problem, or pick any of the 75; then the 45-minute whiteboard below. |
 | Weekly | **Roadmap** (`r`) | Readiness gauge with the formula, 14-day trend, 8-week plan, topic mastery, mistake profile. |
 | STAR | **STAR Stories** (`s`) | Write and edit stories for Ambiguity, Ownership, Disagreement, Humility; 2-minute practice prompts. |
+| Role | **Role Prep** (`j`) | 11-item checklist beyond coding: recruiter questions, resume deep-dive stories, defending your numbers, timeline answers, responsible AI, human mocks. Notes stay on your computer. |
 | Reference | **Concept Vault** (`v`) | 12 notes: C++ vs Python, complexity tables, templates and traps per pattern. |
 
 Every screen shows the same frame: the section list on the left, a breadcrumb on top
@@ -107,8 +108,17 @@ step through your own code by hand.
 | 35:00–40:00 | A Google follow-up banner drops in (streaming, memory caps, sharding) |
 | 40:00–45:00 | 4-pillar scorecard: Analytical Ability, Coding & Craft, Verification & Rigor, System Scaling (25% each) |
 
+**Struggle first.** `I'm stuck` (`Alt+H`) shows what to try (say it back, a tiny example, the slow
+answer first, which tool fits). Hints unlock only after 25 minutes of a timed solve (15 in a mock),
+and there are two: the pattern's name, then the key idea. Never code.
+
+**Honest scorecard.** The first question is "Did you use any help?": none, a hint, or *I saw the
+answer* (solution, video or AI code). A hint caps the result at Solved with Effort. A seen answer is
+logged as **not solved**: the problem comes back first thing tomorrow, to code again from a blank pad.
+If you opened a hint in the app, "No help" is not offered.
+
 Window keys: `Alt+1…4` tick the checklist · `Tab` indents 4 spaces, `Enter` keeps the indent ·
-`Esc` leaves the pad · `Alt+P` pause · `Ctrl+S` submit. Scorecard: `[1] Missed it` /
+`Esc` leaves the pad · `Alt+P` pause · `Alt+H` stuck · `Ctrl+S` save · `Ctrl+Enter` submit. Scorecard: `[1] Missed it` /
 `[2] Solved with Effort` / `[3] Instant Reflex` (reschedules the problem today / in 3 days / next
 week), then one `y`/`n` per pillar check (your ticks are pre-noted), `Backspace` steps back.
 Every keystroke is saved to `~/.google_prep/sessions/`; after a crash the app opens with
@@ -119,6 +129,15 @@ Every keystroke is saved to `~/.google_prep/sessions/`; after a crash the app op
 `[1] Missed it` → again today · `[2] Solved with Effort` → in 3 days · `[3] Instant Reflex` → next week
 (SM-2 stretches the gap further as you keep getting it). "Instant" only counts if you revealed the
 answer within 20 seconds. Drills are unlabeled and rotate across topics (interleaved, not blocked).
+
+## Foundations first (28 problems, Days 3 onward)
+
+Before the Google bank, the evening problem comes from 28 building blocks, in order, 12 of them easy:
+arrays and hashing (Two Sum … Longest Consecutive Sequence), two pointers, sliding window, prefix sums,
+binary search (including "binary search on the answer"), linked lists, stacks, and LRU Cache. The
+warmup drills follow them. Once each one has been tried, the app moves to the Google bank; Foundations
+you missed or copied come back through the re-solve queue. They carry no Google frequency data
+(`recency` is empty) on purpose: their job is to bring the basics back, not to predict the interview.
 
 ## Problem bank (75, Google only)
 
@@ -137,8 +156,8 @@ Picking: weakest category first, then failed problems due for a re-solve, then t
 Google most recently (data: [liquidslr/leetcode-company-wise-problems](https://github.com/liquidslr/leetcode-company-wise-problems),
 16 Aug 2026; `google-prep sync` refreshes it, `hot` lists what you are missing, `add <slug>` imports one).
 
-Not covered by the six categories: arrays/hashing, two pointers, sliding window, binary search,
-linked lists and design (e.g. LRU Cache, Minimum Window Substring). Google asks these often.
+Arrays/hashing, two pointers, sliding window, binary search, linked lists and LRU Cache are in the
+Foundations set above. Still not covered: harder design problems (e.g. Minimum Window Substring).
 
 ## Readiness index
 

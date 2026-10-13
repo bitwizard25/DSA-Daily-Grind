@@ -59,6 +59,8 @@ def test_split_screen_follow_up_banner_trace_and_scorecard_handover():
             card = app.screen
             assert isinstance(card, RubricScreen)
             shown = lambda: str(card.query_one("#card", Static).render())  # noqa: E731
+            assert "Did you use any help?" in shown()  # honesty first
+            await pilot.press("1")
             assert "Missed it" in shown() and "Instant Reflex" in shown() and "will count as Effort" in shown()
             await pilot.press("2")  # Solved with Effort
             assert "You ticked this during the round" in shown()  # F1 pre-noted
@@ -78,6 +80,7 @@ def test_split_screen_follow_up_banner_trace_and_scorecard_handover():
     assert result["outcome"] == "time" and result["elapsed"] == 40 * 60
     graded = result["graded"]
     assert graded["outcome"] == "2" and all(graded["checks"].values()) and graded["mistake"] == "slow"
+    assert graded["help"] == "none"
     assert "seen = set()" in mock.scratchpad(p).read_text(encoding="utf-8")
     assert mock.scratchpad(p).parent.name == "sessions"  # code auto-saves next to the session
     assert "i=0 grid=[[1]]" in mock.trace_pad(p).read_text(encoding="utf-8")
@@ -92,13 +95,14 @@ def test_scorecard_asks_for_the_mistake_when_it_went_badly():
         async with app.run_test(size=(150, 50)) as pilot:
             await pilot.press("ctrl+s")
             await pilot.pause()
-            await pilot.press("1", "n", "n", "n", "n", "n")  # Missed it, five no
+            await pilot.press("3", "n", "n", "n", "n", "n")  # saw the answer (so: missed), five no
             assert "What hurt most" in str(app.screen.query_one("#card", Static).render())
             await pilot.press("3")
         return app.return_value
 
     graded = asyncio.run(scenario())["graded"]
     assert graded["solved"] is False and graded["outcome"] == "1" and graded["mistake"] == "bug_edge"
+    assert graded["help"] == "answer"
 
 
 def test_abandon_needs_two_presses_and_pause_freezes_both_editors():

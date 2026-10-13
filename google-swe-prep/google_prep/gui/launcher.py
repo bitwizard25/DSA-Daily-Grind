@@ -164,7 +164,8 @@ class _Parser(argparse.ArgumentParser):
 
 # `google-prep.exe <command>` (old reminders and shortcuts) opens the window on the matching screen
 ROUTES = {"today": "today", "ui": "today", "recall": "recall", "drills": "recall", "mock": "mock", "solve": "mock",
-          "roadmap": "roadmap", "star": "star", "fasttrack": "fasttrack", "patterns": "vault", "vault": "vault"}
+          "roadmap": "roadmap", "star": "star", "fasttrack": "fasttrack", "patterns": "vault", "vault": "vault",
+          "role": "role"}
 
 
 def main(argv: list[str] | None = None) -> int:

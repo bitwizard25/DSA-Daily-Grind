@@ -375,6 +375,146 @@
       "statement": "People stand in a line with different heights. For each person, count people on their right they can see. Everyone between must be shorter than both.",
       "follow_up": "People join and leave the line. Answer the questions quickly.",
       "key_insight": "Go right to left with a falling stack. Each person sees everyone shorter they pop, plus the next taller person if any."
+    },
+    "G-1": {
+      "statement": "You get a list of numbers and a target. Find the two positions whose numbers add up to the target. There is always exactly one answer.",
+      "follow_up": "The list is sorted now. Can you solve it without extra memory?",
+      "key_insight": "Walk the list once. Keep a dict: number -> position. For each x, check if target - x is already in the dict."
+    },
+    "G-217": {
+      "statement": "Return True if any number appears two or more times in the list.",
+      "follow_up": "You may not use extra memory. What do you do, and what does it cost?",
+      "key_insight": "Put numbers in a set one by one. If a number is already in the set, you found a repeat."
+    },
+    "G-242": {
+      "statement": "Return True if word t uses exactly the same letters as word s, the same number of times, in any order.",
+      "follow_up": "Now letters can be any Unicode character. Does your answer still work?",
+      "key_insight": "Count the letters in both words. The words match only if the counts are equal."
+    },
+    "G-49": {
+      "statement": "You get a list of words. Put words made of the same letters into the same group.",
+      "follow_up": "The words are very long. How do you skip sorting each word?",
+      "key_insight": "Words with the same letters look the same after sorting. Use the sorted word as a dict key and collect words under it."
+    },
+    "G-238": {
+      "statement": "For each position, return the product of all the other numbers. You may not use division.",
+      "follow_up": "Can you do it using no extra list other than the answer list?",
+      "key_insight": "Answer at i = (product of numbers on the left) x (product on the right). Fill left products in one pass, then multiply in right products."
+    },
+    "G-128": {
+      "statement": "The list is not sorted. Find the longest run of numbers that follow each other (like 4, 5, 6, 7). Return its length in O(n).",
+      "follow_up": "Numbers arrive one at a time. How do you keep the longest run up to date?",
+      "key_insight": "Put all numbers in a set. Start counting only at x when x - 1 is missing (x starts a run). Then count x + 1, x + 2 and so on."
+    },
+    "G-125": {
+      "statement": "Ignore spaces and symbols, and treat upper and lower case the same. Does the text read the same from both ends?",
+      "follow_up": "Now you may delete at most one character. Can it become a palindrome?",
+      "key_insight": "Put one pointer at each end. Skip symbols. Compare letters and move both pointers inward until they meet."
+    },
+    "G-26": {
+      "statement": "The list is sorted. Remove repeats in place (no new list). Return how many different numbers are left.",
+      "follow_up": "Now each number may appear at most twice. What changes?",
+      "key_insight": "Use a write position. Read every number; when it differs from the last kept one, write it there and move the write position on."
+    },
+    "G-167": {
+      "statement": "The list is sorted. Find the two numbers that add up to the target. Return their positions, counting from 1. Use no extra memory.",
+      "follow_up": "How would the same idea solve 3Sum (three numbers)?",
+      "key_insight": "One pointer at each end. Sum too small: move the left one right. Sum too big: move the right one left."
+    },
+    "G-15": {
+      "statement": "Find all different groups of three numbers that add up to 0. Do not repeat the same group.",
+      "follow_up": "How would you handle k numbers instead of three?",
+      "key_insight": "Sort first. Fix one number, then use two pointers on the rest to find pairs. Skip equal numbers so no group repeats."
+    },
+    "G-11": {
+      "statement": "Each number is the height of a wall. Pick two walls that hold the most water between them. Return that amount (width x shorter wall).",
+      "follow_up": "Explain why moving the shorter wall never skips the best answer.",
+      "key_insight": "Start with the widest pair. The shorter wall limits the water, so move the shorter wall inward and keep the best area."
+    },
+    "G-121": {
+      "statement": "You get prices for each day. Buy once, then sell on a later day. Return the biggest profit, or 0.",
+      "follow_up": "Now you may buy and sell many times. What changes?",
+      "key_insight": "Remember the cheapest price seen so far. Each day, profit = today's price - cheapest so far. Keep the best."
+    },
+    "G-3": {
+      "statement": "Find the longest stretch of the text where no letter repeats. Return its length.",
+      "follow_up": "Now up to k different letters are allowed in the stretch. What changes?",
+      "key_insight": "Keep a window. Add letters on the right. When a letter repeats, move the left edge just past where that letter was last seen."
+    },
+    "G-424": {
+      "statement": "You may change up to k letters. Find the longest stretch that can become one letter repeated. Return its length.",
+      "follow_up": "Why can the code keep an old, too-high max count and still be right?",
+      "key_insight": "In a window, letters to change = window length - count of its most common letter. If that is more than k, shrink from the left."
+    },
+    "G-567": {
+      "statement": "Return True if s2 contains a stretch that uses exactly the letters of s1, in any order.",
+      "follow_up": "Return every start position of such a stretch, not just True or False.",
+      "key_insight": "Slide a window as long as s1 across s2. Keep letter counts. When the window's counts equal s1's counts, you found one."
+    },
+    "G-560": {
+      "statement": "Count the stretches of the list (numbers next to each other) that add up to k. Numbers can be negative.",
+      "follow_up": "Why does a sliding window fail here, but work when every number is positive?",
+      "key_insight": "Keep a running total. A stretch sums to k when total - k equals an earlier running total. Count earlier totals in a dict."
+    },
+    "G-704": {
+      "statement": "The list is sorted. Return the position of the target number, or -1 if it is not there.",
+      "follow_up": "Return the first position where the target could be inserted, like bisect_left.",
+      "key_insight": "Look at the middle. If it is too small, drop the left half; if too big, drop the right half. Repeat until found or empty."
+    },
+    "G-35": {
+      "statement": "The list is sorted. Return where the target is, or where it should go to keep the list sorted.",
+      "follow_up": "How would you find the last position of a repeated value?",
+      "key_insight": "Find the first position whose number is >= target. Use lo, hi = 0, len(nums) and stop when lo == hi."
+    },
+    "G-33": {
+      "statement": "A sorted list was cut in two and the parts swapped (like [4, 5, 6, 1, 2, 3]). Find the target in O(log n), or return -1.",
+      "follow_up": "Now numbers can repeat. What is the slowest case then?",
+      "key_insight": "At the middle, one side is always sorted. If the target fits inside that sorted side, search there; else search the other side."
+    },
+    "G-875": {
+      "statement": "Piles of bananas, h hours. Each hour you eat up to k bananas from one pile. Find the smallest k that finishes in time.",
+      "follow_up": "Name two other problems where you binary-search the answer instead of the list.",
+      "key_insight": "If speed k is fast enough, any faster speed is too. So binary-search k from 1 to the biggest pile and test each guess."
+    },
+    "G-206": {
+      "statement": "Reverse a linked list (each node points to the next one). Return the new first node.",
+      "follow_up": "Reverse only the part between positions left and right.",
+      "key_insight": "Keep prev and cur. Save cur.next, point cur.next back to prev, then move both one step forward."
+    },
+    "G-21": {
+      "statement": "Join two sorted linked lists into one sorted linked list.",
+      "follow_up": "Now merge k sorted lists. How fast is it with a heap?",
+      "key_insight": "Start with a fake (dummy) node. Each step, attach the smaller front node. When one list ends, attach the rest of the other."
+    },
+    "G-141": {
+      "statement": "Return True if the linked list loops back on itself. Use no extra memory.",
+      "follow_up": "Return the node where the loop begins.",
+      "key_insight": "Two runners: slow moves 1 step, fast moves 2. If there is a loop, fast catches slow. If fast reaches the end, there is no loop."
+    },
+    "G-19": {
+      "statement": "Remove the node that is n places from the end of a linked list. Return the head.",
+      "follow_up": "Can you do it in one walk, without first counting the length?",
+      "key_insight": "Start from a dummy node. Move fast n steps ahead, then move fast and slow together. When fast ends, slow.next is the node to remove."
+    },
+    "G-143": {
+      "statement": "Change the list 1, 2, 3, 4, 5 into 1, 5, 2, 4, 3 (first, last, second, second-last ...). Do it in place.",
+      "follow_up": "This mixes three list skills. Which step usually breaks for you?",
+      "key_insight": "Find the middle (slow and fast pointers). Reverse the second half. Then take one node from each half in turn."
+    },
+    "G-20": {
+      "statement": "Check that every bracket ( [ { is closed by the right partner, in the right order.",
+      "follow_up": "What is the fewest brackets you must add to make it valid?",
+      "key_insight": "Put opening brackets on a stack. A closing bracket must match the top one. At the end the stack must be empty."
+    },
+    "G-155": {
+      "statement": "Build a stack with push, pop, top and get-smallest. Every action must be O(1).",
+      "follow_up": "Can you use less memory by saving the minimum only when it changes?",
+      "key_insight": "With each value, also push the smallest value so far. The smallest is then always on top."
+    },
+    "G-146": {
+      "statement": "Build a fixed-size cache. get and put must be O(1). When it is full, remove the item used longest ago.",
+      "follow_up": "Many threads use the cache at the same time. How do you keep it safe?",
+      "key_insight": "A dict finds items fast. A linked list (or OrderedDict) keeps them in order of use. Move an item to the end on use; remove from the front when full."
     }
   },
   "drills": {
@@ -627,6 +767,81 @@
       "prompt": "Find the bug in this sliding window maximum code:\n\n  dq, out = deque(), []\n  for i, x in enumerate(nums):\n      while dq and nums[dq[-1]] <= x: dq.pop()\n      dq.append(i)\n      if i >= k - 1: out.append(nums[dq[0]])",
       "pattern": "It never removes indices that left the window. Add `if dq[0] <= i - k: dq.popleft()` before reading dq[0].",
       "edge_case": "nums = [5, 1, 1, 1], k = 2 must give [5, 1, 1]."
+    },
+    "R-1": {
+      "prompt": "You get a list of numbers and a target. Find the two positions whose numbers add up to the target. There is always exactly one answer.",
+      "pattern": "Hash map: for each number, look up target - number among the ones already seen.",
+      "edge_case": "The same value twice, e.g. [3, 3] with target 6."
+    },
+    "R-128": {
+      "prompt": "The list is not sorted. Find the longest run of numbers that follow each other (like 4, 5, 6, 7). Return its length in O(n).",
+      "pattern": "Hash set: only count from numbers whose x - 1 is missing (the start of a run).",
+      "edge_case": "Duplicates."
+    },
+    "R-15": {
+      "prompt": "Find all different groups of three numbers that add up to 0. Do not repeat the same group.",
+      "pattern": "Sort, fix one number, then two pointers on the rest. Skip equal numbers.",
+      "edge_case": "All zeros."
+    },
+    "R-11": {
+      "prompt": "Each number is the height of a wall. Pick two walls that hold the most water between them. Return that amount (width x shorter wall).",
+      "pattern": "Two pointers from both ends. Always move the shorter wall inward.",
+      "edge_case": "Only two lines."
+    },
+    "R-3": {
+      "prompt": "Find the longest stretch of the text where no letter repeats. Return its length.",
+      "pattern": "Sliding window: grow on the right, jump the left edge past the last copy of a repeated letter.",
+      "edge_case": "Empty string."
+    },
+    "R-560": {
+      "prompt": "Count the stretches of the list (numbers next to each other) that add up to k. Numbers can be negative.",
+      "pattern": "Prefix sums in a dict: count how often total - k was seen before.",
+      "edge_case": "Negative numbers (a sliding window fails)."
+    },
+    "R-33": {
+      "prompt": "A sorted list was cut in two and the parts swapped (like [4, 5, 6, 1, 2, 3]). Find the target in O(log n), or return -1.",
+      "pattern": "Binary search: at the middle, one half is sorted. Check if the target is in that half.",
+      "edge_case": "Not rotated at all."
+    },
+    "R-875": {
+      "prompt": "Piles of bananas, h hours. Each hour you eat up to k bananas from one pile. Find the smallest k that finishes in time.",
+      "pattern": "Binary search on the answer: test a speed; if it works, try slower, else faster.",
+      "edge_case": "h equals the number of piles."
+    },
+    "R-206": {
+      "prompt": "Reverse a linked list (each node points to the next one). Return the new first node.",
+      "pattern": "Walk with prev and cur. Save next, point back, move on.",
+      "edge_case": "Empty list."
+    },
+    "R-141": {
+      "prompt": "Return True if the linked list loops back on itself. Use no extra memory.",
+      "pattern": "Slow and fast pointers: fast moves 2, slow moves 1. They meet only in a loop.",
+      "edge_case": "Empty list."
+    },
+    "R-20": {
+      "prompt": "Check that every bracket ( [ { is closed by the right partner, in the right order.",
+      "pattern": "Stack: push openers, a closer must match the top, end with an empty stack.",
+      "edge_case": "Starts with a closing bracket."
+    },
+    "R-146": {
+      "prompt": "Build a fixed-size cache. get and put must be O(1). When it is full, remove the item used longest ago.",
+      "pattern": "Dict + linked list (OrderedDict): move to the end on use, drop from the front when full.",
+      "edge_case": "Capacity 1."
+    },
+    "B-binary-search-loop": {
+      "prompt": "Find the bug in this binary search code:\n\n  lo, hi = 0, len(nums) - 1\n  while lo < hi:\n      mid = (lo + hi) // 2\n      if nums[mid] == target:\n          return mid\n      if nums[mid] < target:\n          lo = mid + 1\n      else:\n          hi = mid - 1\n  return -1",
+      "pattern": "The loop must run while lo <= hi. With lo < hi the last number left is never checked.",
+      "edge_case": "nums = [5] and target = 5 gives -1."
+    },
+    "B-window-left-back": {
+      "prompt": "Find the bug in this longest substring without repeats code:\n\n  seen = {}\n  left = best = 0\n  for right, ch in enumerate(s):\n      if ch in seen:\n          left = seen[ch] + 1\n      seen[ch] = right\n      best = max(best, right - left + 1)\n  return best",
+      "pattern": "The left edge can move back to an old copy of a letter. Use left = max(left, seen[ch] + 1).",
+      "edge_case": "s = 'abba' gives 3, but the answer is 2."
+    },
+    "B-reverse-lost-next": {
+      "prompt": "Find the bug in this reverse a linked list code:\n\n  prev, cur = None, head\n  while cur:\n      cur.next = prev\n      prev = cur\n      cur = cur.next\n  return prev",
+      "pattern": "cur.next is changed before it is saved, so the walk goes backwards. Save nxt = cur.next first.",
+      "edge_case": "A list with 2 or more nodes stops after the first node."
     }
   }
 }

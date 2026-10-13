@@ -22,7 +22,9 @@ PHASES = {  # phase: (name, first day, last day)
     2: ("Google Core Patterns & Hard Follow-ups", 22, 42),
     3: ("Final Onsite Loop & Googlyness", 43, 56),
 }
-CATEGORIES = {  # the six Google categories, in plan order
+FOUNDATIONS = "foundations"
+CATEGORIES = {  # Foundations (served first), then the six Google categories, in plan order
+    FOUNDATIONS: "Foundations",
     "graphs": "Graphs",
     "trees": "Trees",
     "heaps": "Heaps",
@@ -209,17 +211,30 @@ def _rank(p: Problem, prog: UserProgress | None, phase: int, now: datetime,
         bucket = 3
     else:
         bucket = 4
-    easy_last = p.difficulty == "Easy"  # low yield for someone who has solved hundreds before
+    if p.category == FOUNDATIONS:  # building blocks in their teaching order, easy first
+        return (bucket, p.sequence, p.id)
+    easy_last = p.difficulty == "Easy"  # the Google bank is for after the basics are back
     return (bucket, WINDOW_RANK.get(window, 4), easy_last, -freq, p.phase, DIFF_RANK.get(p.difficulty, 1), p.id)
+
+
+def foundations_open(session: Session) -> bool:
+    """True while some Foundations problem has never been tried. Until then the evening problem
+    comes from Foundations; afterwards they return only through the re-solve queue."""
+    tried = set(session.exec(select(UserProgress.problem_id)).all())
+    ids = session.exec(select(Problem.id).where(Problem.category == FOUNDATIONS)).all()
+    return any(i not in tried for i in ids)
 
 
 def pick_target_problem(session: Session, phase: int, now: datetime,
                         categories: list[str] | None = None) -> Problem | None:
-    """Weakest category first. Inside it: due re-solves, then unseen problems asked at
-    Google most recently (30 days > 3 months > 6 months), then by reported frequency."""
+    """Foundations first, in order, until each has been tried once. Then the weakest Google
+    category first. Inside it: due re-solves, then unseen problems asked at Google most
+    recently (30 days > 3 months > 6 months), then by reported frequency."""
     progress = {p.problem_id: p for p in session.exec(select(UserProgress)).all()}
     problems = session.exec(select(Problem)).all()
     overrides = recency_overrides(session)
+    if categories is None:
+        categories = [FOUNDATIONS] if foundations_open(session) else [c for c in CATEGORIES if c != FOUNDATIONS]
     for cat in weakest_categories(session, categories):
         pool = [p for p in problems if p.category == cat]
         if pool:
@@ -238,8 +253,10 @@ def due_problems(session: Session, now: datetime) -> list[Problem]:
 
 
 def record_problem_review(session: Session, problem_id: str, grade: int, solved: bool,
-                          now: datetime, min_days: int | None = None) -> UserProgress:
-    """SM-2 on the problem. `min_days` applies the 3-tier floors (0 = back in today's queue)."""
+                          now: datetime, min_days: int | None = None, retry_tomorrow: bool = False) -> UserProgress:
+    """SM-2 on the problem. `min_days` applies the 3-tier floors (0 = back in today's queue).
+    `retry_tomorrow`: you saw the answer, so it comes back at the start of tomorrow to be
+    coded again from memory (a same-day redo would only test short-term memory)."""
     prog = session.exec(select(UserProgress).where(UserProgress.problem_id == problem_id)).first()
     state = sm2.CardState(prog.reps, prog.easiness_factor, prog.interval_days) if prog else sm2.CardState()
     new = sm2.review(state, grade)
@@ -251,6 +268,9 @@ def record_problem_review(session: Session, problem_id: str, grade: int, solved:
     if min_days is not None:
         days = 0 if grade < 3 else max(new.interval_days, min_days)
         prog.interval_days, prog.next_review_date = max(1, days), now + timedelta(days=days)
+    if retry_tomorrow:
+        prog.interval_days = 1
+        prog.next_review_date = datetime.combine(now.date() + timedelta(days=1), datetime.min.time())
     if solved:
         prog.last_solved_at = now
     session.add(prog)
@@ -260,11 +280,11 @@ def record_problem_review(session: Session, problem_id: str, grade: int, solved:
 
 def log_attempt(session: Session, problem_id: str, minutes: int, solved: bool,
                 dry_run_ok: bool | None, grade: int, now: datetime, source: str = "solve",
-                mistake: str | None = None, min_days: int | None = None) -> None:
+                mistake: str | None = None, min_days: int | None = None, help: str = "none") -> None:  # noqa: A002
     session.add(Attempt(problem_id=problem_id, day=now.date().isoformat(), minutes=minutes,
-                        solved=solved, dry_run_ok=dry_run_ok, mistake=mistake, source=source))
+                        solved=solved, dry_run_ok=dry_run_ok, mistake=mistake, source=source, help=help))
     session.commit()
-    record_problem_review(session, problem_id, grade, solved, now, min_days)
+    record_problem_review(session, problem_id, grade, solved, now, min_days, retry_tomorrow=help == "answer")
     mark_done(session, now.date(), "evening", minutes)
 
 
@@ -282,14 +302,15 @@ def pick_drills(session: Session, now: datetime, count: int, kind: str | None = 
     due = sorted((d for d in drills if d.id in progress and progress[d.id].next_review_date <= now),
                  key=lambda d: progress[d.id].next_review_date)
     order = list(CATEGORIES)
+    basics_first = foundations_open(session)  # no drills on patterns you have not met yet
     seen_in_cat: dict[str, int] = {}
     unseen = []
     for d in sorted((d for d in drills if d.id not in progress), key=lambda d: d.id):
         idx = seen_in_cat.get(d.category, 0)
         seen_in_cat[d.category] = idx + 1
-        unseen.append((idx, order.index(d.category), d))
-    unseen.sort(key=lambda t: (t[0], t[1]))
-    return (due + [d for _, _, d in unseen])[:count]
+        unseen.append((basics_first and d.category != FOUNDATIONS, idx, order.index(d.category), d))
+    unseen.sort(key=lambda t: t[:3])
+    return (due + [t[3] for t in unseen])[:count]
 
 
 def mistake_profile(session: Session, last: int = 20) -> dict[str, int]:
@@ -318,9 +339,18 @@ def pick_warmup(session: Session, now: datetime, count: int = 5) -> list[RecallD
     return patterns + bugs
 
 
+def help_counts(session: Session) -> dict[str, int]:
+    """Honest solve count: logged attempts by how much help they needed."""
+    counts = {"none": 0, "hint": 0, "answer": 0}
+    for h in session.exec(select(Attempt.help)).all():
+        counts[h if h in counts else "none"] += 1
+    return counts
+
+
 def pace(session: Session, today: date) -> dict:
     """Problems solved vs. a straight-line plan from Day 3 (after the Python fast-track) to the
-    last plan day. Only finished days count, so the first morning is never 'behind'."""
+    last plan day. Only finished days count, so the first morning is never 'behind'.
+    A problem whose answer you looked at is not solved until you code it again on your own."""
     total = count(session, Problem)
     solved = session.exec(select(func.count()).select_from(UserProgress)
                           .where(col(UserProgress.last_solved_at).is_not(None))).one()

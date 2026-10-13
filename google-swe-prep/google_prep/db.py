@@ -90,12 +90,21 @@ def migrate(engine) -> list[str]:
     return changes
 
 
+def bank_problems() -> list[dict]:
+    """The Google bank plus the Foundations set that is served before it."""
+    return load_json("problems.json") + load_json("foundations.json")["problems"]
+
+
+def bank_drills() -> list[dict]:
+    return load_json("recall_drills.json") + load_json("foundations.json")["drills"]
+
+
 def data_hash() -> str:
     """Fingerprint of the bundled problem and drill data."""
     import hashlib
 
     digest = hashlib.sha1()
-    for name in ("problems.json", "recall_drills.json"):
+    for name in ("problems.json", "recall_drills.json", "foundations.json"):
         digest.update((resource_dir() / "data" / name).read_bytes())
     return digest.hexdigest()
 
@@ -129,8 +138,8 @@ def seed(session: Session) -> None:
     """Insert or refresh bundled problems and drills, and retire ones that left the bank.
     Progress on a retired problem moves to the bank problem with the same LeetCode slug;
     problems you imported with `add` (X- ids) are yours and are never touched."""
-    problems = load_json("problems.json")
-    drills = load_json("recall_drills.json")
+    problems = bank_problems()
+    drills = bank_drills()
     by_slug = {p["slug"]: p["id"] for p in problems}
     keep_ids = {p["id"] for p in problems}
     for row in problems:

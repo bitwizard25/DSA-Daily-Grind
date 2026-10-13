@@ -37,6 +37,24 @@ GENERIC_FOLLOW_UPS = [
     "What if the input is modified concurrently by other threads?",
 ]
 AUTOSAVE_SECONDS = 5
+# "Struggle first": the app's own hints stay locked this long, because the struggle is the practice.
+HINT_AFTER_MINUTES = {"solve": 25, "mock": 15}  # a mock interviewer nudges sooner: the code is due by 35:00
+STUCK_TIPS = [
+    "Say the problem back in your own words. What exactly goes in, and what comes out?",
+    "Solve a tiny example by hand (3 to 5 items). Write down every step you take.",
+    "Write the slow, obvious answer first. Then ask: what work am I repeating?",
+    "Which tool fits? dict or set, two pointers, sliding window, binary search, stack, heap, BFS or DFS.",
+    "Still stuck? Write what you tried in the code pad. Explaining it often shows the gap.",
+]
+
+
+def hint_unlock_seconds(practice: bool) -> int:
+    return HINT_AFTER_MINUTES["solve" if practice else "mock"] * 60
+
+
+def hints(problem: Problem, key_insight: str | None = None) -> list[str]:
+    """Two levels: the pattern's name, then the key idea. Never code."""
+    return [f"Pattern: {problem.key_pattern}.", f"Key idea: {key_insight or problem.key_insight}"]
 
 
 def follow_ups(problem: Problem) -> list[str]:
@@ -275,7 +293,7 @@ def save_graded(session, problem: Problem, minutes: int, practice: bool, board: 
     fups = follow_ups(problem)
     follow_up = fups[board["shown"] % len(fups)] if board["shown"] >= 0 else ""
     result = record(session, problem, minutes, max(1, int(board["elapsed"])), graded["outcome"], graded["checks"],
-                    follow_up, practice, graded["mistake"], now)
+                    follow_up, practice, graded["mistake"], now, graded.get("help", "none"))
     session_store.clear()
     return result
 
@@ -305,19 +323,22 @@ def needs_mistake(solved: bool, dry: bool, used: int, minutes: int) -> bool:
 
 
 def record(session, problem: Problem, minutes: int, used: int, outcome: str, checks: dict[str, bool],
-           follow_up: str, practice: bool, mistake: str | None, now: datetime) -> dict:
+           follow_up: str, practice: bool, mistake: str | None, now: datetime, help: str = "none") -> dict:  # noqa: A002
     """Log the attempt (and the mock with its pillar score) and reschedule the problem.
-    `outcome` is the 3-tier choice: 1 Missed it, 2 Solved with Effort, 3 Instant Reflex."""
+    `outcome` is the 3-tier choice: 1 Missed it, 2 Solved with Effort, 3 Instant Reflex.
+    `help` is the honest answer to "did you use help?": none, hint or answer."""
+    help = help if help in rubric.HELP else "none"  # noqa: A001
     target = minutes * 60 * readiness.CODING_SHARE
-    outcome = rubric.outcome_for(outcome, used > target)
+    outcome = rubric.outcome_for(outcome, used > target, help)
     solved = outcome != "1"
     points = rubric.score(checks)
     scheduler.log_attempt(session, problem.id, max(1, round(used / 60)), solved, checks["dry_run_passed"],
                           rubric.OUTCOME_GRADE[outcome], now, source="solve" if practice else "mock", mistake=mistake,
-                          min_days=rubric.OUTCOME_DAYS[outcome])
+                          min_days=rubric.OUTCOME_DAYS[outcome], help=help)
     result = {"problem": problem.id, "solved": solved, "outcome": outcome, "dry_run_ok": checks["dry_run_passed"],
               "used_seconds": used, "mistake": mistake, "checks": checks, "score": points,
-              "signal": rubric.hire_signal(points, solved), "over_time": used > target}
+              "signal": rubric.hire_signal(points, solved), "over_time": used > target, "help": help,
+              "again": rubric.again_for(outcome, help)}
     if not practice:
         session.add(MockSession(problem_id=problem.id, date=now, duration_seconds=used, limit_minutes=minutes,
                                 solved=solved, follow_up=follow_up, score=points, **checks))
@@ -326,10 +347,9 @@ def record(session, problem: Problem, minutes: int, used: int, outcome: str, che
 
 
 def result_lines(result: dict, minutes: int, practice: bool) -> list[str]:
-    again = {"1": "back in today's re-solve queue", "2": "re-solve in 3 days", "3": "re-solve next week"}
     lines = [f"Coding time: {mmss(result['used_seconds'])} of {minutes:02d}:00"
              + (" [danger](over the 35-min coding target)[/danger]" if result["over_time"] and result["solved"] else ""),
-             f"{rubric.OUTCOMES[result['outcome']]} · {again[result['outcome']]}   "
+             f"{rubric.OUTCOMES[result['outcome']]} · {result['again']}   "
              f"Dry-run matched: {'[ok]yes[/ok]' if result['dry_run_ok'] else '[danger]no[/danger]'}"]
     if not practice:
         pillars = rubric.pillar_scores(result["checks"])
@@ -347,7 +367,9 @@ def evaluate(session, problem: Problem, minutes: int, timer: Countdown, ticks: l
          banner("SELF-GRADE" if practice else "SCORECARD · GOOGLE 4 PILLARS",
                 f"{problem.title} · coding time used [warn]{mmss(used)}[/warn]",
                 "" if practice else "[muted]40:00–45:00[/muted]"))
-    outcome = _ask("How did it go?", list(rubric.OUTCOMES.items()))
+    help = rubric.HELP_KEYS[_ask("Did you use any help? Be honest: a seen answer is not your solve yet.",  # noqa: A001
+                                 [(k, rubric.HELP[v]) for k, v in rubric.HELP_KEYS.items()])]
+    outcome = "1" if help == "answer" else _ask("How did it go?", list(rubric.OUTCOMES.items()))
     checks = rubric.from_ticks(ticks)
     asked = rubric.PRACTICE_CHECKS if practice else [f for f, _, _ in rubric.CHECKS]
     for field, pillar, question in rubric.CHECKS:
@@ -359,6 +381,6 @@ def evaluate(session, problem: Problem, minutes: int, timer: Countdown, ticks: l
     if needs_mistake(outcome != "1", checks["dry_run_passed"], used, minutes):
         options = [(str(i), label) for i, label in enumerate(scheduler.MISTAKES.values(), 1)]
         mistake = list(scheduler.MISTAKES)[int(_ask("What hurt most? (tunes tomorrow's warmup)", options)) - 1]
-    result = record(session, problem, minutes, used, outcome, checks, follow_up, practice, mistake, now)
+    result = record(session, problem, minutes, used, outcome, checks, follow_up, practice, mistake, now, help)
     show(Text(""), card("RESULT", result_lines(result, minutes, practice)))
     return result

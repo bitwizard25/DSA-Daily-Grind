@@ -210,8 +210,9 @@ class WhiteboardScreen(Screen[dict]):
 
 
 class RubricScreen(Screen[dict]):
-    """40:00-45:00 scorecard as a short run of mindless choices: the 3-tier outcome, then one
-    yes/no per pillar check (your checklist ticks are pre-noted), then the mistake if needed."""
+    """40:00-45:00 scorecard as a short run of mindless choices: the honest help question, the
+    3-tier outcome (skipped after a seen answer: that is a miss), then one yes/no per pillar check
+    (your checklist ticks are pre-noted), then the mistake if needed."""
 
     BINDINGS = [Binding(k, f"key('{k}')", show=False) for k in "12345yn"] + [Binding("b", "back", "Back a step")]
 
@@ -225,8 +226,9 @@ class RubricScreen(Screen[dict]):
         self.checks = dict(self.ticked)
         self.needs_mistake, self.mistakes = needs_mistake, mistakes
         self.outcome: str | None = None
+        self.help = "none"
         self.questions = [(f, p, q) for f, p, q in rubric.CHECKS if not practice or f in rubric.PRACTICE_CHECKS]
-        self.step = 0  # 0 = outcome, 1..n = checks, n+1 = mistake
+        self.step = 0  # 0 = help, 1 = outcome, 2..n+1 = checks, n+2 = mistake
 
     def compose(self) -> ComposeResult:
         yield Static(crumb_text(f"{self.path} > {'Self-grade' if self.practice else 'Scorecard'}"), classes="crumbs")
@@ -243,17 +245,22 @@ class RubricScreen(Screen[dict]):
                             (f"{self.problem.title} · coding time {mmss(self.used)}\n\n", MUTED))
         n = len(self.questions)
         if self.step == 0:
+            out.append("Did you use any help?\n", style="bold")
+            out.append("Be honest. A seen answer is not your solve yet: it comes back tomorrow.\n\n", style=MUTED)
+            for key, value in rubric.HELP_KEYS.items():
+                out.append(f"[{key}] {rubric.HELP[value]}\n", style="bold")
+        elif self.step == 1:
             out.append("How did it go?\n\n", style="bold")
-            again = {"1": "back in today's re-solve queue", "2": "re-solve in 3 days", "3": "re-solve next week"}
             for key, label in rubric.OUTCOMES.items():
                 out.append(f"[{key}] {label}", style="bold")
-                out.append(f"  → {again[key]}\n", style=MUTED)
-            if self.over_time:
-                out.append("\nOver the 35-min coding target: Instant Reflex will count as Effort.", style=TEXT_YELLOW)
-        elif self.step <= n:
-            field, pillar, question = self.questions[self.step - 1]
-            out.append(f"Check {self.step}/{n}" + ("" if self.practice else f" · {rubric.PILLARS[pillar]}") + "\n\n",
-                       style=MUTED)
+                out.append(f"  → {rubric.AGAIN[key]}\n", style=MUTED)
+            if self.over_time or self.help == "hint":
+                why = "Over the 35-min coding target" if self.over_time else "You used a hint"
+                out.append(f"\n{why}: Instant Reflex will count as Effort.", style=TEXT_YELLOW)
+        elif self.step <= n + 1:
+            field, pillar, question = self.questions[self.step - 2]
+            out.append(f"Check {self.step - 1}/{n}" + ("" if self.practice else f" · {rubric.PILLARS[pillar]}")
+                       + "\n\n", style=MUTED)
             out.append(question + "?\n", style="bold")
             if field == "dry_run_passed":
                 out.append(f"Trace table rows you filled: {self.trace_rows}\n", style=MUTED)
@@ -266,7 +273,7 @@ class RubricScreen(Screen[dict]):
             out.append("What hurt most? (tunes tomorrow's warmup)\n\n", style="bold")
             for i, label in enumerate(self.mistakes.values(), 1):
                 out.append(f"[{i}] {label}\n")
-        if not self.practice and self.step > 0:
+        if not self.practice and self.step > 1:
             points = rubric.score(self.checks)
             out.append(f"\n\nScore so far {points:.0f}/100 · {rubric.hire_signal(points, self.outcome != '1')}",
                        style=MUTED)
@@ -275,25 +282,33 @@ class RubricScreen(Screen[dict]):
 
     def action_key(self, key: str) -> None:
         n = len(self.questions)
-        if self.step == 0 and key in rubric.OUTCOMES:
+        if self.step == 0 and key in rubric.HELP_KEYS:
+            self.help = rubric.HELP_KEYS[key]
+            if self.help == "answer":  # a seen answer is a miss: no outcome to pick
+                self.outcome, self.step = "1", 2
+            else:
+                self.step = 1
+        elif self.step == 1 and key in rubric.OUTCOMES:
             self.outcome = key
-            self.step = 1
-        elif 1 <= self.step <= n and key in "yn":
-            self.checks[self.questions[self.step - 1][0]] = key == "y"
+            self.step = 2
+        elif 2 <= self.step <= n + 1 and key in "yn":
+            self.checks[self.questions[self.step - 2][0]] = key == "y"
             self.step += 1
-            if self.step > n and not self.needs_mistake(self.outcome != "1", self.checks["dry_run_passed"]):
+            if self.step > n + 1 and not self.needs_mistake(self.outcome != "1", self.checks["dry_run_passed"]):
                 return self.finish(None)
-        elif self.step > n and key in "12345":
+        elif self.step > n + 1 and key in "12345":
             return self.finish(list(self.mistakes)[int(key) - 1])
         self.render_card()
 
     def action_back(self) -> None:
         self.step = max(0, self.step - 1)
+        if self.step == 1 and self.help == "answer":
+            self.step = 0
         self.render_card()
 
     def finish(self, mistake: str | None) -> None:
         self.dismiss({"outcome": self.outcome, "solved": self.outcome != "1", "checks": self.checks,
-                      "mistake": mistake})
+                      "mistake": mistake, "help": self.help})
 
 
 class MockApp(App[dict]):

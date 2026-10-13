@@ -16,9 +16,10 @@ class Problem(SQLModel, table=True):
     title: str
     leetcode_id: int
     slug: str = ""  # leetcode.com/problems/<slug>
-    difficulty: str  # Medium, Hard
-    category: str  # graphs, trees, heaps, intervals, dp, monotonic
+    difficulty: str  # Easy, Medium, Hard
+    category: str  # foundations, graphs, trees, heaps, intervals, dp, monotonic
     phase: int = 1  # plan phase the problem belongs to (1-3)
+    sequence: int = 0  # Foundations only: the order they are served in (easy building blocks first)
     key_pattern: str
     key_insight: str = ""
     time_target: str
@@ -113,6 +114,7 @@ class Attempt(SQLModel, table=True):
     dry_run_ok: Optional[bool] = None  # did the hand trace match the expected output?
     mistake: Optional[str] = None  # pattern, implementation, bug_edge, slow, follow_up
     source: str = "solve"  # solve, mock
+    help: Optional[str] = None  # none, hint (a nudge), answer (saw a solution, a video or AI code)
 
 
 class Setting(SQLModel, table=True):

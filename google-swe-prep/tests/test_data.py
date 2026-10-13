@@ -7,6 +7,7 @@ PROBLEM_FIELDS = {"id", "title", "leetcode_id", "slug", "difficulty", "category"
                   "key_insight", "time_target", "space_target", "google_frequency", "recency", "recent_frequency",
                   "statement", "edge_cases", "google_follow_up"}
 SIX = {"graphs", "trees", "heaps", "intervals", "dp", "monotonic"}
+FOUNDATION_FIELDS = PROBLEM_FIELDS | {"sequence"}
 
 
 def test_problem_bank():
@@ -23,7 +24,7 @@ def test_problem_bank():
         assert p["recency"] in ("30d", "3m", "6m")  # every bank problem was asked in the last 6 months
         assert p["statement"] and p["google_follow_up"] and p["key_insight"]
         assert isinstance(p["edge_cases"], list) and p["edge_cases"] and all(p["edge_cases"])
-    assert {p["category"] for p in problems} == set(scheduler.CATEGORIES) == SIX
+    assert {p["category"] for p in problems} == set(scheduler.CATEGORIES) - {"foundations"} == SIX
     share = {c: sum(p["category"] == c for p in problems) / 75 for c in SIX}
     # spec section 4 weights: Graphs 35%, Trees 20%, DP 20%, Concurrency/Queues/Intervals 25%
     assert round(share["graphs"], 2) == 0.35 and round(share["trees"], 2) == 0.20 and round(share["dp"], 2) == 0.20
@@ -34,6 +35,25 @@ def test_problem_bank():
                   "Word Break", "Longest Increasing Subsequence", "Trapping Rain Water"):
         assert named in {p["title"] for p in problems}, named  # every problem the spec names is in the bank
     assert {p["phase"] for p in problems} == {1, 2, 3}
+
+
+def test_foundations_set():
+    data = db.load_json("foundations.json")
+    problems, drills = data["problems"], data["drills"]
+    bank = {p["slug"] for p in db.load_json("problems.json")}
+    assert len(problems) == 28 and len({p["id"] for p in problems}) == 28
+    for p in problems:
+        assert set(p) == FOUNDATION_FIELDS, p["id"]
+        assert p["id"] == f"G-{p['leetcode_id']}" and p["category"] == "foundations" and p["slug"] not in bank
+        assert p["difficulty"] in ("Easy", "Medium") and p["recency"] == ""  # no made-up Google frequency
+        assert p["statement"] and p["google_follow_up"] and p["key_insight"] and p["edge_cases"]
+    assert sorted(p["sequence"] for p in problems) == list(range(1, 29))
+    assert sum(p["difficulty"] == "Easy" for p in problems) >= 10
+    ids = {p["id"] for p in problems}
+    assert {d["type"] for d in drills} == {"pattern", "bug_hunt"}
+    for d in drills:
+        assert d["category"] == "foundations" and d["prompt"] and d["pattern"] and d["complexity"] and d["edge_case"]
+        assert d["problem_id"] is None or d["problem_id"] in ids
 
 
 def test_recall_drills():
@@ -68,8 +88,8 @@ def test_seed_is_idempotent_and_keeps_progress(session):
     scheduler.grade_drill(session, "R-200", 5, scheduler.clock.now())
     db.seed(session)
     db.seed(session)
-    assert scheduler.count(session, scheduler.Problem) == 75
-    assert scheduler.count(session, scheduler.RecallDrill) == 50
+    assert scheduler.count(session, scheduler.Problem) == 75 + 28  # Google bank + Foundations
+    assert scheduler.count(session, scheduler.RecallDrill) == 50 + 15
     assert scheduler.count(session, scheduler.DrillProgress) == 1
 
 
@@ -97,7 +117,7 @@ def test_upgrade_moves_progress_from_retired_ids(session):
 
     islands = session.get(Problem, "G-200")
     old = Problem(**{**islands.model_dump(), "id": "G-47"})  # how Number of Islands was keyed before
-    gone = Problem(**{**islands.model_dump(), "id": "G-02", "slug": "product-of-array-except-self"})
+    gone = Problem(**{**islands.model_dump(), "id": "G-02", "slug": "fizz-buzz"})
     session.add_all([old, gone, RecallDrill(id="R-01", type="pattern", category="graphs", prompt="p", pattern="p",
                                             complexity="c", edge_case="e")])
     session.add_all([UserProgress(problem_id="G-47", status="learning", reps=2, next_review_date=datetime(2026, 10, 1)),

@@ -489,3 +489,14 @@ table.bridge code { font-size: 14px; }
   table.bridge td.muted { display: none; }
 }
 .meter-help { font-size: 13px; color: var(--muted); margin: -4px 0 6px; }
+
+/* I'm stuck: hints the learner opened */
+.card.hints ol { margin: 0.4rem 0 0.2rem 1.2rem; padding: 0; }
+.card.hints li { margin: 0.2rem 0; }
+
+/* Role prep checklist */
+.role-list { display: grid; gap: 12px; }
+.role-item .role-head { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.role-item .role-head input { margin-top: 4px; width: 18px; height: 18px; flex: none; }
+.role-item .role-head span { display: flex; flex-direction: column; gap: 2px; }
+.role-item .field { margin: 6px 0 0; }

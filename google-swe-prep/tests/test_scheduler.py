@@ -3,9 +3,19 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from google_prep.core import scheduler
-from google_prep.models import DrillProgress, Problem, TrendingProblem
+from google_prep.models import DrillProgress, Problem, TrendingProblem, UserProgress
 
 from conftest import NOW
+
+
+def close_foundations(session):
+    """Mark every Foundations problem as tried once (not due), as after the first two weeks."""
+    tried = set(session.exec(scheduler.select(UserProgress.problem_id)).all())
+    for p in session.exec(scheduler.select(Problem).where(Problem.category == scheduler.FOUNDATIONS)).all():
+        if p.id not in tried:
+            session.add(UserProgress(problem_id=p.id, status="learning", reps=1,
+                                     next_review_date=NOW + timedelta(days=5)))
+    session.commit()
 
 
 def test_phase_boundaries():
@@ -50,16 +60,34 @@ def test_needs_micro():
     assert scheduler.needs_micro(10)
 
 
-def test_target_prefers_recent_non_easy_in_weakest_topic(session):
+def test_foundations_come_first_in_order_then_the_google_bank(session):
+    first = scheduler.pick_target_problem(session, 1, NOW)
+    assert (first.id, first.category, first.difficulty) == ("G-1", "foundations", "Easy")  # Two Sum opens the set
+    scheduler.log_attempt(session, first.id, 30, True, True, 4, NOW, min_days=3)
+    assert scheduler.pick_target_problem(session, 1, NOW).sequence == 2  # then the next building block
+    close_foundations(session)
+    assert not scheduler.foundations_open(session)
     p = scheduler.pick_target_problem(session, 1, NOW)
-    assert p.category == "graphs"  # all tied at 0: plan order
+    assert p.category == "graphs"  # Google bank, all tied at 0: plan order
     assert p.difficulty != "Easy" and p.recency == "30d"
 
 
+def test_foundations_set_starts_easy_and_covers_the_basics(session):
+    rows = session.exec(scheduler.select(Problem).where(Problem.category == scheduler.FOUNDATIONS)
+                        .order_by(Problem.sequence)).all()
+    assert [p.sequence for p in rows] == list(range(1, len(rows) + 1))
+    assert rows[0].difficulty == "Easy" and all(p.difficulty != "Hard" for p in rows)
+    titles = {p.title for p in rows}
+    for must in ("Two Sum", "Valid Palindrome", "Longest Substring Without Repeating Characters", "Binary Search",
+                 "Reverse Linked List", "Valid Parentheses", "LRU Cache"):
+        assert must in titles, must
+
+
 def test_target_moves_to_next_weakest_topic(session):
+    close_foundations(session)
     for prob in session.exec(scheduler.select(Problem).where(Problem.category == "graphs")).all()[:7]:
         scheduler.log_attempt(session, prob.id, 30, True, True, 5, NOW)
-    assert scheduler.pick_target_problem(session, 1, NOW).category != "graphs"
+    assert scheduler.pick_target_problem(session, 1, NOW).category not in ("graphs", scheduler.FOUNDATIONS)
 
 
 def test_topic_filter_and_failed_problem_comes_back_first(session):
@@ -81,8 +109,10 @@ def test_sync_overrides_bundled_recency(session):
 
 
 def test_pick_drills_due_first_then_round_robin(session):
+    assert {d.category for d in scheduler.pick_drills(session, NOW, 8)} == {"foundations"}  # basics first
+    close_foundations(session)
     first = scheduler.pick_drills(session, NOW, 8)
-    assert len({d.category for d in first[:6]}) == 6  # one per category before repeating
+    assert len({d.category for d in first[:7]}) == 7  # then one per category before repeating
     scheduler.grade_drill(session, "R-127", 2, NOW - timedelta(days=3))
     assert scheduler.pick_drills(session, NOW, 1)[0].id == "R-127"
 
@@ -110,6 +140,8 @@ def test_warmup_adapts_to_mistakes(session):
 def test_pace(session):
     scheduler.set_setting(session, "start_date", (NOW.date() - timedelta(days=13)).isoformat())  # day 14
     pace = scheduler.pace(session, NOW.date())
-    assert pace["expected"] == round(75 * (14 - 3) / 54) and pace["behind"] == pace["expected"]  # bank starts Day 3
+    total = scheduler.count(session, Problem)  # the Google bank plus the Foundations set
+    assert total == 75 + 28
+    assert pace["expected"] == round(total * (14 - 3) / 54) and pace["behind"] == pace["expected"]  # starts Day 3
     scheduler.set_setting(session, "start_date", NOW.date().isoformat())
     assert scheduler.pace(session, NOW.date())["behind"] == 0

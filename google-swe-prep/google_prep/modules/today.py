@@ -42,6 +42,10 @@ def status_line(session, now: datetime) -> Text:
 
 
 def recency_text(session, problem) -> str:
+    if problem.category == scheduler.FOUNDATIONS:
+        total = len(session.exec(scheduler.select(scheduler.Problem.id)
+                                 .where(scheduler.Problem.category == scheduler.FOUNDATIONS)).all())
+        return f"foundations {problem.sequence} of {total}: a building block the Google problems reuse"
     window, freq = scheduler.recency(problem, scheduler.recency_overrides(session))
     return scheduler.WINDOW_LABEL.get(window, "") + (f" (freq {freq:.0f})" if freq else "")
 
@@ -127,7 +131,8 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
         signal = recency_text(session, target)
         out.update(kind="deep", title=f"Evening deep work · {kind}", minutes=45 if p["mock"] else 60,
                    bullets=[f"{target.id} **{target.title}** · {target.difficulty} · "
-                            f"{scheduler.CATEGORIES[target.category]} (weakest topic)",
+                            + (scheduler.CATEGORIES[target.category] if target.category == scheduler.FOUNDATIONS
+                               else f"{scheduler.CATEGORIES[target.category]} (weakest topic)"),
                             f"Target **{target.time_target}** time · **{target.space_target}** space",
                             signal[:1].upper() + signal[1:]],
                    cta=f"Start {kind.title()}", action="deep", problem_id=target.id, practice=not p["mock"])

@@ -49,7 +49,7 @@ def test_mock_runs_inside_the_ui_and_is_logged():
             await pilot.press("f1", "ctrl+s")
             await pilot.pause()
             assert isinstance(app.screen, RubricScreen)
-            await pilot.press("3", "y", "y", "y", "y", "y")  # Instant Reflex, then five yes
+            await pilot.press("1", "3", "y", "y", "y", "y", "y")  # no help, Instant Reflex, then five yes
             await pilot.pause()
             assert app.view == "today"
 
