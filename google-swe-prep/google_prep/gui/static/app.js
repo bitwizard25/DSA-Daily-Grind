@@ -64,7 +64,7 @@ function rich(text) {
   text = String(text ?? "");
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(hintify(text.slice(last, m.index)));
-    out.push(m[1] != null ? h("b", null, rich(m[1])) : h("code", { class: "inline" }, m[2]));
+    out.push(m[1] != null ? h("b", null, rich(m[1])) : [h("code", { class: "inline" }, m[2]), codeHint(m[2])]);
     last = re.lastIndex;
   }
   if (last < text.length) out.push(hintify(text.slice(last)));
@@ -74,8 +74,22 @@ function rich(text) {
 // ---------------------------------------------------------------- language mode and Hindi hints
 // standard = technical English, every term explained; simple = plain English + a short Hinglish hint the
 // first time a technical word appears on the page, e.g. "overflow (limit se bada ho jaana)".
-const HINTS = { map: {}, re: null };
-function loadHints(map) {
+const HINTS = { map: {}, re: null, code: {} };
+/** A hint after a short code span such as `''.join(parts)` or `key=len`: only for code words that are also
+ *  everyday English, so "Join checks" in prose never gets the hint meant for str.join. */
+function codeHint(code) {
+  if (S.lang !== "simple" || code.length > 30) return null;
+  for (const word of code.match(/[A-Za-z_]+/g) || []) {
+    const hint = HINTS.code[word];
+    if (hint && !S.hintSeen.has(`code:${word}`)) {
+      S.hintSeen.add(`code:${word}`);
+      return h("span", { class: "hint", lang: "hi-Latn" }, ` (${hint})`);
+    }
+  }
+  return null;
+}
+function loadHints(map, codeMap) {
+  HINTS.code = codeMap || {};
   HINTS.map = Object.fromEntries(Object.entries(map || {}).map(([k, v]) => [k.toLowerCase(), v]));
   const keys = Object.keys(HINTS.map).filter((k) => /^[a-z]/.test(k)).sort((a, b) => b.length - a.length);
   HINTS.re = keys.length ? new RegExp(`(?<![\\w-])(${keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\w-])`, "gi") : null;
@@ -107,6 +121,9 @@ function hintifyTree(root) {
   });
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const code of $$("code", root)) {
+    if (!code.closest("pre")) { const hint = codeHint(code.textContent); if (hint) code.after(hint); }
+  }
   for (const node of nodes) {
     const parts = hintify(node.nodeValue);
     if (Array.isArray(parts)) node.replaceWith(...parts.flat(Infinity).map((x) => (x instanceof Node ? x : document.createTextNode(x))));
@@ -791,8 +808,8 @@ ROUTES.recall = async (ctx) => {
     const dots = h("div", { class: "dots", "aria-hidden": "true" }, data.drills.map((_, i) => h("i", { class: i < index ? "done" : i === index ? "now" : null })));
     const [lead, ...rest] = drill.prompt.split("\n\n");
     const promptNodes = drill.prompt.includes("\n")
-      ? [rest.length ? h("p", { class: "prompt-text" }, lead) : null, h("pre", { class: "prompt-code" }, rest.length ? rest.join("\n\n") : drill.prompt)]
-      : [h("p", { class: "prompt-text" }, drill.prompt)];
+      ? [rest.length ? h("p", { class: "prompt-text" }, rich(lead)) : null, h("pre", { class: "prompt-code" }, rest.length ? rest.join("\n\n") : drill.prompt)]
+      : [h("p", { class: "prompt-text" }, rich(drill.prompt))];
     const ringSlot = h("div", { class: "ring-slot" });
     const work = h("div", { class: "work" },
       h("div", { class: "think" }, h("div", null, "1. Which pattern?"), h("div", null, "2. Time and space?"), h("div", null, "3. One edge case?")),
@@ -830,7 +847,7 @@ ROUTES.recall = async (ctx) => {
       }, h("span", { class: "top" }, kbd(g.key), g.label), h("span", { class: "again" }, g.again))));
       work.replaceChildren(
         h("p", { class: timedOut ? "warn-t" : "muted" }, timedOut ? "Time's up: graded as at most Effort." : `Revealed after ${Math.round(revealSeconds)}s.`),
-        h("dl", { class: "reveal", "data-test": "answer" }, rows.map(([k, v, l]) => [h("dt", null, l || k), h("dd", null, v)])),
+        h("dl", { class: "reveal", "data-test": "answer" }, rows.map(([k, v, l]) => [h("dt", null, l || k), h("dd", null, rich(v))])),
         h("p", { class: "muted small" }, "How did you do?"), grades);
       ringSlot.replaceChildren(ring(0, { size: 170, stroke: 12, label: `${Math.round(revealSeconds)}s`, sub: "to reveal", color: COLORS.blue }));
     }
@@ -906,7 +923,7 @@ ROUTES.mock = async (ctx) => {
       h("h2", null, `${p.title}`),
       h("div", { class: "row" }, h("span", { class: `chip ${p.difficulty.toLowerCase()}` }, p.difficulty), h("span", { class: "chip blue" }, p.category_name),
         p.recency_label ? h("span", { class: "chip" }, p.recency_label) : null, h("span", { class: "muted small" }, `${p.id} · LeetCode ${p.leetcode_id}`)),
-      h("p", { class: "statement" }, p.statement),
+      h("p", { class: "statement" }, rich(p.statement)),
       p.time_target ? h("p", { class: "muted" }, "Aim for ", h("b", null, p.time_target), " time and ", h("b", null, p.space_target), " space.") : null,
       h("div", { class: "actions" },
         btn("Start 45-min mock", () => start(false), { cls: "primary big", primary: true, key: "Enter", test: "start-mock" }),
@@ -1032,7 +1049,7 @@ ROUTES.board = async (ctx) => {
   function renderBanner() {
     if (B.shown < 0) { banner.hidden = true; return; }
     banner.hidden = false;
-    banner.replaceChildren(h("b", null, "Google follow-up"), h("span", { class: "text" }, data.follow_ups[B.shown % data.follow_ups.length]),
+    banner.replaceChildren(h("b", null, "Google follow-up"), h("span", { class: "text" }, rich(data.follow_ups[B.shown % data.follow_ups.length])),
       btn("Another one", () => { B.shown = (B.shown + 1) % data.follow_ups.length; renderBanner(); save(false); }, { cls: "ghost small" }));
   }
   function paint() {
@@ -1127,7 +1144,7 @@ ROUTES.board = async (ctx) => {
       h("div", { class: "row" }, h("span", { class: `chip ${p.difficulty.toLowerCase()}` }, p.difficulty), h("span", { class: "chip blue" }, p.category_name),
         p.recency_label ? h("span", { class: "chip" }, p.recency_label) : null),
       h("h3", { class: "problem-title" }, p.title),
-      h("p", { class: "statement" }, p.statement),
+      h("p", { class: "statement" }, rich(p.statement)),
       h("p", { class: "muted small" }, "First 5 minutes: ask about input size, ranges, empty input and duplicates. Say the complexity before you code.")),
     h("section", { class: "card checklist" }, h("h2", null, "Live interview checklist"), checks.map((c) => c.label)),
     DEBUG ? btn("+5 min (debug)", () => { B.elapsed += 300; tick(); }, { cls: "ghost small", test: "ff" }) : null);
@@ -1569,7 +1586,8 @@ async function boot() {
   }
   try {
     await refreshState();
-    loadHints((await api("hints")).hints);
+    const hintData = await api("hints");
+    loadHints(hintData.hints, hintData.code_hints);
   } catch (err) {
     $("#view").replaceChildren(h("div", { class: "page" }, h("div", { class: "empty" }, err.message)));
     return;

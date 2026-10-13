@@ -485,3 +485,18 @@ def test_quick_checks_belong_to_steps_and_explain_in_both_modes(api):
 def test_hints_are_served(api):
     hints = api.hints()["hints"]
     assert isinstance(hints, dict)
+
+
+def test_simple_mode_serves_plain_problem_and_drill_texts(api):
+    from google_prep import db
+
+    target = api.mock_target()["problem"]
+    standard = target["statement"]
+    api.set_language("simple")
+    plain = db.load_json("simple_text.json")["problems"][target["id"]]["statement"]
+    assert api.problem_card(target["id"])["problem"]["statement"] == plain
+    drills = api.recall_start("warmup", 2)["drills"]
+    plain_drills = db.load_json("simple_text.json")["drills"]
+    assert all(d["prompt"] == plain_drills[d["id"]]["prompt"] for d in drills)
+    api.set_language("standard")
+    assert api.problem_card(target["id"])["problem"]["statement"] == standard

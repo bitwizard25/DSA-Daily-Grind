@@ -1,0 +1,632 @@
+{
+  "version": 1,
+  "problems": {
+    "G-200": {
+      "statement": "A grid has '1' for land and '0' for water. Land cells touching up, down, left or right form one island. Count the islands.",
+      "follow_up": "Now land is added one cell at a time. Can you give the island count after each add?",
+      "key_insight": "Each island is one connected group. Flood fill (spread to all touching land) marks the whole island. So you count it once."
+    },
+    "G-207": {
+      "statement": "You have courses and pairs like 'take A before B'. Can you finish all the courses?",
+      "follow_up": "Return the smallest number of terms (semesters) needed to finish everything.",
+      "key_insight": "You can finish all courses only if the 'before' links never form a loop (a cycle)."
+    },
+    "G-994": {
+      "statement": "A grid has empty cells, fresh oranges and rotten oranges. Each minute, rot spreads to touching fresh oranges. Return the minutes until none are fresh, or -1.",
+      "follow_up": "What if rot spreads at a different speed in each cell?",
+      "key_insight": "Start BFS (visit level by level) from all rotten oranges together. Each level is one minute."
+    },
+    "G-547": {
+      "statement": "You get an n x n table showing which cities are directly linked. Count the groups of cities that are linked together.",
+      "follow_up": "What if links between cities are added and removed over time?",
+      "key_insight": "Each group is a connected component. With union-find (merge groups), every merge of two separate groups lowers the count by one."
+    },
+    "G-133": {
+      "statement": "You get one node of a connected graph with two-way edges. Return a full new copy of the whole graph.",
+      "follow_up": "The graph is split across many machines by node id. How do you copy it?",
+      "key_insight": "Keep a map from each old node to its copy. Save the copy before visiting neighbours, so loops reuse it."
+    },
+    "G-210": {
+      "statement": "You have courses and 'take A before B' pairs. Return one order to take all courses, or an empty list if impossible.",
+      "follow_up": "What if the 'before' rules change often?",
+      "key_insight": "Topological sort (order by dependencies): keep taking a course with no rules left. The order you take them is a valid answer."
+    },
+    "G-127": {
+      "statement": "Change the start word into the end word, one letter at a time. Every middle word must be in the list. Return the fewest words in the chain.",
+      "follow_up": "Searching from both ends at once is faster. Why?",
+      "key_insight": "Words are nodes; one-letter changes are edges. BFS (visit level by level) finds fewest steps. Group words by patterns like h*t to find neighbours fast."
+    },
+    "G-269": {
+      "statement": "Some words are sorted using an unknown alphabet. Find a letter order that fits this sorting.",
+      "follow_up": "Return all possible letter orders, or check if only one order is possible.",
+      "key_insight": "Two neighbouring words only teach one rule: their first different letter. A topological sort (order by rules) of these rules gives the alphabet."
+    },
+    "G-743": {
+      "statement": "A signal starts at node k and travels along timed one-way edges. When do all nodes get it? Return -1 if some never do.",
+      "follow_up": "What if some edge times can be negative?",
+      "key_insight": "Find the shortest time to every node with Dijkstra (always expand the closest node). The answer is the biggest of these times."
+    },
+    "G-721": {
+      "statement": "Each account has a name and some emails. Merge accounts that share at least one email.",
+      "follow_up": "What if the accounts are stored in different data centres?",
+      "key_insight": "Emails are the links. With union-find (merge groups), join all emails of one account. Each final group is one person."
+    },
+    "G-329": {
+      "statement": "You get a grid of numbers. Move up, down, left or right, always to a bigger number. Find the longest such path.",
+      "follow_up": "Return the path itself. Can you solve it without recursion?",
+      "key_insight": "Moves only go to bigger numbers, so loops are impossible. Compute each cell's best path once and save it (memoisation)."
+    },
+    "G-310": {
+      "statement": "You get a tree with n nodes as a list of edges. Return every node that gives the shortest tree height when used as the root.",
+      "follow_up": "Edges are added one at a time. Keep the answer updated without starting again.",
+      "key_insight": "The best roots are the tree's middle nodes. Remove all leaves, layer by layer, until only 1 or 2 nodes remain."
+    },
+    "G-1631": {
+      "statement": "A grid has a height in each cell. Go from top-left to bottom-right. Make the biggest height jump between neighbouring path cells as small as possible.",
+      "follow_up": "The grid is huge and stored in pieces on disk. How do you search it?",
+      "key_insight": "Path cost is its biggest jump, and it never gets smaller as the path grows. So Dijkstra (always expand the cheapest cell) still works."
+    },
+    "G-417": {
+      "statement": "Water flows to touching cells of equal or lower height. Pacific touches top and left edges, Atlantic bottom and right. Return cells that reach both oceans.",
+      "follow_up": "Heights keep changing from sensors. Keep the answer correct without full recomputing.",
+      "key_insight": "Think backwards: from each ocean's border, spread uphill to equal or higher cells. Cells reached from both oceans are the answer."
+    },
+    "G-827": {
+      "statement": "You get an n x n grid of 0s and 1s. You may change at most one 0 into 1. Return the biggest island size possible.",
+      "follow_up": "Now you may change up to K cells.",
+      "key_insight": "Give each island an id and record its size once. For each 0, add 1 to the sizes of its different touching islands."
+    },
+    "G-444": {
+      "statement": "You get an ordering of numbers and some short ordered lists. Is that ordering the only shortest one that keeps every list's order?",
+      "follow_up": "Lists arrive one by one as logs. Find the moment the order becomes the only one.",
+      "key_insight": "Use Kahn's algorithm (keep taking items with no rules left). The order is unique only if one item is ready each time."
+    },
+    "G-787": {
+      "statement": "Flights have prices. Find the cheapest price from src to dst using at most k stops in between. Return -1 if impossible.",
+      "follow_up": "Why does plain Dijkstra fail when there is a stop limit?",
+      "key_insight": "Do at most k + 1 rounds of price updates (Bellman-Ford). Copy prices each round, so no route uses extra flights."
+    },
+    "G-399": {
+      "statement": "You get equations like a / b = 2.0. Answer questions like a / c, or -1.0 if unknown.",
+      "follow_up": "Answer a million questions fast. Hint: weighted union-find (merge groups with ratios).",
+      "key_insight": "a / b = 2 gives edge a -> b with weight 2. It also gives b -> a with weight 1/2. A question is the product of weights on a path."
+    },
+    "G-815": {
+      "statement": "Each bus drives in a loop through a list of stops. Find the fewest buses to go from source stop to target stop, or -1.",
+      "follow_up": "What if you must minimise total travel time, with a cost for each bus change?",
+      "key_insight": "Search over buses, not stops. Each BFS level (visit level by level) means taking one more bus."
+    },
+    "G-778": {
+      "statement": "An n x n grid has different heights. Water rises by one each second. Find the earliest time you can swim from top-left to bottom-right.",
+      "follow_up": "Answer the earliest time for 100,000 different start and end pairs.",
+      "key_insight": "Find a path whose highest cell is as low as possible. Use Dijkstra with max(), or add cells by height until start and end connect."
+    },
+    "G-2045": {
+      "statement": "Each road takes `time` minutes. Each node's light changes green and red every `change` minutes; leave only on green. Return the second smallest time from node 1 to n.",
+      "follow_up": "Now roads take different times. What replaces BFS?",
+      "key_insight": "All roads take equal time. BFS (visit level by level) finds the second smallest road count, keeping two visits per node. Then add light waits."
+    },
+    "G-332": {
+      "statement": "You get plane tickets as [from, to]. Build a trip from JFK using every ticket once. If many work, return the alphabetically smallest.",
+      "follow_up": "Ten million tickets are stored in many data centres. How do you check the trip?",
+      "key_insight": "Using every edge once is an Eulerian path. DFS (go deep first) to the smallest place first, add airports when going back, then reverse."
+    },
+    "G-126": {
+      "statement": "Change the start word into the end word, one letter at a time. Use only list words. Return all shortest chains.",
+      "follow_up": "There are too many shortest chains. Produce them one by one instead of all at once.",
+      "key_insight": "BFS (visit level by level) keeps only parent links on shortest paths. Walk back from the end through them to list all chains."
+    },
+    "G-1192": {
+      "statement": "Servers form a network with two-way links. Return every link whose removal stops some servers from reaching others.",
+      "follow_up": "Links break and come back in real time. Keep the list of critical links updated.",
+      "key_insight": "Use Tarjan's DFS with visit times. A link is critical if, without it, the child cannot reach back up: low[child] > disc[parent]."
+    },
+    "G-305": {
+      "statement": "A grid starts as all water. Cells become land one at a time. After each change, return the number of islands.",
+      "follow_up": "Cells can also become water again. Why does union-find fail, and what replaces it?",
+      "key_insight": "Union-find (merge groups): each new land cell adds one island. Each merge with a touching island removes one."
+    },
+    "G-2812": {
+      "statement": "Some cells of an n x n grid hold thieves. A path's safety is its smallest distance to any thief. Find the safest path from top-left to bottom-right.",
+      "follow_up": "Thieves move every second. Update the safest path without starting again.",
+      "key_insight": "First, BFS (visit level by level) from all thieves gives each cell's distance. Then find a path whose smallest distance is largest."
+    },
+    "G-236": {
+      "statement": "In a binary tree, find the lowest common ancestor of two nodes. That is the deepest node with both below it or equal to it.",
+      "follow_up": "What if nodes know their parent? What if one node may be missing?",
+      "key_insight": "Use post-order (children first). Answer: the first node with a target on each side, or that is a target."
+    },
+    "G-98": {
+      "statement": "Check if a binary tree is a valid binary search tree. Left side values must be smaller, right side values bigger.",
+      "follow_up": "Do it without recursion and with almost no extra memory (Morris traversal).",
+      "key_insight": "Each node must fit in a (low, high) range. All ancestors set this range, not only the parent."
+    },
+    "G-199": {
+      "statement": "Look at a binary tree from its right side. Return the values you can see, from top to bottom.",
+      "follow_up": "Return both the left view and the right view in one pass.",
+      "key_insight": "The visible node is the last one on each level of BFS (visit level by level)."
+    },
+    "G-230": {
+      "statement": "Return the k-th smallest value in a binary search tree (smaller values left, bigger right).",
+      "follow_up": "What if the tree changes often and you ask often?",
+      "key_insight": "In-order traversal (left, node, right) of a search tree gives sorted values. Stop at the k-th one."
+    },
+    "G-543": {
+      "statement": "Return the length of the longest path between any two nodes of a binary tree. Count the edges.",
+      "follow_up": "Solve the same problem when nodes can have many children.",
+      "key_insight": "The longest path through a node is left height plus right height. Take the biggest over all nodes."
+    },
+    "G-208": {
+      "statement": "Build a prefix tree with three functions. Insert a word, and search for a full word. Also check if any word starts with a prefix.",
+      "follow_up": "Add delete. Also make the tree smaller by joining single-child chains (radix tree).",
+      "key_insight": "Words with the same start share nodes. So each action costs the word's length, not the number of words."
+    },
+    "G-103": {
+      "statement": "Return a binary tree's values level by level. Go left-to-right on one level, then right-to-left on the next, and so on.",
+      "follow_up": "Send each level as soon as it is done, using memory for one level only.",
+      "key_insight": "It is normal BFS (visit level by level). Only reverse the output direction on every other level."
+    },
+    "G-297": {
+      "statement": "Write two functions. One turns a binary tree into a string. The other turns that string back into the same tree.",
+      "follow_up": "How can you make the string short for an almost full tree?",
+      "key_insight": "Pre-order (node, then left, then right) with markers for empty children fixes the shape. One pass rebuilds the tree."
+    },
+    "G-124": {
+      "statement": "Each binary tree node has a number, maybe negative. Find the biggest sum of any path between two nodes.",
+      "follow_up": "Return the path itself, not just the sum.",
+      "key_insight": "Return to the parent the best single downward branch, dropping negatives. Update the global best with left + node + right."
+    },
+    "G-105": {
+      "statement": "You get a tree's pre-order list (node, left, right) and in-order list (left, node, right). Rebuild the binary tree.",
+      "follow_up": "Why can pre-order and post-order lists not rebuild one unique tree?",
+      "key_insight": "The first pre-order value is the root. Its place in the in-order list splits left and right subtrees."
+    },
+    "G-863": {
+      "statement": "You get a binary tree and a target node. Return all nodes exactly k edges away from it.",
+      "follow_up": "Answer many target and k questions quickly.",
+      "key_insight": "Add a parent link to each node, so the tree becomes a normal graph. Then BFS (visit level by level) k steps."
+    },
+    "G-212": {
+      "statement": "A board has letters, and you have a list of words. Find all words you can spell using touching cells, each cell once.",
+      "follow_up": "What if there are a million words and the board is huge?",
+      "key_insight": "Put all words in a trie (prefix tree). One DFS (go deep first) on the board checks all words and stops on dead prefixes."
+    },
+    "G-1483": {
+      "statement": "A tree is given as parent[i] for each node. Build getKthAncestor(node, k): go up k parents and return that node, or -1.",
+      "follow_up": "Reuse the jump table to find lowest common ancestors in O(log N) time.",
+      "key_insight": "Binary lifting (jumps by powers of two): store each node's 1st, 2nd, 4th... ancestor. Make one jump per 1 bit of k."
+    },
+    "G-987": {
+      "statement": "Group a binary tree's values by column, left to right. Inside a column, sort by row, then by value.",
+      "follow_up": "How can you avoid sorting everything at the end?",
+      "key_insight": "Save (column, row, value) for every node, then sort. Nodes in the same spot are sorted by value."
+    },
+    "G-642": {
+      "statement": "A user types a sentence letter by letter. After each letter, return the 3 most used old sentences with that start. '#' ends and saves the sentence.",
+      "follow_up": "Serve 100,000 requests per second worldwide. What can be cached, and how old may it be?",
+      "key_insight": "Use a trie (prefix tree) with sentence counts. Each typed letter moves one node deeper and returns that node's top 3."
+    },
+    "G-23": {
+      "statement": "You get k sorted linked lists. Merge them into one sorted list.",
+      "follow_up": "Each list is on another machine, and you have only 64MB of memory.",
+      "key_insight": "Only the front of each list can be next. A heap (fast smallest-item box) of k fronts finds it in O(log k)."
+    },
+    "G-347": {
+      "statement": "You get a list of numbers. Return the k numbers that appear most often.",
+      "follow_up": "What if the input is a stream of a billion events?",
+      "key_insight": "Count each number. Keep a size-k min-heap (smallest on top). The least common of the top k leaves first."
+    },
+    "G-215": {
+      "statement": "Return the k-th largest number in an unsorted list.",
+      "follow_up": "Quickselect is fast on average but slow in the worst case. How do you protect it?",
+      "key_insight": "A size-k min-heap (smallest on top) keeps the k largest numbers seen. Its top is the k-th largest."
+    },
+    "G-1094": {
+      "statement": "A car has a seat limit and only drives east. Each trip is [people, from, to]. Can it do all trips without going over the limit?",
+      "follow_up": "What if places go up to a billion and trips arrive as a stream?",
+      "key_insight": "The load only changes at pick-ups and drop-offs. Go through these events in order and check the running total."
+    },
+    "G-295": {
+      "statement": "Build a tool that adds numbers one by one. At any time, it must return the median (middle value).",
+      "follow_up": "What if 99% of numbers are between 0 and 100?",
+      "key_insight": "Use two heaps (fast top-item boxes). A max-heap holds the small half; a min-heap holds the big half. Keep sizes within one."
+    },
+    "G-621": {
+      "statement": "Run tasks, one per time unit. Two same tasks need n time units between them. Find the least total time.",
+      "follow_up": "Return the real schedule, not just its length.",
+      "key_insight": "The most frequent task sets the frame. Answer: (maxFreq - 1) * (n + 1) + tasks tied at maxFreq, or the task count if bigger."
+    },
+    "G-1834": {
+      "statement": "Each task has a start time and a run time. One CPU always runs the shortest waiting task, ties by index. Return the run order.",
+      "follow_up": "Now there are K CPUs, and tasks have priorities. What changes?",
+      "key_insight": "Simulate the clock with a min-heap (smallest on top). Add tasks that arrived, run the shortest, and jump ahead if nothing waits."
+    },
+    "G-56": {
+      "statement": "You get a list of time ranges [start, end]. Join all ranges that overlap and return the result.",
+      "follow_up": "Ranges arrive one by one. Keep the joined set updated.",
+      "key_insight": "Sort by start. Then a range can only overlap the last joined one, so one pass joins everything."
+    },
+    "G-57": {
+      "statement": "You get sorted ranges that do not overlap. Add a new range, joining ranges that overlap it.",
+      "follow_up": "The list is huge. Use binary search to do it faster.",
+      "key_insight": "Ranges ending before the new one stay. Overlapping ones join into it. The rest come after."
+    },
+    "G-253": {
+      "statement": "You get meeting times as [start, end]. Find the smallest number of rooms needed for all meetings.",
+      "follow_up": "Also return which room each meeting uses.",
+      "key_insight": "Rooms needed equals the most meetings at the same moment. Go through starts and ends in time order (sweep line)."
+    },
+    "G-759": {
+      "statement": "Each worker has a sorted list of busy times. Return the free times that all workers share, ignoring the open ends.",
+      "follow_up": "What if schedules are in different time zones and systems?",
+      "key_insight": "Join everyone's busy times into one sorted timeline. The gaps between them are the shared free time."
+    },
+    "G-1235": {
+      "statement": "Each job has a start, end and profit. Choose jobs that do not overlap to get the biggest total profit.",
+      "follow_up": "What if you have K machines instead of one?",
+      "key_insight": "Sort by end time. Best = max(skip this job, take it + best before its start). Find that earlier job with binary search."
+    },
+    "G-2402": {
+      "statement": "There are n rooms, 0 to n-1. Each meeting takes the lowest free room. If none is free, it waits and keeps its length. Return the busiest room.",
+      "follow_up": "What if rooms have different sizes and meetings have different group sizes?",
+      "key_insight": "Use two min-heaps (smallest on top): free rooms by number, busy rooms by (end time, number). A waiting meeting takes the first room to free."
+    },
+    "G-198": {
+      "statement": "Houses in a row hold money. You cannot rob two houses next to each other. Find the most money you can rob.",
+      "follow_up": "What if the houses are in a circle, or in a tree?",
+      "key_insight": "best[i] = max(best[i - 1], best[i - 2] + money[i]). Either skip this house or rob it."
+    },
+    "G-62": {
+      "statement": "In a grid, go from top-left to bottom-right, moving only right or down. Count the different paths.",
+      "follow_up": "Add blocked cells. What if the grid is 100,000 by 100,000?",
+      "key_insight": "Paths into a cell = paths from above + paths from the left."
+    },
+    "G-91": {
+      "statement": "Letters are coded as numbers: 'A'=1 up to 'Z'=26. Count how many ways a digit string can be decoded.",
+      "follow_up": "Add a '*' digit that can mean any digit from 1 to 9.",
+      "key_insight": "Add ways[i - 1] if the last digit is valid. Add ways[i - 2] if the last two digits are 10 to 26."
+    },
+    "G-139": {
+      "statement": "You get a string and a list of words. Can you cut the string into words from the list?",
+      "follow_up": "Return all possible sentences. What grows too large?",
+      "key_insight": "DP (save small answers): ok[i] is true if a list word ends at i. Also ok must be true where that word starts."
+    },
+    "G-5": {
+      "statement": "A palindrome reads the same forwards and backwards. Return the longest palindrome made of next-to-each-other letters in s.",
+      "follow_up": "How does Manacher's algorithm make this O(N)?",
+      "key_insight": "Every palindrome mirrors around a centre. Grow outwards from each of the 2n - 1 centres to check them all."
+    },
+    "G-416": {
+      "statement": "Can you split a list of numbers into two groups with equal sums?",
+      "follow_up": "Split into K groups with equal sums instead.",
+      "key_insight": "It is subset sum to half the total. Track which sums you can reach, using each number only once."
+    },
+    "G-152": {
+      "statement": "A subarray is a run of items next to each other. Find the subarray with the biggest product.",
+      "follow_up": "Return the subarray itself. Handle products too big for 64 bits.",
+      "key_insight": "A negative number can turn the smallest product into the biggest. So track both max and min product ending here."
+    },
+    "G-322": {
+      "statement": "You get coin values and an amount. Find the fewest coins that add up to the amount, or -1.",
+      "follow_up": "Count the number of ways instead. Which loop goes outside?",
+      "key_insight": "DP (save small answers). Fewest coins for amount a = 1 + the min over coins of fewest coins for a - coin."
+    },
+    "G-300": {
+      "statement": "Pick items from a list in order, skipping any you like. Find the longest picked sequence where each item is bigger.",
+      "follow_up": "Rebuild one longest sequence. Also count all longest sequences.",
+      "key_insight": "Keep the smallest possible last value for each length. Use binary search to find where each number goes."
+    },
+    "G-1143": {
+      "statement": "A subsequence keeps letters in order but may skip some. Return the length of the longest one shared by two strings.",
+      "follow_up": "Compare two 1GB files. What must change (Hirschberg or Myers)?",
+      "key_insight": "DP table (save small answers): if last letters match, extend the answer for both shorter parts. Otherwise drop one letter from either side."
+    },
+    "G-72": {
+      "statement": "Turn one word into another using insert, delete or replace of one letter. Find the fewest steps.",
+      "follow_up": "Return the actual list of edit steps.",
+      "key_insight": "DP table (save small answers). Each cell takes the cheapest of insert, delete or replace on shorter word starts."
+    },
+    "G-410": {
+      "statement": "Split a list into k non-empty parts of items next to each other. Make the biggest part sum as small as possible.",
+      "follow_up": "The list is a stream of a billion numbers. Find a near-best split with little memory.",
+      "key_insight": "If max part sum S works, any bigger S works too. Binary search S, and greedily count the parts needed."
+    },
+    "G-42": {
+      "statement": "Bars of given heights stand in a row. After rain, how much water is held between them?",
+      "follow_up": "Solve the 2D version, where heights form a grid.",
+      "key_insight": "Water above a bar = min(tallest bar left, tallest bar right) - its height. Prefix maximums or two pointers find this."
+    },
+    "G-10": {
+      "statement": "Match a whole string with a pattern. '.' matches any one letter. '*' means zero or more of the letter before it.",
+      "follow_up": "Add '+' (one or more) and '?' (zero or one).",
+      "key_insight": "DP (save small answers). x* can match nothing and be skipped. Or it eats one letter and stays."
+    },
+    "G-312": {
+      "statement": "Burst balloons one by one. Bursting i gives nums[left] * nums[i] * nums[right], using its current neighbours. Find the most coins.",
+      "follow_up": "Why does choosing the first balloon to burst not work?",
+      "key_insight": "Interval DP: pick the balloon burst last in a range. Its neighbours are then the range edges, so both halves are separate."
+    },
+    "G-739": {
+      "statement": "For each day, return how many days until a warmer day. Use 0 if no warmer day comes.",
+      "follow_up": "The data is a live feed, and answers may come late. What changes?",
+      "key_insight": "Keep waiting days on a stack with falling temperatures. A warmer day answers every colder day on top."
+    },
+    "G-503": {
+      "statement": "The list is circular: after the end, it starts again. For each item, return the next bigger item, or -1.",
+      "follow_up": "Values keep coming forever. Output each answer as soon as it is known.",
+      "key_insight": "Use a monotonic stack (stack kept in sorted order). For the circle, go over the indices twice using i mod n."
+    },
+    "G-84": {
+      "statement": "Bars of a chart have given heights and width 1. Find the area of the biggest rectangle inside the bars.",
+      "follow_up": "How can this help find the biggest rectangle of 1s in a 0/1 grid?",
+      "key_insight": "A bar's widest rectangle reaches the nearest shorter bar on each side. Find these when popping from a rising stack."
+    },
+    "G-239": {
+      "statement": "A window of size k slides over a list, one step at a time. Return the biggest value in each window.",
+      "follow_up": "What if you also need each window's median?",
+      "key_insight": "Use a deque (two-ended queue) with falling values. Drop values that can never be the max again. The front is the max."
+    },
+    "G-862": {
+      "statement": "Find the shortest run of items next to each other with sum at least k. Return -1 if none. Numbers can be negative.",
+      "follow_up": "Answer it for 100,000 different values of k.",
+      "key_insight": "Use prefix sums and a deque (two-ended queue) of rising sums. Pop front while sum reaches k; pop back if a smaller sum arrives."
+    },
+    "G-1944": {
+      "statement": "People stand in a line with different heights. For each person, count people on their right they can see. Everyone between must be shorter than both.",
+      "follow_up": "People join and leave the line. Answer the questions quickly.",
+      "key_insight": "Go right to left with a falling stack. Each person sees everyone shorter they pop, plus the next taller person if any."
+    }
+  },
+  "drills": {
+    "R-200": {
+      "prompt": "A grid has '1' for land and '0' for water. Touching land cells (up, down, left, right) make one island. Count the islands.",
+      "pattern": "DFS or BFS flood fill: from each new land cell, spread to all touching land and mark it.",
+      "edge_case": "The grid is empty."
+    },
+    "R-207": {
+      "prompt": "You have courses and 'take A before B' pairs. Can you finish all the courses?",
+      "pattern": "Find a loop (cycle): Kahn's algorithm (take items with no rules left) or DFS (go deep first) with 3 colours.",
+      "edge_case": "A course that needs itself first."
+    },
+    "R-994": {
+      "prompt": "A grid has fresh and rotten oranges. Each minute rot spreads to touching fresh ones. Return minutes until none are fresh, or -1.",
+      "pattern": "Multi-source BFS (visit level by level from many starts): start from all rotten oranges at once.",
+      "edge_case": "No fresh oranges at the start: return 0."
+    },
+    "R-547": {
+      "prompt": "You get an n x n table of which cities are directly linked. Count the groups of linked cities.",
+      "pattern": "Union-find (merge groups of items), or DFS (go deep first), over the table.",
+      "edge_case": "Each city is linked to itself on the diagonal."
+    },
+    "R-133": {
+      "prompt": "You get one node of a connected graph with two-way edges. Return a full new copy of the graph.",
+      "pattern": "DFS or BFS (walk the graph) with a hash map from each old node to its copy.",
+      "edge_case": "Loops: reuse the existing copy, or you recurse forever."
+    },
+    "R-210": {
+      "prompt": "You have courses and 'take A before B' pairs. Return one order to take all of them, or an empty list.",
+      "pattern": "Topological sort (order by dependencies) using Kahn's algorithm: keep taking courses with no rules left.",
+      "edge_case": "A loop exists if the result has fewer courses than the total."
+    },
+    "R-127": {
+      "prompt": "Change the start word into the end word, one letter at a time. Use only list words. Return the fewest words in the chain.",
+      "pattern": "BFS (visit level by level), finding neighbour words through pattern groups like h*t.",
+      "edge_case": "The end word is not in the list."
+    },
+    "R-269": {
+      "prompt": "Some words are sorted using an unknown alphabet. Find a letter order that fits this sorting.",
+      "pattern": "Get rules from neighbouring words, then topological sort (order by the rules).",
+      "edge_case": "A longer word before its own prefix, like ['abc', 'ab'], is invalid."
+    },
+    "R-743": {
+      "prompt": "A signal starts at node k and travels along timed one-way edges. When do all nodes get it? Return -1 if never.",
+      "pattern": "Dijkstra (always expand the closest node) with a min-heap (smallest on top).",
+      "edge_case": "Some nodes can never be reached."
+    },
+    "R-721": {
+      "prompt": "Each account has a name and some emails. Merge accounts that share at least one email.",
+      "pattern": "Union-find (merge groups of items) on the emails.",
+      "edge_case": "The same name does not mean the same person."
+    },
+    "R-329": {
+      "prompt": "In a grid of numbers, move up, down, left or right, always to a bigger number. Find the longest such path.",
+      "pattern": "DFS (go deep first) plus memoisation (save each cell's answer). Paths cannot loop, so it is a DAG.",
+      "edge_case": "Equal neighbours do not count as bigger."
+    },
+    "R-310": {
+      "prompt": "You get a tree as a list of edges. Return every node that gives the smallest tree height when used as root.",
+      "pattern": "Topological peeling (remove leaves layer by layer) until 1 or 2 nodes are left.",
+      "edge_case": "n == 1: return [0]."
+    },
+    "R-1631": {
+      "prompt": "A grid has heights. Go from top-left to bottom-right. Make the biggest height jump between neighbouring path cells as small as possible.",
+      "pattern": "Dijkstra (always expand the cheapest cell) with a min-heap. Path cost is the biggest jump so far.",
+      "edge_case": "A 1 x 1 grid needs 0 effort."
+    },
+    "R-417": {
+      "prompt": "Water flows to touching cells of equal or lower height. Pacific is top/left, Atlantic bottom/right. Return cells reaching both.",
+      "pattern": "Reverse flood fill: from each ocean's border, spread uphill to equal or higher cells.",
+      "edge_case": "Border cells already touch an ocean."
+    },
+    "R-236": {
+      "prompt": "In a binary tree, find the lowest common ancestor of two nodes. That is the deepest node with both below it.",
+      "pattern": "Post-order DFS (children before parent): each subtree returns the target node it found.",
+      "edge_case": "One node is an ancestor of the other."
+    },
+    "R-98": {
+      "prompt": "Check if a binary tree is a valid binary search tree. Left values must be smaller, right values bigger.",
+      "pattern": "DFS (go deep first) passing (low, high) limits down, or check that in-order gives sorted values.",
+      "edge_case": "Duplicate values."
+    },
+    "R-199": {
+      "prompt": "Look at a binary tree from its right side. Return the values you can see, top to bottom.",
+      "pattern": "BFS (visit level by level), and take the last node of each level.",
+      "edge_case": "The left subtree is deeper than the right one."
+    },
+    "R-230": {
+      "prompt": "Return the k-th smallest value in a binary search tree.",
+      "pattern": "In-order traversal (left, node, right) with a counter, which visits values in sorted order.",
+      "edge_case": "k equals the number of nodes."
+    },
+    "R-543": {
+      "prompt": "Find the longest path between any two nodes of a binary tree. Return its length in edges.",
+      "pattern": "DFS (go deep first) returns heights; update a global best with left + right.",
+      "edge_case": "The longest path may not pass through the root."
+    },
+    "R-208": {
+      "prompt": "Build a prefix tree with insert, search for a full word, and startsWith for a prefix.",
+      "pattern": "Trie nodes (one node per letter step), each with a children map and an end-of-word flag.",
+      "edge_case": "A prefix that is also a full word."
+    },
+    "R-103": {
+      "prompt": "Return a binary tree's values level by level. Switch direction on each level: left-to-right, then right-to-left.",
+      "pattern": "BFS (visit level by level); reverse every other level, or fill a deque from alternating ends.",
+      "edge_case": "Empty tree: return []."
+    },
+    "R-297": {
+      "prompt": "Write two functions. One turns a binary tree into a string. The other turns it back.",
+      "pattern": "Pre-order (node, left, right) with markers for empty children.",
+      "edge_case": "Negative values and values with many digits."
+    },
+    "R-23": {
+      "prompt": "You get k sorted linked lists. Merge them into one sorted list.",
+      "pattern": "Min-heap (fast smallest-item box) holding the front node of each list.",
+      "edge_case": "Some lists are empty."
+    },
+    "R-347": {
+      "prompt": "You get a list of numbers. Return the k numbers that appear most often.",
+      "pattern": "Count each number, then keep a size-k min-heap (smallest on top). Bucket sort by count also works.",
+      "edge_case": "Numbers with the same count (ties)."
+    },
+    "R-215": {
+      "prompt": "Return the k-th largest number in an unsorted list.",
+      "pattern": "Size-k min-heap (smallest on top), or quickselect (partial quicksort).",
+      "edge_case": "Duplicates count separately."
+    },
+    "R-1094": {
+      "prompt": "A car has a seat limit and only drives east. Trips are [people, from, to]. Can it do all trips without going over?",
+      "pattern": "Sort by pick-up plus a min-heap (smallest on top) of drop-offs. Or a difference array (add/subtract at points).",
+      "edge_case": "At the same place, drop people off before picking new ones up."
+    },
+    "R-56": {
+      "prompt": "You get time ranges [start, end]. Join all ranges that overlap and return the result.",
+      "pattern": "Sort by start, then join each range into the last one if they overlap.",
+      "edge_case": "Touching ranges like [1,4] and [4,5] should join."
+    },
+    "R-57": {
+      "prompt": "You get sorted ranges that do not overlap. Add a new range, joining any it overlaps.",
+      "pattern": "Three-part scan: ranges before it, ranges overlapping it, ranges after it.",
+      "edge_case": "The new range comes before all, or after all, existing ranges."
+    },
+    "R-253": {
+      "prompt": "You get meeting times [start, end]. Find the fewest rooms needed for all meetings.",
+      "pattern": "Min-heap (smallest on top) of end times, or a sweep line (walk through starts and ends in time order).",
+      "edge_case": "A meeting ending exactly when another starts frees its room."
+    },
+    "R-198": {
+      "prompt": "Houses in a row hold money. You cannot rob two houses next to each other. Find the most money.",
+      "pattern": "1D DP (save answers for smaller rows): at each house, rob it or skip it.",
+      "edge_case": "Only one house."
+    },
+    "R-62": {
+      "prompt": "In a grid, go from top-left to bottom-right moving only right or down. Count the paths.",
+      "pattern": "Grid DP (each cell adds the answers from above and left), or a counting formula.",
+      "edge_case": "A 1 x N grid has exactly one path."
+    },
+    "R-91": {
+      "prompt": "Letters are coded 'A'=1 to 'Z'=26. Count how many ways a digit string can be decoded.",
+      "pattern": "1D DP (save answers for shorter starts), looking back one digit and two digits.",
+      "edge_case": "Zeros: '0', '06' and '100' cannot be decoded."
+    },
+    "R-139": {
+      "prompt": "You get a string and a list of words. Can you cut the string into words from the list?",
+      "pattern": "DP over prefixes (save answer for each start of the string), with the words in a set.",
+      "edge_case": "The same word may be used many times."
+    },
+    "R-5": {
+      "prompt": "Find the longest run of next-to-each-other letters in s. It must read the same both ways.",
+      "pattern": "Grow outwards from each of the 2N - 1 centres. Interval DP (save answers for ranges) also works.",
+      "edge_case": "Even-length palindromes have their centre between two letters."
+    },
+    "R-416": {
+      "prompt": "Can you split a list of numbers into two groups with equal sums?",
+      "pattern": "0/1 knapsack (each item used once) over reachable sums. Loop sums downwards.",
+      "edge_case": "An odd total is impossible."
+    },
+    "R-152": {
+      "prompt": "Find the run of items next to each other with the biggest product.",
+      "pattern": "Track the running max and min product. A negative number swaps them.",
+      "edge_case": "A zero resets the run."
+    },
+    "R-322": {
+      "prompt": "You get coin values and an amount. Find the fewest coins that make the amount, or -1.",
+      "pattern": "Unbounded knapsack (each coin used many times), finding the fewest coins.",
+      "edge_case": "Amount 0: return 0."
+    },
+    "R-739": {
+      "prompt": "For each day, return how many days until a warmer day. Use 0 if none comes.",
+      "pattern": "Monotonic stack (stack kept in sorted order) of indices, with falling temperatures.",
+      "edge_case": "Equal temperatures do not count as warmer."
+    },
+    "R-503": {
+      "prompt": "The list is circular: after the end, it starts again. For each item, return the next bigger item, or -1.",
+      "pattern": "Monotonic stack (stack kept in sorted order) of indices, with falling values, over two passes.",
+      "edge_case": "All values equal: return -1 everywhere."
+    },
+    "R-84": {
+      "prompt": "Bars of a chart have given heights and width 1. Find the area of the biggest rectangle inside the bars.",
+      "pattern": "Monotonic stack (stack kept in sorted order) with rising heights, plus a sentinel (extra 0 bar at the end).",
+      "edge_case": "All bars have the same height."
+    },
+    "B-dijkstra-stale": {
+      "prompt": "Find the bug in this Dijkstra code:\n\n  dist = {src: 0}; pq = [(0, src)]\n  while pq:\n      d, u = heapq.heappop(pq)\n      for v, w in g[u]:\n          if d + w < dist.get(v, inf):\n              dist[v] = d + w\n              heapq.heappush(pq, (dist[v], v))",
+      "pattern": "No skip for old heap entries. Add 'if d > dist[u]: continue'. Answer stays correct, but work can grow to O(E^2) on dense graphs.",
+      "edge_case": "The heap holds many copies of the same node."
+    },
+    "B-bfs-visited": {
+      "prompt": "Find the bug in this grid BFS shortest path code:\n\n  q = deque([(0, 0, 0)])\n  while q:\n      r, c, d = q.popleft()\n      seen.add((r, c))\n      for nr, nc in neighbours(r, c):\n          if (nr, nc) not in seen: q.append((nr, nc, d + 1))",
+      "pattern": "BFS (visit level by level) marks a cell as seen when popped, so it is added many times. Mark it when you push it.",
+      "edge_case": "An open grid with no walls makes the queue explode."
+    },
+    "B-union-find-root": {
+      "prompt": "Find the bug in this union-find code with path compression:\n\n  def find(x):\n      if parent[x] != x:\n          parent[x] = find(parent[x])\n      return x",
+      "pattern": "Union-find (merge groups of items): it returns x, not the root. The last line must be `return parent[x]`.",
+      "edge_case": "Chain 1 -> 2 -> 3: find(1) must return 3."
+    },
+    "B-bst-bounds": {
+      "prompt": "Find the bug in this code that checks a binary search tree:\n\n  def ok(node):\n      if not node: return True\n      if node.left and node.left.val >= node.val: return False\n      if node.right and node.right.val <= node.val: return False\n      return ok(node.left) and ok(node.right)",
+      "pattern": "It only checks parent and child. A grandchild can still break the rule. Pass (low, high) limits down instead.",
+      "edge_case": "Tree [5,4,6,null,null,3,7] must be invalid."
+    },
+    "B-trie-prefix": {
+      "prompt": "Find the bug in this trie (prefix tree) search:\n\n  def search(self, word):\n      node = self.root\n      for ch in word:\n          if ch not in node.children: return False\n          node = node.children[ch]\n      return True",
+      "pattern": "It returns True for any prefix, not only full words. The last line must be `return node.end`.",
+      "edge_case": "After insert(\"apple\"), search(\"app\") must be False."
+    },
+    "B-heap-ties": {
+      "prompt": "Find the bug in this merge of k sorted lists:\n\n  heap = [(l.val, l) for l in lists if l]\n  heapq.heapify(heap)\n  while heap:\n      val, node = heapq.heappop(heap)\n      tail.next = node; tail = node\n      if node.next: heapq.heappush(heap, (node.next.val, node.next))",
+      "pattern": "Equal values make heapq compare ListNode objects, which gives TypeError. Push (val, unique_counter, node) instead.",
+      "edge_case": "Two lists that start with the same value."
+    },
+    "B-merge-max-end": {
+      "prompt": "Find the bug in this merge of overlapping ranges:\n\n  intervals.sort()\n  out = [intervals[0]]\n  for s, e in intervals[1:]:\n      if s <= out[-1][1]: out[-1][1] = e\n      else: out.append([s, e])",
+      "pattern": "The new end must be max(out[-1][1], e). Else [1,10] then [2,3] shrinks to [1,3]. Empty input also crashes.",
+      "edge_case": "One range lies fully inside another."
+    },
+    "B-coin-guard": {
+      "prompt": "Find the bug in this coin change code (fewest coins):\n\n  dp = [0] + [inf] * amount\n  for a in range(1, amount + 1):\n      for c in coins:\n          dp[a] = min(dp[a], dp[a - c] + 1)\n  return dp[amount]",
+      "pattern": "Missing the check c <= a (a negative index wraps around in Python). Also it returns inf instead of -1.",
+      "edge_case": "An amount that cannot be made must return -1."
+    },
+    "B-knapsack-direction": {
+      "prompt": "Find the bug in this equal-sum split code (target is half the total):\n\n  dp = [True] + [False] * target\n  for x in nums:\n      for s in range(x, target + 1):\n          dp[s] = dp[s] or dp[s - x]\n  return dp[target]",
+      "pattern": "Going up in s lets x be used many times (unbounded knapsack). Loop s from target down to x.",
+      "edge_case": "nums = [1, 2, 5] (target 4) must be False."
+    },
+    "B-deque-evict": {
+      "prompt": "Find the bug in this sliding window maximum code:\n\n  dq, out = deque(), []\n  for i, x in enumerate(nums):\n      while dq and nums[dq[-1]] <= x: dq.pop()\n      dq.append(i)\n      if i >= k - 1: out.append(nums[dq[0]])",
+      "pattern": "It never removes indices that left the window. Add `if dq[0] <= i - k: dq.popleft()` before reading dq[0].",
+      "edge_case": "nums = [5, 1, 1, 1], k = 2 must give [5, 1, 1]."
+    }
+  }
+}

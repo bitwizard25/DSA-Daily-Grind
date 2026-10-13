@@ -35,6 +35,16 @@ class Api:
     def __init__(self, now=clock.now):
         self.now = now
 
+    def _plain(self, s, kind: str, item_id: str, field: str, original):
+        """In simple language mode, the plain-English version from data/simple_text.json (if there is one)."""
+        if fasttrack.language(s) != "simple":
+            return original
+        try:
+            texts = db.load_json("simple_text.json")
+        except (OSError, ValueError):
+            return original
+        return texts.get(kind, {}).get(item_id, {}).get(field) or original
+
     # ---- app frame ----------------------------------------------------------------
     def state(self) -> dict:
         t = self.now()
@@ -133,17 +143,20 @@ class Api:
                     "crumbs": _crumbs(s, t.date(), "Recall"),
                     "grades": [{"key": k, "label": label.split(" · ")[0], "again": label.split(" · ")[1]}
                                for k, label in recall.GRADES],
-                    "drills": [{"id": d.id, "type": d.type, "prompt": d.prompt} for d in drills]}
+                    "drills": [{"id": d.id, "type": d.type, "prompt": self._plain(s, "drills", d.id, "prompt", d.prompt)}
+                               for d in drills]}
 
     def recall_reveal(self, drill_id: str) -> dict:
         with get_session() as s:
             d = s.get(RecallDrill, drill_id)
             if d is None:
                 raise ApiError(f"Unknown drill {drill_id}")
-            out = {"label": "Bug & fix" if d.type == "bug_hunt" else "Pattern", "pattern": d.pattern,
-                   "complexity": d.complexity, "edge_cases": [d.edge_case], "key_insight": None, "problem": None}
+            out = {"label": "Bug & fix" if d.type == "bug_hunt" else "Pattern",
+                   "pattern": self._plain(s, "drills", d.id, "pattern", d.pattern), "complexity": d.complexity,
+                   "edge_cases": [self._plain(s, "drills", d.id, "edge_case", d.edge_case)], "key_insight": None,
+                   "problem": None}
             if d.problem_id and (p := s.get(Problem, d.problem_id)):
-                out.update(edge_cases=p.edge_list(), key_insight=p.key_insight,
+                out.update(edge_cases=p.edge_list(), key_insight=self._plain(s, "problems", p.id, "key_insight", p.key_insight),
                            problem={"id": p.id, "title": p.title, "leetcode_id": p.leetcode_id})
             return out
 
@@ -234,7 +247,7 @@ class Api:
                                 "started": started, "submitted_at": (state or {}).get("submitted_at")})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
-                    "follow_ups": mock.follow_ups(p), "checklist": mock.CHECKLIST,
+                    "follow_ups": self._follow_ups(s, p), "checklist": mock.CHECKLIST,
                     "code": mock.scratchpad(p).read_text(encoding="utf-8"),
                     "trace": mock.trace_pad(p).read_text(encoding="utf-8"),
                     "phases": [{"label": label, "start": a, "end": b} for label, a, b in (
@@ -274,7 +287,7 @@ class Api:
         self.mock_save(problem_id, practice, minutes, elapsed, ticks, shown, submitted=True)
         with get_session() as s:
             p = s.get(Problem, problem_id)
-            fups = mock.follow_ups(p)
+            fups = self._follow_ups(s, p)
             used = max(1, int(elapsed))
             ticked = rubric.from_ticks(ticks)
             trace = mock.trace_pad(p).read_text(encoding="utf-8")
@@ -531,7 +544,7 @@ class Api:
         return {"language": mode}
 
     def hints(self) -> dict:
-        return {"hints": fasttrack.load_hints()}
+        return {"hints": fasttrack.load_hints(), "code_hints": fasttrack.load_hints("code_hints")}
 
     def fasttrack_answer(self, exercise_id: str, choice: int) -> dict:
         with get_session() as s:
@@ -598,11 +611,16 @@ class Api:
         return self.state()
 
     # ---- helpers -------------------------------------------------------------------------
-    @staticmethod
-    def _problem_card(p: Problem, full: bool = False) -> dict:
+    def _follow_ups(self, s, p: Problem) -> list[str]:
+        fups = mock.follow_ups(p)
+        return [self._plain(s, "problems", p.id, "follow_up", fups[0])] + fups[1:]
+
+    def _problem_card(self, p: Problem, full: bool = False) -> dict:
+        with get_session() as s:
+            statement = self._plain(s, "problems", p.id, "statement", p.statement)
         out = {"id": p.id, "title": p.title, "difficulty": p.difficulty, "category": p.category,
                "category_name": scheduler.CATEGORIES[p.category], "leetcode_id": p.leetcode_id,
-               "statement": p.statement, "recency": p.recency, "recency_label": scheduler.WINDOW_LABEL.get(p.recency, ""),
+               "statement": statement, "recency": p.recency, "recency_label": scheduler.WINDOW_LABEL.get(p.recency, ""),
                "url": f"https://leetcode.com/problems/{p.slug}/"}
         if not full:  # the pre-start card may show targets; the whiteboard hides the pattern
             out.update(time_target=p.time_target, space_target=p.space_target)

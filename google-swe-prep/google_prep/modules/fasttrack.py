@@ -22,10 +22,12 @@ def load_days() -> list[dict]:
     return [load_day(d) for d in DAYS]
 
 
-def load_hints() -> dict[str, str]:
-    """English term -> short Hinglish hint, shown in simple mode the first time a term appears on a page."""
+def load_hints(kind: str = "hints") -> dict[str, str]:
+    """English term -> short Hinglish hint, shown in simple mode the first time a term appears on a page.
+    kind="code_hints": hints for code words that are also everyday English (join, key, set); the app shows
+    them only when the word appears as code, never in plain prose."""
     try:
-        return db.load_json("hindi_hints.json").get("hints", {})
+        return db.load_json("hindi_hints.json").get(kind, {})
     except (OSError, ValueError):
         return {}
 

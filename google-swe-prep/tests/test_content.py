@@ -155,3 +155,26 @@ def test_skipped_day1_is_served_on_day2(session):
     start = scheduler.start_date(session, datetime(2026, 10, 12).date())
     day2 = datetime.combine(start + timedelta(days=1), datetime.min.time()).replace(hour=8)
     assert today.decide(session, day2)["day"] == 1  # the earliest unfinished module comes first
+
+
+# ---- simple mode beyond the lessons ------------------------------------------------------------------
+def test_simple_texts_cover_the_bank_and_the_drills():
+    texts = db.load_json("simple_text.json")
+    problems = {p["id"]: p for p in db.load_json("problems.json")}
+    drills = {d["id"]: d for d in db.load_json("recall_drills.json")}
+    assert set(texts["problems"]) == set(problems) and set(texts["drills"]) == set(drills)
+    for pid, t in texts["problems"].items():
+        assert t["statement"] and len(t["statement"]) <= 220, pid
+        assert t["follow_up"] and len(t["follow_up"]) <= 180, pid
+        assert t["key_insight"] and len(t["key_insight"]) <= 200, pid
+    for did, t in texts["drills"].items():
+        assert t["prompt"] and t["pattern"] and t["edge_case"], did
+        if drills[did]["type"] == "bug_hunt" and "\n\n" in drills[did]["prompt"]:
+            code = drills[did]["prompt"].split("\n\n", 1)[1]
+            assert t["prompt"].endswith(code), f"{did}: the bug-hunt code must stay exactly the same"
+
+
+def test_code_hints_exist_for_everyday_words():
+    hints = fasttrack.load_hints("code_hints")
+    assert {"join", "key", "set"} <= set(hints)
+    assert not {"join", "key", "set"} & set(fasttrack.load_hints())  # never matched in plain prose
