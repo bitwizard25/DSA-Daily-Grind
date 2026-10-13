@@ -195,7 +195,7 @@ def test_setup_remind_version_hot_add():
     assert google_prep.__version__ in run("--version").output
     assert "Run: google-prep sync" in run("hot").output
     assert "Already in your bank: G-410" in run("add", "split-array-largest-sum").output
-    assert runner.invoke(app, ["add", "generate-parentheses"]).exit_code == 1  # not synced yet
+    assert runner.invoke(app, ["add", "word-break-ii"]).exit_code == 1  # not synced yet
 
 
 def test_remind_commands_per_platform():

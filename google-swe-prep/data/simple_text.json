@@ -515,6 +515,171 @@
       "statement": "Build a fixed-size cache. get and put must be O(1). When it is full, remove the item used longest ago.",
       "follow_up": "Many threads use the cache at the same time. How do you keep it safe?",
       "key_insight": "A dict finds items fast. A linked list (or OrderedDict) keeps them in order of use. Move an item to the end on use; remove from the front when full."
+    },
+    "G-94": {
+      "statement": "Visit a binary tree in this order: left side, then the node, then right side. Return the values in that order.",
+      "follow_up": "Do it without recursion. Use your own stack.",
+      "key_insight": "Write a function that visits the left child, records the node, then visits the right child. An empty node just returns."
+    },
+    "G-100": {
+      "statement": "Return True if two binary trees have the same shape and the same numbers in the same places.",
+      "follow_up": "Now check whether one tree appears inside the other as a subtree.",
+      "key_insight": "Compare the two roots. Both empty: same. One empty or values differ: not same. Else compare left with left and right with right."
+    },
+    "G-101": {
+      "statement": "Return True if the tree looks the same in a mirror: the left side is a mirror image of the right side.",
+      "follow_up": "Solve it without recursion, using a queue.",
+      "key_insight": "Compare two nodes at a time: their values must match, the outer children must mirror each other, and the inner children too."
+    },
+    "G-110": {
+      "statement": "A tree is balanced if, at every node, the left and right sides differ in height by at most 1. Return True if it is balanced.",
+      "follow_up": "Why is calling height() at every node slow (O(n^2)), and how does returning -1 fix it?",
+      "key_insight": "Work from the bottom up. Each call returns the height, or -1 if that part is already unbalanced. Stop as soon as you see -1."
+    },
+    "G-78": {
+      "statement": "The numbers are all different. Return every group you can pick from them, including the empty group.",
+      "follow_up": "Now numbers can repeat. How do you avoid returning the same group twice?",
+      "key_insight": "For each number make two choices: take it or skip it. A recursive function over the position builds every group."
+    },
+    "G-46": {
+      "statement": "The numbers are all different. Return every possible order of them.",
+      "follow_up": "Now numbers can repeat. How do you skip orders you already made?",
+      "key_insight": "Fill positions one by one. Try each number not used yet, go deeper, then undo the choice and try the next one."
+    },
+    "G-39": {
+      "statement": "Find every group of numbers that adds up to the target. You may use the same number many times. Do not repeat a group.",
+      "follow_up": "Now each number may be used only once, and the list has repeats. What changes?",
+      "key_insight": "Choose numbers from position i onward, so a group is built in one order only. Stay at i to reuse a number. Stop when the target goes below 0."
+    },
+    "G-22": {
+      "statement": "Return every correct way to write n pairs of brackets, like (()) and ()() for n = 2.",
+      "follow_up": "How many answers are there for a given n?",
+      "key_insight": "Build the text one bracket at a time. Add '(' if you still have some left. Add ')' only if it closes an open one."
+    },
+    "G-9": {
+      "statement": "Return True if a whole number reads the same from both ends (like 121). Try it without turning it into text.",
+      "follow_up": "Why reverse only half of the digits, not all of them?",
+      "key_insight": "Negative numbers fail. Take digits off the end with % 10 and build the reversed half. Stop at the middle and compare."
+    },
+    "G-2": {
+      "statement": "Two numbers are stored as linked lists, ones digit first (342 is 2 -> 4 -> 3). Return their sum as a linked list in the same form.",
+      "follow_up": "Now the digits are stored largest first. What changes?",
+      "key_insight": "Walk both lists at once. Add the two digits and the carry. Write sum % 10, carry sum // 10. Do not forget a last carry."
+    },
+    "G-7": {
+      "statement": "Reverse the digits of a number (123 -> 321, -45 -> -54). If the answer does not fit in 32 bits, return 0.",
+      "follow_up": "In C++ the number can overflow. How do you check before it happens?",
+      "key_insight": "Work on the absolute value. Take the last digit with % 10, add it to the result, drop it with // 10. Put the sign back and check the range."
+    },
+    "G-169": {
+      "statement": "One number appears in more than half of the list. Return it.",
+      "follow_up": "Now find every number that appears more than n/3 times.",
+      "key_insight": "Keep a candidate and a counter. Same number: +1. Different: -1. At 0, take the next number as the new candidate. The majority wins."
+    },
+    "G-14": {
+      "statement": "Return the longest start that all the words share (for flower, flow, flight it is 'fl'). Return '' if there is none.",
+      "follow_up": "You get many questions about the same list of words. Would a trie (prefix tree) help?",
+      "key_insight": "Look at position 0 in every word, then position 1, and so on. Stop at the first difference or when a word ends."
+    },
+    "G-50": {
+      "statement": "Compute x to the power n (n can be negative), faster than multiplying n times.",
+      "follow_up": "How does the same trick work for big powers with % (mod) a number?",
+      "key_insight": "x^n = (x^(n // 2))^2, times one more x when n is odd. Each step halves n, so it takes about log n steps. For negative n, use 1 / x^(-n)."
+    },
+    "G-69": {
+      "statement": "Return the square root of x, rounded down (the square root of 8 gives 2). Do not use a built-in sqrt.",
+      "follow_up": "How would you get the answer to 5 decimal places?",
+      "key_insight": "Binary search for the biggest m where m * m <= x. Search between 0 and x."
+    },
+    "G-189": {
+      "statement": "Move every number k places to the right; numbers that fall off the end come back at the start. Do it in place.",
+      "follow_up": "Explain why the three reversals give the right answer.",
+      "key_insight": "Use k = k % n. Reverse the whole list, then reverse the first k numbers, then reverse the rest."
+    },
+    "G-88": {
+      "statement": "nums1 and nums2 are sorted. nums1 has empty space at the end. Put all the numbers into nums1 in sorted order.",
+      "follow_up": "Why does filling from the front fail without extra space?",
+      "key_insight": "Fill nums1 from the back. Compare the biggest numbers left in each list and place the bigger one. Nothing gets overwritten."
+    },
+    "G-53": {
+      "statement": "Find the stretch of numbers next to each other with the biggest sum. Return that sum.",
+      "follow_up": "Also return where the stretch starts and ends. What if the list wraps around in a circle?",
+      "key_insight": "At each number, either start fresh here or add it to the best stretch ending just before. Keep the best value seen."
+    },
+    "G-54": {
+      "statement": "Return the numbers of a grid in spiral order: along the top, down the right side, back along the bottom, up the left, then inward.",
+      "follow_up": "Now build an n x n grid and fill it with 1, 2, 3 ... in spiral order.",
+      "key_insight": "Keep four edges: top, bottom, left, right. Walk one side, then move that edge inward. Check the edges before the last two sides."
+    },
+    "G-48": {
+      "statement": "Turn a square grid 90 degrees to the right. Change the grid itself, no new grid.",
+      "follow_up": "How would you turn it to the left instead?",
+      "key_insight": "Swap across the main diagonal (row i, col j with row j, col i). Then reverse every row."
+    },
+    "G-8": {
+      "statement": "Turn text like '  -42abc' into the number -42. Skip spaces, read one + or -, read digits, stop at anything else. Keep it inside 32-bit limits.",
+      "follow_up": "Which five test cases would you write first?",
+      "key_insight": "Go step by step: skip spaces, read one sign, read digits while they last. Then keep the number inside the 32-bit limits."
+    },
+    "G-209": {
+      "statement": "All numbers are positive. Find the shortest stretch whose sum is at least target. Return its length, or 0.",
+      "follow_up": "What changes if numbers can be negative?",
+      "key_insight": "Grow the window on the right. While the sum is big enough, record the length and shrink from the left."
+    },
+    "G-287": {
+      "statement": "A list holds n + 1 numbers, each from 1 to n, so one repeats. Find it without changing the list and without extra memory.",
+      "follow_up": "Solve it with binary search on the number range instead.",
+      "key_insight": "Read each number as 'go to this position next'. A repeat makes a loop. Find where the loop starts with slow and fast pointers."
+    },
+    "G-55": {
+      "statement": "Each number says how far you may jump from that spot. Starting at the first spot, can you reach the last one?",
+      "follow_up": "Now return the fewest jumps needed to reach the end.",
+      "key_insight": "Keep the farthest spot you can reach. Walk forward; if you pass it, you are stuck. Else update it with i + nums[i]."
+    },
+    "G-31": {
+      "statement": "Change the list into the next bigger order of the same numbers ([1, 2, 3] -> [1, 3, 2]). If it is already the biggest, make it the smallest. In place.",
+      "follow_up": "How would you jump straight to the k-th order?",
+      "key_insight": "From the right, find the first number smaller than the one after it. Swap it with the smallest bigger number on its right. Reverse everything after it."
+    },
+    "G-162": {
+      "statement": "Find any number bigger than both its neighbours and return its position. Outside the list counts as minus infinity. Aim for O(log n).",
+      "follow_up": "Now find a peak in a 2D grid.",
+      "key_insight": "Look at the middle. If the next number is bigger, a peak is on the right; else it is at the middle or on the left. Repeat."
+    },
+    "G-380": {
+      "statement": "Build a set with insert, remove and get-random. Each must take O(1) on average.",
+      "follow_up": "Now the same value can be added more than once. What changes?",
+      "key_insight": "Keep values in a list and their positions in a dict. To remove, move the last value into the hole and pop the end."
+    },
+    "G-73": {
+      "statement": "Wherever the grid has a 0, make that whole row and whole column 0. Change the grid itself.",
+      "follow_up": "Using extra lists of rows and columns is easy. How do you do it with no extra memory?",
+      "key_insight": "Mark rows and columns to clear in the first row and first column. Keep two flags for the first row and column themselves."
+    },
+    "G-268": {
+      "statement": "The list has n different numbers from 0 to n, so one is missing. Return it.",
+      "follow_up": "Why might XOR be safer than adding in C++?",
+      "key_insight": "0 + 1 + ... + n = n(n + 1) / 2. Subtract the real sum. What is left is the missing number."
+    },
+    "G-13": {
+      "statement": "Turn a Roman number like 'MCMXCIV' into a normal number (1994).",
+      "follow_up": "Now do the reverse: number to Roman.",
+      "key_insight": "Go left to right. Add each symbol's value, but subtract it if the next symbol is bigger (IV = 4)."
+    },
+    "G-4": {
+      "statement": "Two lists are sorted. Return the middle value (median) of all the numbers together, in O(log(m + n)).",
+      "follow_up": "Now find the k-th smallest number across both lists.",
+      "key_insight": "Cut both lists so the left parts hold half of all numbers and every left number <= every right number. Binary search where to cut the shorter list."
+    },
+    "G-41": {
+      "statement": "Find the smallest positive number (1, 2, 3 ...) that is not in the list. Use O(n) time and no extra memory.",
+      "follow_up": "Explain why the swaps take only O(n) time in total.",
+      "key_insight": "Put each number v (from 1 to n) at position v - 1 by swapping. Then the first position i that does not hold i + 1 gives the answer."
+    },
+    "G-76": {
+      "statement": "Find the shortest part of s that contains all letters of t (repeats included). Return it, or '' if there is none.",
+      "follow_up": "What if s arrives as a stream and t is very large?",
+      "key_insight": "Grow the window on the right until it has every needed letter. Then shrink from the left while it still does. Keep the shortest."
     }
   },
   "drills": {
@@ -842,6 +1007,86 @@
       "prompt": "Find the bug in this reverse a linked list code:\n\n  prev, cur = None, head\n  while cur:\n      cur.next = prev\n      prev = cur\n      cur = cur.next\n  return prev",
       "pattern": "cur.next is changed before it is saved, so the walk goes backwards. Save nxt = cur.next first.",
       "edge_case": "A list with 2 or more nodes stops after the first node."
+    },
+    "R-78": {
+      "prompt": "The numbers are all different. Return every group you can pick from them, including the empty group.",
+      "pattern": "Backtracking: for each number, take it or skip it, then go to the next position.",
+      "edge_case": "Empty array."
+    },
+    "R-46": {
+      "prompt": "The numbers are all different. Return every possible order of them.",
+      "pattern": "Backtracking: try each unused number in the next slot, go deeper, then undo.",
+      "edge_case": "One element."
+    },
+    "R-22": {
+      "prompt": "Return every correct way to write n pairs of brackets, like (()) and ()() for n = 2.",
+      "pattern": "Backtracking: add '(' while some are left, add ')' only to close an open one.",
+      "edge_case": "n = 1."
+    },
+    "R-110": {
+      "prompt": "A tree is balanced if, at every node, the left and right sides differ in height by at most 1. Return True if it is balanced.",
+      "pattern": "Bottom-up height: return -1 as soon as one side is more than 1 taller.",
+      "edge_case": "Empty tree."
+    },
+    "B-backtrack-shared-path": {
+      "prompt": "Find the bug in this subsets with backtracking code:\n\n  res, path = [], []\n  def dfs(i):\n      if i == len(nums):\n          res.append(path)\n          return\n      path.append(nums[i])\n      dfs(i + 1)\n      path.pop()\n      dfs(i + 1)\n  dfs(0)\n  return res",
+      "pattern": "It saves the same list again and again, and that list is empty at the end. Save a copy: res.append(path[:]).",
+      "edge_case": "nums = [1, 2] gives [[], [], [], []]."
+    },
+    "R-53": {
+      "prompt": "Find the stretch of numbers next to each other with the biggest sum. Return that sum.",
+      "pattern": "Kadane: at each number, start fresh or extend the best stretch ending just before.",
+      "edge_case": "All numbers negative."
+    },
+    "R-169": {
+      "prompt": "One number appears in more than half of the list. Return it.",
+      "pattern": "Voting: keep a candidate and a counter; the majority survives.",
+      "edge_case": "One element."
+    },
+    "R-189": {
+      "prompt": "Move every number k places to the right; numbers that fall off the end come back at the start. Do it in place.",
+      "pattern": "Three reversals: the whole list, then the first k, then the rest.",
+      "edge_case": "k larger than the array length."
+    },
+    "R-209": {
+      "prompt": "All numbers are positive. Find the shortest stretch whose sum is at least target. Return its length, or 0.",
+      "pattern": "Sliding window: grow on the right, shrink from the left while the sum is big enough.",
+      "edge_case": "No subarray reaches the target."
+    },
+    "R-287": {
+      "prompt": "A list holds n + 1 numbers, each from 1 to n, so one repeats. Find it without changing the list and without extra memory.",
+      "pattern": "Slow and fast pointers on 'value = next position' links; the loop start is the repeat.",
+      "edge_case": "The duplicate appears many times."
+    },
+    "R-55": {
+      "prompt": "Each number says how far you may jump from that spot. Starting at the first spot, can you reach the last one?",
+      "pattern": "Greedy: keep the farthest reachable spot; stop if you walk past it.",
+      "edge_case": "One element."
+    },
+    "R-31": {
+      "prompt": "Change the list into the next bigger order of the same numbers ([1, 2, 3] -> [1, 3, 2]). If it is already the biggest, make it the smallest. In place.",
+      "pattern": "From the right: find the first dip, swap with the next bigger number, reverse the tail.",
+      "edge_case": "Already the largest order, e.g. [3, 2, 1]."
+    },
+    "R-162": {
+      "prompt": "Find any number bigger than both its neighbours and return its position. Outside the list counts as minus infinity. Aim for O(log n).",
+      "pattern": "Binary search on the slope: go towards the bigger neighbour.",
+      "edge_case": "One element."
+    },
+    "R-380": {
+      "prompt": "Build a set with insert, remove and get-random. Each must take O(1) on average.",
+      "pattern": "List + dict of positions; remove by moving the last value into the hole.",
+      "edge_case": "Removing the last element."
+    },
+    "R-76": {
+      "prompt": "Find the shortest part of s that contains all letters of t (repeats included). Return it, or '' if there is none.",
+      "pattern": "Sliding window with letter counts: grow until it covers t, shrink while it still does.",
+      "edge_case": "t longer than s."
+    },
+    "B-kadane-zero-start": {
+      "prompt": "Find the bug in this maximum subarray (Kadane) code:\n\n  best = cur = 0\n  for x in nums:\n      cur = max(x, cur + x)\n      best = max(best, cur)\n  return best",
+      "pattern": "best starts at 0, so a list of only negative numbers gives 0. Start best and cur at nums[0].",
+      "edge_case": "nums = [-3, -1, -2] gives 0, but the answer is -1."
     }
   }
 }

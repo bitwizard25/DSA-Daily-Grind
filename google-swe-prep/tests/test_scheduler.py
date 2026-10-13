@@ -68,8 +68,9 @@ def test_foundations_come_first_in_order_then_the_google_bank(session):
     close_foundations(session)
     assert not scheduler.foundations_open(session)
     p = scheduler.pick_target_problem(session, 1, NOW)
-    assert p.category == "graphs"  # Google bank, all tied at 0: plan order
+    assert p.category == "arrays"  # Google problems, all tied at 0: plan order
     assert p.difficulty != "Easy" and p.recency == "30d"
+    assert scheduler.pick_target_problem(session, 1, NOW, ["graphs"]).recency == "30d"
 
 
 def test_foundations_set_starts_easy_and_covers_the_basics(session):
@@ -79,7 +80,7 @@ def test_foundations_set_starts_easy_and_covers_the_basics(session):
     assert rows[0].difficulty == "Easy" and all(p.difficulty != "Hard" for p in rows)
     titles = {p.title for p in rows}
     for must in ("Two Sum", "Valid Palindrome", "Longest Substring Without Repeating Characters", "Binary Search",
-                 "Reverse Linked List", "Valid Parentheses", "LRU Cache"):
+                 "Reverse Linked List", "Same Tree", "Subsets", "Permutations", "Valid Parentheses", "LRU Cache"):
         assert must in titles, must
 
 
@@ -87,7 +88,7 @@ def test_target_moves_to_next_weakest_topic(session):
     close_foundations(session)
     for prob in session.exec(scheduler.select(Problem).where(Problem.category == "graphs")).all()[:7]:
         scheduler.log_attempt(session, prob.id, 30, True, True, 5, NOW)
-    assert scheduler.pick_target_problem(session, 1, NOW).category not in ("graphs", scheduler.FOUNDATIONS)
+    assert scheduler.pick_target_problem(session, 1, NOW, ["graphs", "trees"]).category == "trees"
 
 
 def test_topic_filter_and_failed_problem_comes_back_first(session):
@@ -111,8 +112,8 @@ def test_sync_overrides_bundled_recency(session):
 def test_pick_drills_due_first_then_round_robin(session):
     assert {d.category for d in scheduler.pick_drills(session, NOW, 8)} == {"foundations"}  # basics first
     close_foundations(session)
-    first = scheduler.pick_drills(session, NOW, 8)
-    assert len({d.category for d in first[:7]}) == 7  # then one per category before repeating
+    first = scheduler.pick_drills(session, NOW, 9)
+    assert len({d.category for d in first[:8]}) == 8  # then one per category before repeating
     scheduler.grade_drill(session, "R-127", 2, NOW - timedelta(days=3))
     assert scheduler.pick_drills(session, NOW, 1)[0].id == "R-127"
 
@@ -141,7 +142,7 @@ def test_pace(session):
     scheduler.set_setting(session, "start_date", (NOW.date() - timedelta(days=13)).isoformat())  # day 14
     pace = scheduler.pace(session, NOW.date())
     total = scheduler.count(session, Problem)  # the Google bank plus the Foundations set
-    assert total == 75 + 28
+    assert total == 75 + 36 + 25
     assert pace["expected"] == round(total * (14 - 3) / 54) and pace["behind"] == pace["expected"]  # starts Day 3
     scheduler.set_setting(session, "start_date", NOW.date().isoformat())
     assert scheduler.pace(session, NOW.date())["behind"] == 0

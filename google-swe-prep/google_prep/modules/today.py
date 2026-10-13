@@ -45,7 +45,8 @@ def recency_text(session, problem) -> str:
     if problem.category == scheduler.FOUNDATIONS:
         total = len(session.exec(scheduler.select(scheduler.Problem.id)
                                  .where(scheduler.Problem.category == scheduler.FOUNDATIONS)).all())
-        return f"foundations {problem.sequence} of {total}: a building block the Google problems reuse"
+        window = scheduler.WINDOW_LABEL.get(problem.recency, "")
+        return f"foundations {problem.sequence} of {total}" + (f", {window}" if problem.recency else "")
     window, freq = scheduler.recency(problem, scheduler.recency_overrides(session))
     return scheduler.WINDOW_LABEL.get(window, "") + (f" (freq {freq:.0f})" if freq else "")
 
@@ -56,10 +57,14 @@ def plan(session, now: datetime, mode: str = "normal") -> dict:
     phase = scheduler.phase_for_day(day)
     sched = scheduler.schedule_for(session, now.date())
     drills = scheduler.pick_warmup(session, now, WARMUP_DRILLS)
-    target = scheduler.pick_target_problem(session, phase, now)
+    goal = scheduler.daily_problems(session)
+    done_today = [x.id for x in scheduler.attempts_on(session, now.date())]
+    # full-time: the next problem of the day is a new one, not a retry of the one just graded
+    target = scheduler.pick_target_problem(session, phase, now, exclude=set(done_today) if goal > 1 else None)
     yesterday = scheduler.attempts_on(session, now.date() - timedelta(days=1))
     return {"phase": phase, "slot": scheduler.time_slot(now), "schedule": sched, "drills": drills,
             "target": target, "yesterday": yesterday, "mock": phase == 3, "mode": mode,
+            "goal": goal, "done_today": len(done_today),
             "micro": [d for d in (scheduler.pick_drills(session, now, 1, "pattern")
                                   + scheduler.pick_drills(session, now, 1, "bug_hunt"))],
             "due": scheduler.due_problems(session, now)}
@@ -113,8 +118,11 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
                 "bullets": ["Fast-track module finished. The streak is safe.",
                             "The Google problem bank starts on Day 3."]}
 
-    morning_next = not sched.morning_completed and p["slot"] != "evening"
-    evening_next = not morning_next and not sched.evening_completed and target is not None
+    goal = p["goal"]
+    full_time = goal > 1
+    morning_next = not sched.morning_completed and (full_time or p["slot"] != "evening")
+    more_today = p["done_today"] < goal if full_time else not sched.evening_completed
+    evening_next = not morning_next and more_today and target is not None
     kind = "45-min mock" if p["mock"] else "60-min timed solve"
     if morning_next:
         bugs = sum(d.type == "bug_hunt" for d in p["drills"])
@@ -129,7 +137,9 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
                    cta="Start Today's 20-min Warmup", action="warmup", minutes=20)
     elif evening_next:
         signal = recency_text(session, target)
-        out.update(kind="deep", title=f"Evening deep work · {kind}", minutes=45 if p["mock"] else 60,
+        title = (f"Deep work · problem {p['done_today'] + 1} of {goal} · {kind}" if full_time
+                 else f"Evening deep work · {kind}")
+        out.update(kind="deep", title=title, minutes=45 if p["mock"] else 60,
                    bullets=[f"{target.id} **{target.title}** · {target.difficulty} · "
                             + (scheduler.CATEGORIES[target.category] if target.category == scheduler.FOUNDATIONS
                                else f"{scheduler.CATEGORIES[target.category]} (weakest topic)"),
@@ -137,14 +147,19 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
                             signal[:1].upper() + signal[1:]],
                    cta=f"Start {kind.title()}", action="deep", problem_id=target.id, practice=not p["mock"])
     else:
+        done_line = (f"Warmup and {p['done_today']} problems logged. The streak is safe." if full_time
+                     else "Both sessions logged. The streak is safe.")
         out.update(kind="done", title="Done for today", tone="green",
-                   bullets=["Both sessions logged. The streak is safe.", "Extra rep? Mock or drills."])
+                   bullets=[done_line, "Extra rep? Re-solve queue, a mock, or drills."])
 
     for d in fasttrack.unfinished(session):
         out["status"].append(("Open", f"Python fast-track Day {d} not finished"))
     if not morning_next:
         out["status"].append(("Done" if sched.morning_completed else "Not done", "Morning warmup"))
-    if not evening_next and target is not None:
+    if full_time and not evening_next:
+        out["status"].append(("Done" if p["done_today"] >= goal else "Later",
+                              f"Problems today · {min(p['done_today'], goal)} of {goal}"))
+    elif not evening_next and target is not None:
         out["status"].append(("Done" if sched.evening_completed else "Later",
                               f"Evening · {evening_time} · {kind} · {target.title}"))
     return out

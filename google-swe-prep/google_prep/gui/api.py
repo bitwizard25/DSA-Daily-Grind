@@ -75,6 +75,7 @@ class Api:
                     "start_date": scheduler.start_date(s, t.date()).isoformat(),
                     "interview_date": scheduler.interview_date(s).isoformat(),
                     "language": fasttrack.language(s),
+                    "daily_problems": scheduler.daily_problems(s),
                 },
                 "fasttrack": {"unfinished": fasttrack.unfinished(s),
                               "pending": fasttrack.pending_day(s, day)},
@@ -656,7 +657,9 @@ class Api:
 
     # ---- settings -------------------------------------------------------------------------
     def settings_save(self, name: str = "", target: str = "", interview_date: str = "", start_date: str = "",
-                      language: str = "") -> dict:
+                      language: str = "", daily_problems: str = "") -> dict:
+        if daily_problems and str(daily_problems) not in scheduler.DAILY_PROBLEMS:
+            raise ApiError("Daily problems must be 1 or 3.")
         if language:
             self.set_language(language)
         for label, value in (("Interview date", interview_date), ("Plan start", start_date)):
@@ -667,7 +670,7 @@ class Api:
                     raise ApiError(f"{label} must be YYYY-MM-DD") from exc
         with get_session() as s:
             for key, value in (("name", name), ("target", target), ("interview_date", interview_date),
-                               ("start_date", start_date)):
+                               ("start_date", start_date), ("daily_problems", str(daily_problems))):
                 if value:
                     scheduler.set_setting(s, key, value.strip())
         return self.state()
@@ -689,7 +692,7 @@ class Api:
             statement = self._plain(s, "problems", p.id, "statement", p.statement)
         label = scheduler.WINDOW_LABEL.get(p.recency, "")
         if p.category == scheduler.FOUNDATIONS:
-            label = f"building block {p.sequence} of {self._foundations_total()}"
+            label = f"building block {p.sequence} of {self._foundations_total()}" + (f" · {label}" if p.recency else "")
         out = {"id": p.id, "title": p.title, "difficulty": p.difficulty, "category": p.category,
                "category_name": scheduler.CATEGORIES[p.category], "leetcode_id": p.leetcode_id,
                "statement": statement, "recency": p.recency, "recency_label": label,

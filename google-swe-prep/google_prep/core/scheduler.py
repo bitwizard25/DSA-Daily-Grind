@@ -23,8 +23,9 @@ PHASES = {  # phase: (name, first day, last day)
     3: ("Final Onsite Loop & Googlyness", 43, 56),
 }
 FOUNDATIONS = "foundations"
-CATEGORIES = {  # Foundations (served first), then the six Google categories, in plan order
+CATEGORIES = {  # Foundations (served first), then the Google categories, in plan order
     FOUNDATIONS: "Foundations",
+    "arrays": "Arrays & Strings",  # frequent Google array/string/math problems (data/google_frequent.json)
     "graphs": "Graphs",
     "trees": "Trees",
     "heaps": "Heaps",
@@ -33,6 +34,7 @@ CATEGORIES = {  # Foundations (served first), then the six Google categories, in
     "monotonic": "Monotonic Queues",
 }
 MICRO_HOURS = 10  # a workday this long switches today to Emergency Micro-Mode
+DAILY_PROBLEMS = {"1": "Part-time: 1 problem a day (evening)", "3": "Full-time: 3 problems a day"}
 WINDOW_RANK = {"30d": 0, "3m": 1, "6m": 2, "6m+": 3, "": 4}
 WINDOW_LABEL = {"30d": "asked at Google in the last 30 days", "3m": "asked in the last 3 months",
                 "6m": "asked in the last 6 months", "6m+": "not reported in the last 6 months",
@@ -59,6 +61,11 @@ def get_setting(session: Session, key: str, default: str | None = None) -> str |
 def set_setting(session: Session, key: str, value: str) -> None:
     session.merge(Setting(key=key, value=value))
     session.commit()
+
+
+def daily_problems(session: Session) -> int:
+    value = get_setting(session, "daily_problems", "1")
+    return int(value) if value in DAILY_PROBLEMS else 1
 
 
 def start_date(session: Session, today: date | None = None) -> date:
@@ -226,12 +233,12 @@ def foundations_open(session: Session) -> bool:
 
 
 def pick_target_problem(session: Session, phase: int, now: datetime,
-                        categories: list[str] | None = None) -> Problem | None:
+                        categories: list[str] | None = None, exclude: set[str] | None = None) -> Problem | None:
     """Foundations first, in order, until each has been tried once. Then the weakest Google
     category first. Inside it: due re-solves, then unseen problems asked at Google most
     recently (30 days > 3 months > 6 months), then by reported frequency."""
     progress = {p.problem_id: p for p in session.exec(select(UserProgress)).all()}
-    problems = session.exec(select(Problem)).all()
+    problems = [p for p in session.exec(select(Problem)).all() if not exclude or p.id not in exclude]
     overrides = recency_overrides(session)
     if categories is None:
         categories = [FOUNDATIONS] if foundations_open(session) else [c for c in CATEGORIES if c != FOUNDATIONS]

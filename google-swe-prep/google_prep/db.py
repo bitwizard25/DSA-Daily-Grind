@@ -91,12 +91,15 @@ def migrate(engine) -> list[str]:
 
 
 def bank_problems() -> list[dict]:
-    """The Google bank plus the Foundations set that is served before it."""
-    return load_json("problems.json") + load_json("foundations.json")["problems"]
+    """The Google bank, the frequent Arrays & Strings set, and the Foundations set served before them."""
+    return [p for name in EXTRA_SETS for p in load_json(name)["problems"]] + load_json("problems.json")
 
 
 def bank_drills() -> list[dict]:
-    return load_json("recall_drills.json") + load_json("foundations.json")["drills"]
+    return [d for name in EXTRA_SETS for d in load_json(name)["drills"]] + load_json("recall_drills.json")
+
+
+EXTRA_SETS = ("foundations.json", "google_frequent.json")
 
 
 def data_hash() -> str:
@@ -104,7 +107,7 @@ def data_hash() -> str:
     import hashlib
 
     digest = hashlib.sha1()
-    for name in ("problems.json", "recall_drills.json", "foundations.json"):
+    for name in ("problems.json", "recall_drills.json", *EXTRA_SETS):
         digest.update((resource_dir() / "data" / name).read_bytes())
     return digest.hexdigest()
 

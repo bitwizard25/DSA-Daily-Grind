@@ -454,8 +454,11 @@ def setup(
     interview_date: Optional[str] = typer.Option(None, "--interview-date", help="YYYY-MM-DD"),
     start_date: Optional[str] = typer.Option(None, "--start-date", help="YYYY-MM-DD (Day 1 of the plan)"),
     evening_time: Optional[str] = typer.Option(None, "--evening-time", help='e.g. "7:30 PM"'),
+    daily: Optional[str] = typer.Option(None, "--daily", help="problems a day: 1 (part-time) or 3 (full-time)"),
 ):
-    """Set your name, target role, start date and interview date."""
+    """Set your name, target role, start date, interview date and daily pace."""
+    if daily is not None and daily not in scheduler.DAILY_PROBLEMS:
+        fail("--daily must be 1 or 3", 2)
     with get_session() as session:
         for key, value in (("interview_date", interview_date), ("start_date", start_date)):
             if value:
@@ -464,7 +467,7 @@ def setup(
                 except ValueError:
                     fail(f"{key} must be YYYY-MM-DD", 2)
         for key, value in (("name", name), ("target", target), ("interview_date", interview_date),
-                           ("start_date", start_date), ("evening_time", evening_time)):
+                           ("start_date", start_date), ("evening_time", evening_time), ("daily_problems", daily)):
             if value:
                 scheduler.set_setting(session, key, value)
         start = scheduler.start_date(session, now().date())

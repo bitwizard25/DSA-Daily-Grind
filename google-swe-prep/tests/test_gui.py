@@ -88,7 +88,7 @@ def test_mock_round_trip(api, home):
 
 def test_problem_card_and_bank(api):
     rows = api.problems()["problems"]
-    assert len(rows) == 75 + 28
+    assert len(rows) == 75 + 36 + 25
     assert api.problem_card(rows[0]["id"])["problem"]["title"] == rows[0]["title"]
     with pytest.raises(ApiError):
         api.problem_card("nope")
@@ -549,3 +549,24 @@ def test_role_prep_checklist_saves_ticks_and_notes(api):
     with pytest.raises(ApiError):
         api.role_prep_save("nope", done=True)
     assert launcher.ROUTES["role"] == "role"
+
+
+def test_full_time_pace_serves_three_new_problems_a_day(api, session):
+    from google_prep.core import scheduler
+
+    assert api.state()["settings"]["daily_problems"] == 1
+    with pytest.raises(ApiError):
+        api.settings_save(daily_problems="7")
+    assert api.settings_save(daily_problems="3")["settings"]["daily_problems"] == 3
+    scheduler.mark_done(session, api.now().date(), "morning", 20)  # warmup done
+    seen = []
+    for n in range(3):
+        card = api.today()
+        assert card["kind"] == "deep" and f"problem {n + 1} of 3" in card["title"]
+        assert card["problem_id"] not in seen  # a new problem each time, even after a miss
+        seen.append(card["problem_id"])
+        api.mock_start(card["problem_id"], practice=True)
+        api.mock_grade(card["problem_id"], True, 60, 1800.0, "1", {"dry_run_passed": False}, "pattern", -1)
+    assert seen == ["G-1", "G-217", "G-242"]  # Foundations in order
+    done = api.today()
+    assert done["kind"] == "done" and any("3 of 3" in s["text"] for s in done["status"])

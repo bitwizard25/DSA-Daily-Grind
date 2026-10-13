@@ -24,7 +24,7 @@ def test_problem_bank():
         assert p["recency"] in ("30d", "3m", "6m")  # every bank problem was asked in the last 6 months
         assert p["statement"] and p["google_follow_up"] and p["key_insight"]
         assert isinstance(p["edge_cases"], list) and p["edge_cases"] and all(p["edge_cases"])
-    assert {p["category"] for p in problems} == set(scheduler.CATEGORIES) - {"foundations"} == SIX
+    assert {p["category"] for p in problems} == set(scheduler.CATEGORIES) - {"foundations", "arrays"} == SIX
     share = {c: sum(p["category"] == c for p in problems) / 75 for c in SIX}
     # spec section 4 weights: Graphs 35%, Trees 20%, DP 20%, Concurrency/Queues/Intervals 25%
     assert round(share["graphs"], 2) == 0.35 and round(share["trees"], 2) == 0.20 and round(share["dp"], 2) == 0.20
@@ -41,19 +41,36 @@ def test_foundations_set():
     data = db.load_json("foundations.json")
     problems, drills = data["problems"], data["drills"]
     bank = {p["slug"] for p in db.load_json("problems.json")}
-    assert len(problems) == 28 and len({p["id"] for p in problems}) == 28
+    assert len(problems) == 36 and len({p["id"] for p in problems}) == 36
     for p in problems:
         assert set(p) == FOUNDATION_FIELDS, p["id"]
         assert p["id"] == f"G-{p['leetcode_id']}" and p["category"] == "foundations" and p["slug"] not in bank
-        assert p["difficulty"] in ("Easy", "Medium") and p["recency"] == ""  # no made-up Google frequency
+        assert p["difficulty"] in ("Easy", "Medium") and p["recency"] in ("30d", "3m")  # all asked at Google lately
         assert p["statement"] and p["google_follow_up"] and p["key_insight"] and p["edge_cases"]
-    assert sorted(p["sequence"] for p in problems) == list(range(1, 29))
-    assert sum(p["difficulty"] == "Easy" for p in problems) >= 10
+    assert sorted(p["sequence"] for p in problems) == list(range(1, 37))
+    assert sum(p["difficulty"] == "Easy" for p in problems) >= 15
     ids = {p["id"] for p in problems}
     assert {d["type"] for d in drills} == {"pattern", "bug_hunt"}
     for d in drills:
         assert d["category"] == "foundations" and d["prompt"] and d["pattern"] and d["complexity"] and d["edge_case"]
         assert d["problem_id"] is None or d["problem_id"] in ids
+
+
+def test_google_frequent_set():
+    data = db.load_json("google_frequent.json")
+    assert "snehasishroy" in data["source"]
+    others = {p["slug"] for p in db.load_json("problems.json") + db.load_json("foundations.json")["problems"]}
+    problems = data["problems"]
+    assert len(problems) == 25 and len({p["slug"] for p in problems}) == 25
+    for p in problems:
+        assert set(p) == PROBLEM_FIELDS, p["id"]
+        assert p["id"] == f"G-{p['leetcode_id']}" and p["category"] == "arrays" and p["slug"] not in others
+        assert p["recency"] == "30d" and p["recent_frequency"] >= 37.5  # asked at Google in the last 30 days
+        assert p["statement"] and p["google_follow_up"] and p["key_insight"] and p["edge_cases"]
+    ids = {p["id"] for p in problems}
+    for d in data["drills"]:
+        assert d["category"] == "arrays" and (d["problem_id"] is None or d["problem_id"] in ids)
+    assert any(d["type"] == "bug_hunt" for d in data["drills"])
 
 
 def test_recall_drills():
@@ -88,8 +105,8 @@ def test_seed_is_idempotent_and_keeps_progress(session):
     scheduler.grade_drill(session, "R-200", 5, scheduler.clock.now())
     db.seed(session)
     db.seed(session)
-    assert scheduler.count(session, scheduler.Problem) == 75 + 28  # Google bank + Foundations
-    assert scheduler.count(session, scheduler.RecallDrill) == 50 + 15
+    assert scheduler.count(session, scheduler.Problem) == 75 + 36 + 25  # Google bank + Foundations + Arrays
+    assert scheduler.count(session, scheduler.RecallDrill) == 50 + 20 + 11
     assert scheduler.count(session, scheduler.DrillProgress) == 1
 
 

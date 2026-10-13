@@ -130,14 +130,31 @@ Every keystroke is saved to `~/.google_prep/sessions/`; after a crash the app op
 (SM-2 stretches the gap further as you keep getting it). "Instant" only counts if you revealed the
 answer within 20 seconds. Drills are unlabeled and rotate across topics (interleaved, not blocked).
 
-## Foundations first (28 problems, Days 3 onward)
+## Foundations first (36 problems, Days 3 onward)
 
-Before the Google bank, the evening problem comes from 28 building blocks, in order, 12 of them easy:
+Before the Google bank, the daily problem comes from 36 building blocks, in order, 16 of them easy:
 arrays and hashing (Two Sum … Longest Consecutive Sequence), two pointers, sliding window, prefix sums,
-binary search (including "binary search on the answer"), linked lists, stacks, and LRU Cache. The
-warmup drills follow them. Once each one has been tried, the app moves to the Google bank; Foundations
-you missed or copied come back through the re-solve queue. They carry no Google frequency data
-(`recency` is empty) on purpose: their job is to bring the basics back, not to predict the interview.
+binary search (including "binary search on the answer"), linked lists, recursion on trees (inorder,
+Same/Symmetric/Balanced Tree), backtracking (Subsets, Permutations, Combination Sum, Generate
+Parentheses), stacks, and LRU Cache. The warmup drills follow them. Once each one has been tried, the
+app moves to the Google problems; Foundations you missed or copied come back through the re-solve queue.
+32 of the 36 were asked at Google in the last 30 days, the rest in the last 3 months (see below).
+
+## Arrays & Strings (25 frequent Google problems)
+
+`data/google_frequent.json`: problems from Google's last-30-days list in
+[snehasishroy/leetcode-companywise-interview-questions](https://github.com/snehasishroy/leetcode-companywise-interview-questions)
+(snapshot 12 Jul 2026) that the bank did not have: Palindrome Number, Add Two Numbers, Majority Element,
+Maximum Subarray, Spiral Matrix, Rotate Image, Jump Game, Next Permutation, Median of Two Sorted Arrays,
+Minimum Window Substring and more. They join the weakest-topic rotation as their own topic. SQL and
+JavaScript-only questions from that list are left out (not asked in SWE coding rounds).
+
+## Daily pace
+
+Settings › **Daily pace**, or `google-prep-cli setup --daily 3`:
+- **Part-time** (default): morning warmup + 1 problem in the evening.
+- **Full-time**: warmup + 3 problems a day, any time of day; each one is a new problem (a miss goes to
+  the re-solve queue instead of coming straight back). Today shows "problem 2 of 3".
 
 ## Problem bank (75, Google only)
 
