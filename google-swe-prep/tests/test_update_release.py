@@ -1,94 +1,205 @@
+"""CI release contract: build identity, manifest and safe publishing. A fake GitHub adapter is used;
+no test talks to the real repository."""
+import hashlib
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
+from google_prep.updates.manifest import validate_candidate
 
-def release_module():
-    file = Path(__file__).resolve().parents[1]/'scripts/release_update.py'
-    if not file.exists(): pytest.fail('Release publisher is missing')
-    spec = importlib.util.spec_from_file_location('release_update', file)
-    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-    return module
+ROOT = Path(__file__).resolve().parent.parent
+SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-class GitHub:
-    def __init__(self, releases=()):
-        self.releases = list(releases); self.created=[]; self.uploads=[]; self.published=[]; self.deleted=[]
-    def list_releases(self): return self.releases
-    def delete_draft(self, tag): self.deleted.append(tag)
-    def create_draft(self, tag, commit): self.created.append((tag,commit))
-    def upload(self, tag, paths): self.uploads.append((tag,paths))
-    def publish(self, tag): self.published.append(tag)
+def load(name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+release = load("release_update")
 
 
 @pytest.fixture
-def package(tmp_path):
-    module = release_module()
-    build = module.make_metadata('windows-x64', {'GITHUB_SHA':'a'*40,'GITHUB_RUN_NUMBER':'100'})
-    (tmp_path/'GoogleSWEPrep-Setup.exe').write_bytes(b'abc')
-    (tmp_path/'build_info.json').write_text(json.dumps(build))
-    manifest = module.make_manifest(build, tmp_path/'GoogleSWEPrep-Setup.exe')
-    (tmp_path/'google-prep-update.json').write_text(json.dumps(manifest))
-    return module, build, manifest, tmp_path
+def build():
+    return release.build_metadata("1.6.0", "100", SHA)
 
 
-def test_deterministic_manifest(package):
-    module, build, manifest, folder = package
-    assert manifest['tag'] == 'google-prep-v1.6.0-b100'
-    assert manifest['installer']['size'] == 3
-    assert manifest['installer']['sha256'] == 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
-    assert manifest['commit'] == build['commit']
+@pytest.fixture
+def bundle(tmp_path, build):
+    """What the Windows job uploads: installer, manifest and build identity."""
+    folder = tmp_path / "update-release"
+    folder.mkdir()
+    installer = folder / release.INSTALLER
+    installer.write_bytes(b"abc" * 1000)
+    (folder / release.BUILD_INFO).write_text(json.dumps(build), encoding="utf-8")
+    manifest = release.make_manifest(build, installer)
+    (folder / release.MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+    return folder
 
 
-def test_publish_only_main(package):
-    module, build, manifest, folder = package; github=GitHub()
-    with pytest.raises(ValueError): module.publish_update(github,folder,'refs/heads/codex/ota-updates')
-    assert not github.created
+class FakeGitHub:
+    def __init__(self, releases=None):
+        self.releases = releases or []
+        self.uploads, self.published, self.deleted, self.created = [], [], [], []
+        self.on_create = None
+        self._next = 1000
+
+    def list_releases(self):
+        return [dict(r) for r in self.releases]
+
+    def create_draft(self, tag, commit, name, body):
+        self._next += 1
+        rel = {"id": self._next, "tag_name": tag, "target_commitish": commit, "name": name, "body": body,
+               "draft": True, "prerelease": False, "assets": []}
+        self.releases.append(rel)
+        self.created.append(tag)
+        if self.on_create:
+            self.on_create(self)
+        return dict(rel)
+
+    def upload(self, rel, path, name, content_type):
+        self.uploads.append((rel["id"], name, Path(path).read_bytes()))
+        for r in self.releases:
+            if r["id"] == rel["id"]:
+                r["assets"].append({"name": name, "size": Path(path).stat().st_size, "state": "uploaded"})
+
+    def publish(self, rel):
+        for r in self.releases:
+            if r["id"] == rel["id"]:
+                r["draft"] = False
+                self.published.append(r["tag_name"])
+
+    def delete(self, rel):
+        self.deleted.append(rel["id"])
+        self.releases = [r for r in self.releases if r["id"] != rel["id"]]
 
 
-def test_published_assets_are_never_overwritten(package):
-    module, build, manifest, folder=package
-    github=GitHub([{'tag_name':manifest['tag'],'draft':False,'prerelease':False}])
-    assert module.publish_update(github,folder,'refs/heads/main') == 'already-published'
-    assert not github.uploads and not github.deleted and not github.published
+def published(tag, draft=False, rid=1):
+    return {"id": rid, "tag_name": tag, "draft": draft, "prerelease": False, "assets": []}
 
 
-def test_late_older_build_not_promoted(package):
-    module, build, manifest, folder=package
-    github=GitHub([{'tag_name':'google-prep-v1.6.0-b101','draft':False,'prerelease':False}])
-    assert module.publish_update(github,folder,'refs/heads/main') == 'superseded'
-    assert not github.created
+# ---- build identity and manifest --------------------------------------------------------------------
+def test_build_metadata_is_exact_and_validated(build):
+    assert build == {"schema": 1, "app_id": "google-swe-prep", "platform": "windows-x64",
+                     "version": "1.6.0", "build_number": 100, "commit": SHA}
+    for args in (("1.6", "100", SHA), ("1.6.0", "0", SHA), ("1.6.0", "x", SHA), ("1.6.0", "100", "short")):
+        with pytest.raises(ValueError):
+            release.build_metadata(*args)
 
 
-def test_incomplete_draft_is_recreated_before_publication(package):
-    module, build, manifest, folder=package
-    github=GitHub([{'tag_name':manifest['tag'],'draft':True}])
-    assert module.publish_update(github,folder,'refs/heads/main') == 'published'
-    assert github.deleted == [manifest['tag']]
-    assert github.created == [(manifest['tag'],'a'*40)]
-    assert len(github.uploads[0][1]) == 3 and github.published == [manifest['tag']]
+def test_manifest_is_deterministic_and_accepted_by_the_app(tmp_path, build):
+    installer = tmp_path / release.INSTALLER
+    installer.write_bytes(b"abc")
+    first, second = release.make_manifest(build, installer), release.make_manifest(build, installer)
+    assert first == second
+    assert first["tag"] == "google-prep-v1.6.0-b100"
+    assert first["installer"] == {"name": release.INSTALLER, "size": 3, "sha256": hashlib.sha256(b"abc").hexdigest()}
+    url = f"https://github.com/{release.REPOSITORY}/releases/download/{first['tag']}/{release.INSTALLER}"
+    gh_release = {"tag_name": first["tag"], "assets": [{"name": release.INSTALLER, "state": "uploaded", "size": 3,
+                                                        "browser_download_url": url}]}
+    candidate = validate_candidate(gh_release, first, {"version": "1.5.0", "build_number": 0})
+    assert candidate.build_number == 100  # the app's own validator accepts what CI produces
 
 
-def test_modified_installer_cannot_publish(package):
-    module, build, manifest, folder=package
-    (folder/'GoogleSWEPrep-Setup.exe').write_bytes(b'bad'); github=GitHub()
-    with pytest.raises(ValueError): module.publish_update(github,folder,'refs/heads/main')
-    assert not github.created
+def test_metadata_command_writes_from_ci_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_NUMBER", "42")
+    monkeypatch.setenv("GITHUB_SHA", SHA)
+    out = tmp_path / "data" / "build_info.json"
+    assert release.main(["metadata", "--output", str(out)]) == 0
+    data = json.loads(out.read_text())
+    assert data["build_number"] == 42 and data["commit"] == SHA and data["platform"] == "windows-x64"
 
 
-def test_newer_release_appearing_during_upload_stays_latest(package):
-    module, build, manifest, folder=package
-    class Racing(GitHub):
-        def upload(self,tag,paths):
-            super().upload(tag,paths)
-            self.releases.append({'tag_name':'google-prep-v1.6.0-b101','draft':False})
-    github=Racing()
-    assert module.publish_update(github,folder,'refs/heads/main') == 'superseded'
-    assert not github.published
+# ---- publishing rules -----------------------------------------------------------------------------
+def test_development_branch_cannot_publish(bundle):
+    gh = FakeGitHub()
+    assert release.publish_update(gh, bundle, "refs/heads/codex/ota-updates") == "refused-branch"
+    assert gh.created == [] and gh.uploads == []
 
 
-@pytest.mark.parametrize('sha,run',[('bad','100'),('a'*40,'0'),('a'*40,'-1')])
-def test_invalid_ci_identity_is_rejected(sha,run):
-    with pytest.raises(ValueError): release_module().make_metadata('windows-x64', {'GITHUB_SHA':sha,'GITHUB_RUN_NUMBER':run})
+def test_main_build_is_published_with_all_assets(bundle):
+    gh = FakeGitHub([published("google-prep-v1.5.0-b90")])
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "published"
+    assert gh.published == ["google-prep-v1.6.0-b100"]
+    assert sorted(name for _, name, _ in gh.uploads) == sorted([release.INSTALLER, release.MANIFEST, release.BUILD_INFO])
+    rel = [r for r in gh.releases if r["tag_name"] == "google-prep-v1.6.0-b100"][0]
+    assert rel["target_commitish"] == SHA and rel["draft"] is False
+
+
+def test_published_build_is_not_overwritten(bundle):
+    gh = FakeGitHub([published("google-prep-v1.6.0-b100")])
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "skipped-existing"
+    assert gh.uploads == [] and gh.published == []
+
+
+def test_late_older_build_is_not_promoted(bundle):
+    gh = FakeGitHub([published("google-prep-v1.6.0-b101")])
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "skipped-older"
+    assert gh.uploads == [] and gh.published == []
+
+
+def test_newer_build_published_during_upload_wins(bundle):
+    gh = FakeGitHub([published("google-prep-v1.6.0-b99")])
+    gh.on_create = lambda g: g.releases.append(published("google-prep-v1.6.0-b101", rid=7))
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "skipped-older"
+    assert gh.published == [] and all(r["tag_name"] != "google-prep-v1.6.0-b100" for r in gh.releases)
+
+
+def test_incomplete_draft_is_discarded_and_recreated(bundle):
+    gh = FakeGitHub([published("google-prep-v1.6.0-b100", draft=True, rid=55), published("google-prep-v1.5.0-b1", rid=2)])
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "published"
+    assert 55 in gh.deleted and gh.published == ["google-prep-v1.6.0-b100"]
+    assert [r["id"] for r in gh.releases if r["tag_name"] == "google-prep-v1.5.0-b1"] == [2]  # untouched
+
+
+def test_other_products_and_drafts_do_not_count_as_newer(bundle):
+    gh = FakeGitHub([published("v9.9.9"), published("google-prep-v9.0.0-b999", draft=True, rid=3)])
+    assert release.publish_update(gh, bundle, "refs/heads/main") == "published"
+
+
+@pytest.mark.parametrize("tamper", ["installer", "manifest", "build"])
+def test_mismatched_bundle_is_refused(bundle, tamper):
+    if tamper == "installer":
+        (bundle / release.INSTALLER).write_bytes(b"changed")
+    elif tamper == "manifest":
+        data = json.loads((bundle / release.MANIFEST).read_text())
+        data["commit"] = "f" * 40
+        (bundle / release.MANIFEST).write_text(json.dumps(data))
+    else:
+        data = json.loads((bundle / release.BUILD_INFO).read_text())
+        data["build_number"] = 101
+        (bundle / release.BUILD_INFO).write_text(json.dumps(data))
+    gh = FakeGitHub()
+    with pytest.raises(ValueError):
+        release.publish_update(gh, bundle, "refs/heads/main")
+    assert gh.created == []
+
+
+# ---- upgrade smoke-test helpers (the Windows-only install step runs in CI) ------------------------------
+def test_smoke_seed_stage_and_verify_round_trip(tmp_path, bundle, monkeypatch):
+    smoke = load("ota_smoke")
+    home = tmp_path / "profile with spaces ü"
+    expected = smoke.seed(home)
+    assert (home / "prep.db").exists() and expected["attempt_problem"]
+    smoke.stage(home, bundle / release.INSTALLER, bundle / release.MANIFEST)
+    pending = json.loads((home / "updates" / "pending.json").read_text())
+    assert pending["candidate"]["tag"] == "google-prep-v1.6.0-b100"
+    assert (home / "updates" / "google-prep-v1.6.0-b100" / "installer.exe").read_bytes() == b"abc" * 1000
+    # pretend the helper finished: installed identity, result and a verified backup
+    install = tmp_path / "Google SWE II OS"
+    (install / "_internal" / "data").mkdir(parents=True)
+    (install / "_internal" / "data" / "build_info.json").write_text((bundle / release.BUILD_INFO).read_text())
+    (home / "updates" / "result.json").write_text(json.dumps({"tag": "google-prep-v1.6.0-b100", "status": "installed"}))
+    import sqlite3
+    (home / "updates" / "backups").mkdir()
+    with sqlite3.connect(home / "prep.db") as src, sqlite3.connect(home / "updates" / "backups" / "prep-1.db") as dst:
+        src.backup(dst)
+    assert smoke.verify(home, install, 100) == []
+    (home / "updates" / "result.json").write_text(json.dumps({"tag": "google-prep-v1.6.0-b100", "status": "failed"}))
+    assert any("result" in p for p in smoke.verify(home, install, 100))

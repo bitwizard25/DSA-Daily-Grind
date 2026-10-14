@@ -1,17 +1,18 @@
 /* Interview training: quiet surfaces, clear task hierarchy, and room to think. */
 :root {
   --font: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-  --bg: #171c24;
-  --surface: #202731;
-  --surface-2: #2a3340;
-  --surface-3: #343f4e;
-  --sunken: #101720;
-  --border: #394451;
-  --text: #dce5ef;
-  --muted: #a7b7c9;
-  --blue-t: #a4c8ff;
-  --blue-soft: #2b384b;
-  --green-t: #a9d9bd;
+  --bg: #15191f;
+  --surface: #1d232b;
+  --surface-2: #262e38;
+  --surface-3: #313c49;
+  --sunken: #11161c;
+  --border: #3b4653;
+  --strong: #edf1f6;
+  --text: #d3dae4;
+  --muted: #a4afbe;
+  --blue-t: #a2c4f4;
+  --blue-soft: #24354b;
+  --green-t: #a1d5b2;
   --radius: 12px;
   --shadow: 0 12px 30px rgba(0, 0, 0, .2);
 }
@@ -21,13 +22,14 @@ textarea { caret-color: var(--blue-t); }
 a { text-underline-offset: 4px; }
 .app { grid-template-columns: 220px minmax(0, 1fr); }
 .main, .view, .page, .wb-left, .wb-right { min-width: 0; }
-.sidebar { padding: 20px 12px 16px; gap: 22px; }
-.brand { padding: 0 7px; }
+.sidebar { padding: 20px 12px 16px; gap: 22px; overflow: hidden; }
+.brand { padding: 0 7px; flex-shrink: 0; }
 .brand b { font-size: 15px; }
 .brand span { max-width: 162px; white-space: normal; }
-.nav { gap: 4px; }
+.nav { gap: 4px; min-height: 0; overflow-y: auto; }
 .nav button { min-height: 40px; border-radius: 8px; font-size: 14px; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 9px; }
-.nav button[aria-current] { background: var(--blue-soft); }
+.nav button[aria-current="page"] { background: var(--blue-soft); }
+.nav button { flex-shrink: 0; }
 .side-foot { padding-top: 20px; border-top: 1px solid var(--border); }
 #mini[hidden], [hidden] { display: none !important; }
 .topbar { min-height: 65px; padding: 14px 30px; gap: 18px; }
@@ -321,6 +323,9 @@ strong, b { font-weight: 600; }
 .settings-form { gap: 13px; }
 .settings-form p { margin: 2px 0 8px; line-height: 1.55; }
 .settings-form code.inline { overflow-wrap: anywhere; }
+.field input:hover, .field select:hover, .field textarea:hover { border-color: #596b80; }
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { border-color: var(--blue-t); outline: 2px solid var(--blue-t); outline-offset: 1px; }
+.modal-body:focus-visible { outline-offset: -2px; }
 .pair, .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .page-title, .daily-task, .next-copy, .daily-task > div, .card { min-width: 0; overflow-wrap: anywhere; }
 .sidebar-update { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: transparent; text-align: left; cursor: pointer; color: var(--muted); }

@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 
 !installer/app.spec
+
+# written by CI before packaging; never committed
+data/build_info.json
