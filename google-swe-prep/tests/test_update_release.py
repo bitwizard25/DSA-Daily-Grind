@@ -203,3 +203,40 @@ def test_smoke_seed_stage_and_verify_round_trip(tmp_path, bundle, monkeypatch):
     assert smoke.verify(home, install, 100) == []
     (home / "updates" / "result.json").write_text(json.dumps({"tag": "google-prep-v1.6.0-b100", "status": "failed"}))
     assert any("result" in p for p in smoke.verify(home, install, 100))
+
+
+# ---- public visibility check -------------------------------------------------------------------------
+class Found:
+    def __init__(self, tag, key, sha):
+        self.tag, self.key, self.installer_sha256 = tag, key, sha
+
+
+def test_verify_public_waits_for_github_to_list_a_fresh_release(bundle):
+    manifest = json.loads((bundle / release.MANIFEST).read_text())
+    ours = release.version_key(manifest["version"], manifest["build_number"])
+    answers = [None, Found("google-prep-v1.5.0-b1", release.version_key("1.5.0", 1), "x"),
+               Found(manifest["tag"], ours, manifest["installer"]["sha256"])]
+    sleeps = []
+    assert release.verify_public(bundle, fetch=lambda _: answers.pop(0), sleep=sleeps.append) == manifest["tag"]
+    assert sleeps == [release.VERIFY_DELAY_SECONDS] * 2
+
+
+def test_verify_public_gives_up_after_the_last_attempt(bundle):
+    sleeps = []
+    with pytest.raises(SystemExit, match="No valid update"):
+        release.verify_public(bundle, fetch=lambda _: None, sleep=sleeps.append, attempts=3)
+    assert len(sleeps) == 2
+
+
+def test_verify_public_never_retries_a_checksum_mismatch(bundle):
+    manifest = json.loads((bundle / release.MANIFEST).read_text())
+    ours = release.version_key(manifest["version"], manifest["build_number"])
+    sleeps = []
+    with pytest.raises(SystemExit, match="does not match"):
+        release.verify_public(bundle, fetch=lambda _: Found(manifest["tag"], ours, "0" * 64), sleep=sleeps.append)
+    assert sleeps == []
+
+
+def test_verify_public_accepts_a_newer_build(bundle):
+    newer = Found("google-prep-v1.6.0-b101", release.version_key("1.6.0", 101), "y")
+    assert release.verify_public(bundle, fetch=lambda _: newer, sleep=lambda _: None) == "google-prep-v1.6.0-b101"

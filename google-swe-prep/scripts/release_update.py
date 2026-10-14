@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -185,20 +186,34 @@ class GitHub:
         return self._call("DELETE", f"{API}/repos/{self.repository}/releases/{release['id']}")
 
 
-def verify_public(directory: Path) -> str:
-    """Anonymous lookup through the app's own client: the published build must be what an app sees."""
-    from google_prep.updates.client import fetch_candidate
+VERIFY_ATTEMPTS = 12
+VERIFY_DELAY_SECONDS = 15
+
+
+def verify_public(directory: Path, fetch=None, sleep=time.sleep, attempts=VERIFY_ATTEMPTS,
+                  delay=VERIFY_DELAY_SECONDS) -> str:
+    """Anonymous lookup through the app's own client: the published build must be what an app sees.
+
+    GitHub's anonymous release listing lags a fresh publish by up to a few minutes, so a missing or
+    older result is retried; a checksum mismatch on our own build is never retried."""
+    if fetch is None:
+        from google_prep.updates.client import fetch_candidate as fetch
 
     _, manifest, _ = read_bundle(directory)
-    found = fetch_candidate({"version": "0.0.0", "build_number": 0})
-    if found is None:
-        raise SystemExit("No valid update is visible publicly")
     ours = version_key(manifest["version"], manifest["build_number"])
-    if found.key < ours:
-        raise SystemExit(f"Public update is {found.tag}, older than {manifest['tag']}")
-    if found.key == ours and found.installer_sha256 != manifest["installer"]["sha256"]:
-        raise SystemExit(f"Public {found.tag} does not match the built installer")
-    return found.tag  # a newer build may already have superseded ours; that is fine
+    problem = "No valid update is visible publicly"
+    for attempt in range(1, attempts + 1):
+        found = fetch({"version": "0.0.0", "build_number": 0})
+        if found is not None and found.key == ours and found.installer_sha256 != manifest["installer"]["sha256"]:
+            raise SystemExit(f"Public {found.tag} does not match the built installer")
+        if found is not None and found.key >= ours:
+            return found.tag  # a newer build may already have superseded ours; that is fine
+        problem = "No valid update is visible publicly" if found is None else \
+            f"Public update is {found.tag}, older than {manifest['tag']}"
+        if attempt < attempts:
+            print(f"{problem}; GitHub may still be updating (attempt {attempt}/{attempts}), retrying in {delay}s")
+            sleep(delay)
+    raise SystemExit(problem)
 
 
 # ---- command line -----------------------------------------------------------------------------------------
