@@ -2,7 +2,7 @@
   "day": 2,
   "title": "The data structures you will use every day",
   "title_simple": "Your everyday tools for data",
-  "subtitle": "Ten tools that come with Python, each one next to the C++ you remember.",
+  "subtitle": "Small examples of Python tools, with optional C++ comparisons.",
   "subtitle_simple": "Ten tools you will use in almost every answer.",
   "minutes": 60,
   "vault": "00_python_datastructures_for_cpp_devs.md",
@@ -11,8 +11,8 @@
       "key": "o1",
       "term": "O(1)",
       "meaning": "constant time: the step takes the same time for 10 items or 10 million items",
-      "meaning_simple": "always fast, even for a very long list",
-      "example": "stack.append(4) is O(1)"
+      "meaning_simple": "the work stays constant as the collection grows",
+      "example": "items[-1] reads the last item in O(1) time"
     },
     {
       "key": "on",
@@ -24,8 +24,8 @@
     {
       "key": "stack",
       "term": "stack",
-      "meaning": "last in, first out: you add and remove at the same end (the top)",
-      "meaning_simple": "a pile: the last thing in comes out first",
+      "meaning": "add and remove at the same end; the newest item comes out first",
+      "meaning_simple": "add and remove at the same end; the newest item comes out first",
       "example": "stack.append(5); stack.pop() → 5"
     },
     {
@@ -222,47 +222,47 @@
     {
       "id": "d2-s1",
       "optional": false,
-      "title": "list: a growing array and a stack",
-      "title_simple": "list as a pile of plates",
+      "title": "Use the end of a list",
+      "title_simple": "Use the end of a list",
       "new_words": [
-        "stack",
-        "o1",
-        "on"
+        "stack"
       ],
-      "python": "stack = []\nstack.append(1)\nstack.append(2)\nstack.append(3)\nprint(stack)  # [1, 2, 3]\n# [-1] reads the last item (the top)\nprint(stack[-1])  # 3\n# pop() removes the last item and gives it back\nprint(stack.pop())  # 3\nprint(stack)  # [1, 2]\n",
+      "optional_words": ["o1", "on"],
+      "python": "items = [10, 20]\nitems.append(30)\nprint(items)       # [10, 20, 30]\n# Reading the last item does not change the list.\nprint(items[-1])   # 30\nremoved = items.pop()\nprint(removed)     # 30\nprint(items)       # [10, 20]\n",
       "points": [
-        "Use a list as a **stack** (last in, first out): `append(x)` adds on top and `pop()` takes the top.",
-        "`append`, `pop()` and `[-1]` are **O(1)** (constant time: the same speed for 10 items or 10 million).",
-        "`pop(0)` takes the first item, but every other item must move: **O(N)** (time grows with N, the number of items)."
+        "Start with `[10, 20]`. `append(30)` adds 30 at the end: `[10, 20, 30]`.",
+        "`items[-1]` reads the last item, 30. It does not remove anything.",
+        "`items.pop()` removes the last item and returns it. The list is now `[10, 20]`."
       ],
       "points_simple": [
-        "A stack is a pile. The last thing in is the first thing out.",
-        "`append`, `pop()` and `[-1]` are always fast. We call this O(1).",
-        "`pop(0)` takes the first item. All other items must move. This is slow: O(N)."
+        "Start with `[10, 20]`. `append(30)` adds 30 at the end: `[10, 20, 30]`.",
+        "`items[-1]` reads the last item, 30. It does not remove anything.",
+        "`items.pop()` removes the last item and returns it. The list is now `[10, 20]`."
       ],
-      "summary": "A list is your stack: `append` adds on top, `pop()` takes the top, `[-1]` looks at it. All three are O(1).",
-      "summary_simple": "List = pile. `append` adds on top. `pop()` takes from the top.",
-      "analogy": "A pile of plates. You put a new plate on top and you take from the top. Taking the bottom plate means lifting every other plate first: that is `pop(0)`.",
-      "analogy_simple": "Think of a pile of plates. New plates go on top. You take from the top too. The bottom plate is hard to reach.",
+      "summary": "Add at the end with `append`. Read the last item with `[-1]`. Remove and get the last item with `pop()`.",
+      "summary_simple": "`append` adds at the end. `[-1]` reads the last item. `pop()` removes it and gives it back.",
+      "analogy": "Start with `[10, 20]`. Add 30, then add 40: `[10, 20, 30, 40]`. Calling `pop()` returns 40 first, then 30. This newest-first order is called a **stack**.",
+      "analogy_simple": "Start with `[10, 20]`. Add 30, then add 40: `[10, 20, 30, 40]`. Calling `pop()` returns 40 first, then 30. This newest-first order is called a **stack**.",
       "bridge": [
         {
           "cpp": "st.push(x);",
-          "python": "stack.append(x)",
-          "note": "C++ std::stack or vector both map to a list"
+          "python": "items.append(x)",
+          "note": "add at the end; this is the stack push operation"
         },
         {
           "cpp": "st.top()",
-          "python": "stack[-1]",
+          "python": "items[-1]",
           "note": "look at the top, do not remove"
         },
         {
           "cpp": "st.pop();",
-          "python": "stack.pop()",
+          "python": "items.pop()",
           "note": "Python's pop() also gives back the item"
         }
       ],
-      "gotcha": "Mistake: `nums.pop(0)` to take the first item, for example in a queue. It is O(N) every time. Fix: use a `deque` (next step).",
-      "gotcha_simple": "Mistake: `pop(0)` to take the first item. It is slow. Fix: use a deque. You learn it next."
+      "gotcha": "`[-1]` and `pop()` raise `IndexError` on an empty list. Check that the list has an item first, for example `if items:`.",
+      "gotcha_simple": "`[-1]` and `pop()` raise `IndexError` on an empty list. Check that the list has an item first, for example `if items:`.",
+      "complexity": "Reading `[-1]` and removing the last item with `pop()` take O(1) time. Adding with `append` takes O(1) amortized time: most additions are constant-time, but occasional ones resize the list. Removing the first item with `pop(0)` takes O(N) because the remaining items shift. The next lesson introduces a queue."
     },
     {
       "id": "d2-s2",
@@ -675,8 +675,8 @@
         "5"
       ],
       "answer": 1,
-      "explanation": "`append(9)` puts 9 on top; `pop()` removes the top (9). The new top, `stack[-1]`, is 7. If `pop()` took the front, you would get 9.",
-      "explanation_simple": "9 goes on top. Then `pop()` takes 9 away. The last item is now 7."
+      "explanation": "Start with [5, 7]. append(9) makes [5, 7, 9]. pop() removes 9, leaving [5, 7]. [-1] reads the last item, so the answer is 7.",
+      "explanation_simple": "Start with [5, 7]. append(9) makes [5, 7, 9]. pop() removes 9, leaving [5, 7]. [-1] reads the last item, so the answer is 7."
     },
     {
       "id": "d2-e2",

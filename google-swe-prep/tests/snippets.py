@@ -180,7 +180,7 @@ def lint_lesson(lesson: dict) -> list[str]:
                     problems.append(f"{sid}: bridge {key} longer than 60 characters")
             if len(row.get("note", "")) > 60:
                 problems.append(f"{sid}: bridge note longer than 60 characters")
-        words = s.get("new_words", [])
+        words = s.get("new_words", []) + s.get("optional_words", [])
         if len(words) > 3:
             problems.append(f"{sid}: more than 3 new_words")
         for w in words:

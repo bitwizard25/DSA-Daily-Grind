@@ -7,7 +7,7 @@ Two front ends, one database (`~/.google_prep/prep.db`):
 
 | | Launch | For |
 |---|---|---|
-| **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | The main way to use it: a real window with Today, the Python fast-track, drills, the 45-min whiteboard, roadmap, STAR studio and the concept vault |
+| **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | Today, Python lessons, drills, whiteboard, progress, interview habits, design learning checklists, STAR stories and the concept vault |
 | **Terminal** | `google-prep-cli.exe` (or `google-prep` from source) | Every command, scripting, `remind`, `sync`; `google-prep-cli tui` is the full-screen terminal version |
 
 ## Get the app
@@ -67,17 +67,41 @@ Every step has the same small shape, one step per screen:
 1. **New words** for this step (at most 3), shown with their meaning. A **Words you know** list grows as you go.
 2. **Try it**: a tiny example; each `print` shows what it prints.
 3. **What happened**: 1 to 3 short lines. **Remember**: one line to keep.
-4. **Explain another way** (`e`): an everyday comparison, for when the first explanation does not click.
-5. **Coming from C++**: 1 to 3 one-line rows, e.g. `v.push_back(x)` → `nums.append(x)`.
+4. **Show another example** (`e`): an optional second example or comparison.
+5. **Compare with C++ (optional)**: expand 1 to 3 one-line comparisons when useful.
 6. **Watch out**: the one mistake people make here. **Quick check**: one question (`1`/`2`/`3`).
 
 **I did not get this** (`u`) puts a step on a review list shown at the end of the day.
+
 **Language**: *Standard* (technical English, every term explained the first time) or *Simple + Hindi hints*
 (plain English, and the first time a technical word appears on a page it gets a short Hinglish hint, e.g.
 "overflow (limit se bada ho jaana)"). Switch at the top of a lesson or a note, or in Settings.
 
 Every Python example in the lessons and the vault is run by the test suite, and every `# output` comment
 is checked against what Python really prints, so the simple examples are also correct.
+
+## Design learning in Interview prep
+
+Start with a checklist of what to learn, not a blank code editor:
+
+- **LLD:** classes, interfaces, state, errors and test cases (10 topics).
+- **HLD:** requirements, APIs, data, scaling, reliability and trade-offs (12 topics).
+- **ML / GenAI:** retrieval, agents, evaluation and failure handling (8 topics).
+
+Each topic has a plain explanation. Check it when you can explain it and give an example,
+then use **Save learning progress**. Progress stays on this computer and is self-reported.
+Six optional exercises offer guided prompts, a speaking timer and saved design notes.
+Ask your recruiter which design or ML rounds apply to your role.
+
+The reading guide uses **System Design for the LLM Era** (Sampriti Mitra) for production patterns
+and **Generative AI System Design Interview** (Ali Aminian and Hao Sheng) for interview examples
+and evaluation discussions. It gives chapter/page references for the supplied PDFs; the books
+are not bundled with the app. Read one matching section, explain it in your own words, then practise.
+
+Today shows required tasks completed, distinct coding practice, weekly no-help solves and
+small coding, reasoning and habit milestones. These are practice goals, not hiring predictions.
+If a whiteboard save fails, the leave dialog offers a text download and an explicit **Leave anyway**
+option. A recovery draft belongs to that window's address; download it before reopening the app.
 
 ## Daily use
 
@@ -202,3 +226,20 @@ brand colours are used only for borders.
 readiness, the CLI, the terminal UI, the window's API and server guards (token, host check, path
 traversal), and runs every lesson and vault code block (C++ blocks need `g++`; they are skipped
 without it).
+
+## Interview habit training (v1.4.0)
+
+Today now connects your next study session to one small interview habit. Set an intention before practice, then save an honest reflection afterward. The six rotating habits are clarification, explaining your plan, recovering when stuck, hand tracing, adapting to follow-ups, and reviewing your work. Press **h** to open the habit screen.
+
+The last-seven-days view uses your saved grades and reflections. Missing observations stay missing. Confidence is an optional self-report; the practice estimate includes its sample counts and is not an offer prediction.
+
+The whiteboard hides global navigation for focus. Smaller windows use **Problem**, **Code**, and **Dry-run trace** tabs. **Regroup** provides a short reasoning prompt without stopping the clock or revealing a solution.
+
+Autosave keeps pending edits until the corresponding save succeeds, serializes requests, and stores a session-specific local recovery draft when browser storage is available. Keep the window open when a connection warning appears. This release does not diagnose the previously reported background-server shutdown.
+
+Verification:
+
+```sh
+python -m pytest -q
+node --test tests/frontend-autosave.test.cjs
+```

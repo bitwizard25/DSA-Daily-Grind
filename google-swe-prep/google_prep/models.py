@@ -112,7 +112,7 @@ class Attempt(SQLModel, table=True):
     minutes: int
     solved: bool
     dry_run_ok: Optional[bool] = None  # did the hand trace match the expected output?
-    mistake: Optional[str] = None  # pattern, implementation, bug_edge, slow, follow_up
+    mistake: Optional[str] = None  # pattern, implementation (legacy), python_syntax, implementation_logic, bug_edge, slow, follow_up
     source: str = "solve"  # solve, mock
     help: Optional[str] = None  # none, hint (a nudge), answer (saw a solution, a video or AI code)
 
@@ -147,3 +147,15 @@ class ReadinessSnapshot(SQLModel, table=True):
     mock_speed: float
     dry_run: float
     star: float
+
+
+class TrainingCheckin(SQLModel, table=True):
+    """One daily interview-habit intention and reflection, kept with real practice history."""
+    date_str: str = Field(primary_key=True)  # local YYYY-MM-DD, matching Attempt.day
+    habit_id: str
+    intention: str = ""
+    reflection: str = ""
+    confidence_before: Optional[int] = None  # optional self-report, 1-5; never a readiness score
+    confidence_after: Optional[int] = None
+    created_at: NaiveDatetime = Field(default_factory=now)
+    updated_at: NaiveDatetime = Field(default_factory=now)

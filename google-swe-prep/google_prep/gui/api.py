@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import select
 
 from google_prep import __version__, db
-from google_prep.core import clock, readiness, rubric, scheduler, session_store
+from google_prep.core import clock, readiness, rubric, scheduler, session_store, training
 from google_prep.db import get_session
 from google_prep.models import LessonProgress, Problem, RecallDrill, StarStory, UserProgress
 from google_prep.modules import fasttrack, mock, recall, star, today
@@ -63,7 +63,8 @@ class Api:
                 "phase": {"number": phase, "name": scheduler.PHASES[phase][0], "short": PHASE_SHORT[phase],
                           "last_day": scheduler.PHASES[phase][2]},
                 "streak": scheduler.streak(s, t.date()),
-                "readiness": round(r.index, 1), "weekly_change": None if change is None else round(change, 1),
+                "readiness": round(r.index, 1), "readiness_evidence": r.evidence,
+                "readiness_provisional": r.is_provisional, "weekly_change": None if change is None else round(change, 1),
                 "interview_date": scheduler.interview_date(s).isoformat(),
                 "days_left": (scheduler.interview_date(s) - t.date()).days,
                 "pace": pace,
@@ -87,6 +88,72 @@ class Api:
 
     def heartbeat(self) -> dict:
         return {"ok": True}
+
+    # ---- interview habits ----------------------------------------------------------
+    def training_state(self) -> dict:
+        with get_session() as s:
+            return training.state(s, self.now())
+
+    def training_checkin(self, date: str, habit_id: str, intention: str | None = None,
+                         reflection: str | None = None, confidence_before: int | None = None,
+                         confidence_after: int | None = None) -> dict:
+        t = self.now()
+        with get_session() as s:
+            try:
+                training.save_checkin(s, t, date, habit_id, intention, reflection,
+                                      confidence_before, confidence_after)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+            return training.state(s, t)
+
+    def design_prep(self) -> dict:
+        data = db.load_json("design_prep.json")
+        with get_session() as s:
+            tracks = []
+            for track in data["tracks"]:
+                known = {item["id"] for group in track["learning"] for item in group["items"]}
+                try:
+                    saved = json.loads(scheduler.get_setting(s, f"design:{track['id']}:learned", "[]"))
+                except (ValueError, TypeError):
+                    saved = []
+                learned = [key for key in saved if isinstance(key, str) and key in known] if isinstance(saved, list) else []
+                learned = sorted(set(learned))
+                tracks.append({**track, "learned": learned, "learned_count": len(learned), "learning_total": len(known)})
+            exercises = [{**item, "notes": scheduler.get_setting(s, f"design:{item['id']}:notes", ""),
+                          "practised": scheduler.get_setting(s, f"design:{item['id']}:practised", "0") == "1"}
+                         for item in data["exercises"]]
+            return {"tracks": tracks, "exercises": exercises, "references": data.get("references", []), "intro": data["intro"],
+                    "completed": sum(item["practised"] for item in exercises), "total": len(exercises)}
+
+    def design_learning_save(self, track_id: str, completed: list[str]) -> dict:
+        data = db.load_json("design_prep.json")
+        track = next((item for item in data["tracks"] if item["id"] == track_id), None)
+        if track is None:
+            raise ApiError("Choose a known learning track.")
+        known = {item["id"] for group in track["learning"] for item in group["items"]}
+        if not isinstance(completed, list) or any(not isinstance(key, str) or key not in known for key in completed):
+            raise ApiError("Choose learning topics from this track's checklist.")
+        with get_session() as s:
+            scheduler.set_setting(s, f"design:{track_id}:learned", json.dumps(sorted(set(completed))))
+        return self.design_prep()
+
+    def design_prep_save(self, exercise_id: str, notes: str | None = None, practised: bool | None = None) -> dict:
+        data = db.load_json("design_prep.json")
+        if not isinstance(exercise_id, str) or exercise_id not in {item["id"] for item in data["exercises"]}:
+            raise ApiError("Choose a known design exercise.")
+        if notes is not None and (not isinstance(notes, str) or len(notes) > 12000):
+            raise ApiError("Keep design notes to 12,000 characters or fewer.")
+        if practised is not None and type(practised) is not bool:
+            raise ApiError("Practice status must be true or false.")
+        with get_session() as s:
+            saved_notes = scheduler.get_setting(s, f"design:{exercise_id}:notes", "") if notes is None else notes
+            if practised and not saved_notes.strip():
+                raise ApiError("Write brief notes from your practice before marking it practised.")
+            if notes is not None:
+                scheduler.set_setting(s, f"design:{exercise_id}:notes", notes)
+            if practised is not None:
+                scheduler.set_setting(s, f"design:{exercise_id}:practised", "1" if practised else "0")
+        return self.design_prep()
 
     # ---- today --------------------------------------------------------------------
     def today(self, mode: str = "normal") -> dict:
@@ -249,6 +316,7 @@ class Api:
                                 "started": started, "submitted_at": (state or {}).get("submitted_at"),
                                 "hints": used_hints})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
+                    "session_started": started,
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                     "hints": self._hints(s, p)[:used_hints], "hint_unlock": mock.hint_unlock_seconds(bool(practice)),
                     "hint_total": len(mock.hints(p)), "stuck_tips": mock.STUCK_TIPS,
@@ -328,7 +396,7 @@ class Api:
                     "again_answer": rubric.AGAIN_ANSWER,
                     "questions": questions, "trace_rows": mock.trace_rows(trace),
                     "follow_up": fups[shown % len(fups)] if shown >= 0 else "",
-                    "mistakes": [{"key": k, "label": v} for k, v in scheduler.MISTAKES.items()],
+                    "mistakes": [{"key": k, "label": scheduler.MISTAKES[k]} for k in scheduler.MISTAKE_CHOICES],
                     "pillars": rubric.PILLARS,
                     "crumbs": _crumbs(s, self.now().date(), "Solve" if practice else "Mock",
                                       scheduler.CATEGORIES[p.category], p.title,
@@ -472,7 +540,8 @@ class Api:
             mistakes = scheduler.mistake_profile(s)
             return {
                 "crumbs": _crumbs(s, t.date(), "Roadmap"),
-                "index": round(r.index, 1), "day": day, "plan_days": scheduler.PLAN_DAYS,
+                "index": round(r.index, 1), "readiness_evidence": r.evidence,
+                "readiness_provisional": r.is_provisional, "day": day, "plan_days": scheduler.PLAN_DAYS,
                 "components": [{"name": n, "key": k, "weight": w, "value": round(getattr(r, k), 4), "explain": explain[k]}
                                for n, k, w in comps],
                 "formula": " + ".join(f"{w / 100:.2f}×{getattr(r, k) * 100:.0f}%" for _, k, w in comps)

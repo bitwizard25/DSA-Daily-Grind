@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from textual.widgets import Static, TabbedContent, TextArea
 
 from google_prep.core.timer import Countdown
@@ -73,7 +75,7 @@ def test_split_screen_follow_up_banner_trace_and_scorecard_handover():
             await pilot.press("y", "y")
             # 40 minutes of coding is past the 35-minute target, so the scorecard asks why
             assert "What hurt most" in shown()
-            await pilot.press("4")
+            await pilot.press("5")
         return app.return_value
 
     result = asyncio.run(scenario())
@@ -97,7 +99,7 @@ def test_scorecard_asks_for_the_mistake_when_it_went_badly():
             await pilot.pause()
             await pilot.press("3", "n", "n", "n", "n", "n")  # saw the answer (so: missed), five no
             assert "What hurt most" in str(app.screen.query_one("#card", Static).render())
-            await pilot.press("3")
+            await pilot.press("4")
         return app.return_value
 
     graded = asyncio.run(scenario())["graded"]
@@ -126,6 +128,27 @@ def test_abandon_needs_two_presses_and_pause_freezes_both_editors():
         return app.return_value
 
     assert asyncio.run(scenario())["outcome"] == "q"
+
+
+@pytest.mark.parametrize('key,mistake', [('2', 'python_syntax'), ('3', 'implementation_logic'), ('6', 'follow_up')])
+def test_all_current_mistake_choices_are_keyboard_accessible(key, mistake):
+    p, clock = problem(), Clock()
+    timer = Countdown(45*60, clock)
+    app = MockApp(None, lambda state: mock.rubric_screen(p, 45, False, timer, state, PATH),
+                  start={'outcome':'s', 'ticks':[False]*4, 'shown':-1, 'trace_text':'x=0', 'elapsed':60})
+
+    async def scenario():
+        async with app.run_test(size=(150, 50)) as pilot:
+            await pilot.press('3', 'n', 'n', 'n', 'n', 'n')
+            card = str(app.screen.query_one('#card', Static).render())
+            assert '[6]' in card and '[7]' not in card
+            assert 'Knew the pattern, could not code it' not in card
+            await pilot.press('7')
+            assert isinstance(app.screen, RubricScreen)
+            await pilot.press(key)
+        return app.return_value
+
+    assert asyncio.run(scenario())['graded']['mistake'] == mistake
 
 
 def test_trace_rows_counts_only_filled_steps():

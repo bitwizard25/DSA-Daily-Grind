@@ -6,6 +6,7 @@
   <title>Google SWE II OS</title>
   <link rel="icon" href="icon.png" type="image/png" sizes="192x192">
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="training.css">
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -15,9 +16,9 @@
         <div class="brand-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div><b>Google SWE II OS</b><span id="brand-sub">Interview prep</span></div>
       </div>
-      <nav class="nav" id="nav"></nav>
+      <nav class="nav" id="nav" aria-label="Main navigation"></nav>
       <div class="side-foot">
-        <div class="mini" id="mini"></div>
+        <div class="mini" id="mini" hidden></div>
         <div class="row">
           <button class="btn ghost small" id="settings-btn" type="button">Settings</button>
           <button class="btn ghost small" id="help-btn" type="button">Keys <kbd>?</kbd></button>
@@ -25,7 +26,7 @@
       </div>
     </aside>
     <div class="main">
-      <header class="topbar">
+      <header class="topbar"><button id="nav-toggle" type="button" class="btn ghost small nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="nav">Menu</button>
         <nav class="crumbs" id="crumbs" aria-label="You are here"></nav>
         <div class="meta" id="meta"></div>
       </header>
