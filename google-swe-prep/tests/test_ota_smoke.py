@@ -21,11 +21,11 @@ def test_upgrade_fixture_seeds_real_study_records_and_recovery(home):
     with get_session() as session:
         attempt=session.get(Attempt,expected['attempt_id'])
         assert attempt.solved and attempt.help == 'none'
-        assert session.get(StarStory,expected['star_id']).title == 'OTA ownership evidence'
+        assert session.exec(select(StarStory).where(StarStory.title == expected['star_title'])).first() is not None
         assert session.get(TrainingCheckin,expected['day']).reflection == 'Check one edge case.'
         assert json.loads(session.get(Setting,'design:lld:learned').value) == ['lld-responsibilities']
     assert json.loads((home/'sessions/active.json').read_text())['problem_id'] == 'G-1'
     module.verify_records(home)
     with get_session() as session:
-        session.delete(session.get(StarStory,expected['star_id']));session.commit()
+        session.delete(session.exec(select(StarStory).where(StarStory.title == expected['star_title'])).first());session.commit()
     with pytest.raises(AssertionError): module.verify_records(home)

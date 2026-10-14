@@ -21,7 +21,7 @@ def seed(home: Path):
         scheduler.set_setting(s, 'design:lld:learned', '["lld-responsibilities"]')
         s.commit()
         s.refresh(attempt); s.refresh(story)
-        evidence = {'attempt_id': attempt.id, 'star_id': story.id, 'day': checkin.date_str}
+        evidence = {'attempt_id': attempt.id, 'star_title': story.title, 'day': checkin.date_str}
     (home/'ota-evidence.json').write_text(json.dumps(evidence), encoding='utf-8')
     session_store.save({'kind':'mock','problem_id':problem.id,'minutes':45,'elapsed':120,'ticks':[],'shown':0})
 
@@ -30,7 +30,7 @@ def verify_records(home: Path):
     evidence=json.loads((Path(home)/'ota-evidence.json').read_text())
     with db.get_session() as s:
         assert s.get(Attempt,evidence['attempt_id']).solved
-        assert s.get(StarStory,evidence['star_id']).title == 'OTA ownership evidence'
+        assert s.exec(select(StarStory).where(StarStory.title == evidence['star_title'])).first() is not None
         assert s.get(TrainingCheckin,evidence['day']).reflection == 'Check one edge case.'
         assert scheduler.get_setting(s,'design:lld:learned') == '["lld-responsibilities"]'
     assert session_store.load()['problem_id']
