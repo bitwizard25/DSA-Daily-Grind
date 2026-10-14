@@ -172,6 +172,28 @@ ROUTES = {"today": "today", "ui": "today", "recall": "recall", "drills": "recall
           "role": "role"}
 
 
+def _make_updater():
+    from google_prep.updates.manager import UpdateManager
+    from google_prep.updates.manifest import read_build_info
+    from google_prep.updates.windows import detect_installation
+    try:
+        return UpdateManager(db.home_dir(), read_build_info(db.resource_dir()), detect_installation())
+    except (OSError, ValueError, KeyError, TypeError):
+        _log('updater unavailable; study features remain available')
+        return None
+
+
+def _close_updates(updater, reason):
+    if updater is None: return
+    updater.stop()
+    if reason != 'window_closed' or updater.pending() is None: return
+    from google_prep.updates.windows import launch_pending
+    try:
+        launch_pending(db.home_dir(), os.getpid())
+    except (OSError, ValueError, KeyError, TypeError):
+        _log('pending update deferred; reopen the app to retry')
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="google-prep", description="Google SWE II OS desktop app")
     parser.add_argument("screen", nargs="?", default="today", help="open on: " + ", ".join(sorted(set(ROUTES))))
@@ -195,17 +217,33 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_browser and _windowed():
         _error_box("--no-browser needs a terminal. Run: google-prep-cli ui --no-browser")
         return 2
+    updater = None if args.no_browser else _make_updater()
+    if updater is not None and updater.installation is not None:
+        from google_prep.updates import windows
+        try:
+            if windows.installation_is_running():
+                _error_box('An app update is finishing. Open Google SWE II OS again in a moment.', info=True)
+                return 0
+            if updater.pending() is not None and not windows.app_is_running():
+                if windows.launch_pending(db.home_dir(), os.getpid(), reopen=True):
+                    return 0
+        except (OSError, ValueError, KeyError, TypeError):
+            _log('startup update deferred; opening the app normally')
     mutex = _hold_app_mutex()  # held while this process shows the app
     try:
-        server = serve(Api(), args.port)
+        server = serve(Api(updater=updater), args.port)
     except Exception as exc:  # e.g. a damaged database or a port already in use
         _error_box(f"Google SWE II OS could not start:\n{type(exc).__name__}: {exc}")
+        _release(mutex)
+        _close_updates(updater, 'startup_failure')
         return 1
+    if updater is not None: updater.start()
     url = server.url + ("" if ROUTES[args.screen] == "today" else f"#/{ROUTES[args.screen]}")
     proc = None if args.no_browser else open_window(url)
     if proc is None and not args.no_browser:
         webbrowser.open(url)
     _say(f"Google SWE II OS is running at {url}  (Ctrl+C to quit)")
+    exit_reason = 'browser_handoff'
     try:
         if proc is not None:
             started = time.monotonic()
@@ -214,21 +252,27 @@ def main(argv: list[str] | None = None) -> int:
             if time.monotonic() - started >= HANDOFF_SECONDS:
                 if not _page_still_open(server):
                     _log("window closed: stopping")
+                    exit_reason = 'window_closed'
                     return 0
                 # Edge can swap its process (an update, a relaunch) while the window stays open
                 _log("window process ended but the page is still open: serving on heartbeats")
                 _wait_for_page(server)
+                exit_reason = 'heartbeat_timeout'
                 return 0
             # ... unless the browser handed the page to a copy that was already running and exited.
             # That first copy marks the app as running; this window-less helper must not keep the
             # installer waiting after every window is closed.
             _release(mutex)
+            mutex = None
         _log("window handed off to a running browser: serving while the page sends heartbeats")
         _wait_for_page(server, forever=args.no_browser)
+        exit_reason = 'heartbeat_timeout'
     except KeyboardInterrupt:
-        pass
+        exit_reason = 'keyboard_interrupt'
     finally:
         server.shutdown()
+        _release(mutex)
+        _close_updates(updater, exit_reason)
     return 0
 
 

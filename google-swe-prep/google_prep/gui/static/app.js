@@ -390,6 +390,51 @@ function openHelp() {
     [{ label: "Close", value: null, primary: true, key: "Esc" }]);
 }
 
+function updaterSettings() {
+  let disposed = false, last = null, changing = false;
+  const message = h('p', {class:'muted small', role:'status', 'aria-live':'polite', 'data-test':'update-status'}, 'Loading update status…');
+  const version = h('p', {class:'muted small'});
+  const automatic = h('input', {type:'checkbox', disabled:true, 'data-test':'auto-updates', onchange:async () => {
+    if (!last || changing) return;
+    changing = true;automatic.disabled = true;
+    const previous = last.enabled;
+    try {paint(await api('update_preferences', {enabled:automatic.checked}));}
+    catch(error) {automatic.checked = previous;message.textContent = error.message;}
+    finally {changing = false;automatic.disabled = !last.supported;}
+  }});
+  const release = h('button', {type:'button', class:'btn ghost small', hidden:true, onclick:() => {
+    if (last && last.release_url) api('open_link', {url:last.release_url}).catch(error => {message.textContent=error.message;});
+  }}, 'Open download page');
+  const check = btn('Check now', async () => {
+    check.disabled = true;
+    try {paint(await api('update_check'));}
+    catch(error) {message.textContent = error.message;}
+    finally {if(!disposed) check.disabled = !!last && ['checking','downloading'].includes(last.state);}
+  }, {cls:'ghost small', test:'update-check'});
+  function paint(status) {
+    if(disposed) return;
+    last = status;
+    if(!changing) automatic.checked = status.supported && status.enabled;
+    automatic.disabled = changing || !status.supported;
+    version.textContent = `Version ${status.version}${status.build_number ? ` · build ${status.build_number}` : ''}`;
+    message.textContent = status.message || 'No update status available.';
+    check.disabled = ['checking','downloading'].includes(status.state);
+    release.hidden = !status.release_url;
+  }
+  async function refresh() {
+    if(disposed) return;
+    try {const status = await api('update_status', {}, {timeoutMs:4000});if(!changing) paint(status);}
+    catch(error) {if(!disposed) message.textContent = error.message;}
+  }
+  const node = h('section', {class:'update-settings'}, h('h3', null, 'App updates'), version,
+    h('label', {class:'row'}, automatic, ' Automatic updates'),
+    h('p', {class:'muted small'}, 'Verified updates install after the app closes. This preference saves immediately.'),
+    message, h('div', {class:'row'}, check, release));
+  refresh();
+  const timer = setInterval(refresh, 5000);
+  return {node, refresh, cleanup:() => {disposed = true;clearInterval(timer);}};
+}
+
 async function openSettings() {
   const st = S.state || await refreshState();
   const field = (label, name, value, type = "text") => h("div", { class: "field" },
@@ -409,7 +454,11 @@ async function openSettings() {
     h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
     h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
       ". Updating or uninstalling the app never deletes it."));
-  const ok = await openModal("Settings", form, [{ label: "Cancel", value: false, key: "Esc" }, { label: "Save", value: true, primary: true, test: "settings-save" }]);
+  const updates = updaterSettings();
+  form.append(updates.node);
+  let ok;
+  try {ok = await openModal("Settings", form, [{ label: "Cancel", value: false, key: "Esc" }, { label: "Save", value: true, primary: true, test: "settings-save" }]);}
+  finally {updates.cleanup();}
   if (!ok) return;
   const data = Object.fromEntries(new FormData(form).entries());
   try {

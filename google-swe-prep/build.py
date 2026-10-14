@@ -132,6 +132,10 @@ def build_installer() -> Path | None:
     if platform.system() != "Windows":
         print("Folder build done. The Setup.exe installer is built on Windows only.")
         return None
+    subprocess.run([sys.executable, "-m", "PyInstaller", "--onefile", "--noconsole", "--noconfirm",
+                    "--name=google-prep-update", "--paths=.", "--distpath=dist/update-helper",
+                    "google_prep/updates/helper.py"], check=True, cwd=ROOT)
+    shutil.copy2(ROOT / "dist/update-helper/google-prep-update.exe", ROOT / "dist/GoogleSWEPrep/google-prep-update.exe")
     iscc = find_iscc()
     if not iscc:
         raise SystemExit("Inno Setup 6 not found. Install it (https://jrsoftware.org/isdl.php or "

@@ -222,6 +222,10 @@ summary { cursor: pointer; color: var(--blue-t); padding: 6px 0; }
 .lesson-extra { border-top: 1px solid var(--border); padding-top: 8px; }
 .lesson-extra .bridge { display: block; overflow-x: auto; }
 .lesson-extra p { max-width: 70ch; line-height: 1.7; }
+.update-settings { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 8px; }
+.update-settings h3 { margin: 0; font-size: 17px; }
+.update-settings > p { margin: 8px 0; line-height: 1.6; }
+.update-settings label { font-size: 14px; align-items: center; }
 @media (min-width: 961px) {
   .wb-body[data-panel="problem"] .wb-right { display: none; }
   .wb-body[data-panel="problem"] { grid-template-columns: minmax(0, 1fr); }

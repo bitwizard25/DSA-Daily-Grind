@@ -24,6 +24,9 @@ jobs:
       - run: python -m pytest -q
       - name: Check frontend recovery and learning flows
         run: node --test tests/frontend-autosave.test.cjs tests/frontend-flows.test.cjs
+      - name: Stamp the CI build identity (read by the installed app's updater)
+        if: runner.os == 'Windows'
+        run: python scripts/release_update.py metadata --output data/build_info.json
       - run: python build.py
       - name: Smoke-test the terminal app
         env:
@@ -72,6 +75,11 @@ jobs:
           }
           python build.py --installer
           if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
+          if (-not (Test-Path dist\GoogleSWEPrep\google-prep-update.exe)) { throw "update helper was not packaged" }
+          python scripts/release_update.py manifest --installer dist/GoogleSWEPrep-Setup.exe `
+            --build-info data/build_info.json --output dist/google-prep-update.json
+          if ($LASTEXITCODE -ne 0) { throw "update manifest failed" }
+          Copy-Item data\build_info.json dist\build_info.json
       - name: Install, run and uninstall like a user would
         if: runner.os == 'Windows'
         timeout-minutes: 10
@@ -114,9 +122,111 @@ jobs:
           if (-not (Test-Path (Join-Path $real 'uninstall-keeps-me.txt'))) { throw "uninstall deleted %USERPROFILE%\.google_prep" }
           Remove-Item (Join-Path $real 'uninstall-keeps-me.txt')
           Write-Output "installer ok: install, shortcuts, PATH, selftest, uninstall, progress kept"
+      - name: Upgrade a real 1.5.0 install through the update helper
+        if: runner.os == 'Windows'
+        timeout-minutes: 30
+        shell: pwsh
+        env:
+          BASELINE: 8acc77492e5692f95c0a2b16603339cf0ed64742  # the verified 1.5.0 release, before OTA existed
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $work = Join-Path $env:RUNNER_TEMP 'ota'
+          $profileDir = Join-Path $work 'test profile ü'   # spaces and non-ASCII on purpose; never the real profile
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $build = (Get-Content data\build_info.json -Raw | ConvertFrom-Json).build_number
+
+          # 1. Build and install the old version, with a desktop shortcut but no PATH entry.
+          git fetch --no-tags --depth=1 origin $env:BASELINE
+          if ($LASTEXITCODE -ne 0) { throw "could not fetch the baseline commit" }
+          git worktree add --detach (Join-Path $work 'baseline') $env:BASELINE
+          Push-Location (Join-Path $work 'baseline\google-swe-prep')
+          python build.py --installer
+          if ($LASTEXITCODE -ne 0) { throw "baseline installer build failed" }
+          $baseSetup = (Resolve-Path dist\GoogleSWEPrep-Setup.exe).Path
+          Pop-Location
+          $p = Start-Process -FilePath $baseSetup -Wait -PassThru -ArgumentList `
+            '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=desktopicon', "/LOG=$work\baseline-install.log"
+          if ($p.ExitCode -ne 0) { Get-Content "$work\baseline-install.log" -Tail 60; throw "baseline install failed" }
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\Google SWE II OS'
+          $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Google SWE II OS.lnk'
+          if (Test-Path "$app\_internal\data\build_info.json") { throw "the baseline should not carry a build identity" }
+
+          # 2. Real study data in a test profile, and the new installer staged like the updater does it.
+          python scripts/ota_smoke.py seed --home $profileDir
+          if ($LASTEXITCODE -ne 0) { throw "seeding failed" }
+          python scripts/ota_smoke.py stage --home $profileDir --installer dist/GoogleSWEPrep-Setup.exe --manifest dist/google-prep-update.json
+          if ($LASTEXITCODE -ne 0) { throw "staging failed" }
+
+          # 3. The packaged helper installs it (no app is running, so it does not wait).
+          $helper = (Resolve-Path dist\GoogleSWEPrep\google-prep-update.exe).Path
+          $helperArgs = @('--home', "`"$profileDir`"", '--parent-pid', '0')
+          $h = Start-Process -FilePath $helper -ArgumentList $helperArgs -Wait -PassThru
+          $result = Join-Path $profileDir 'updates\result.json'
+          if ($h.ExitCode -ne 0) {
+            Get-Content $result -ErrorAction SilentlyContinue
+            Get-ChildItem (Join-Path $profileDir 'updates') -Recurse -Filter install.log | Get-Content -Tail 60
+            throw "update helper failed: $($h.ExitCode)"
+          }
+
+          # 4. The upgraded app starts on the old data, and every record survived.
+          $env:GOOGLE_PREP_HOME = $profileDir
+          $s = Start-Process -FilePath "$app\google-prep.exe" -ArgumentList '--selftest' -PassThru -NoNewWindow
+          $null = $s.Handle
+          if (-not $s.WaitForExit(120000)) { taskkill /PID $s.Id /T /F; throw "upgraded app selftest hung" }
+          if ($s.ExitCode -ne 0) { Get-Content (Join-Path $profileDir 'selftest.log') -ErrorAction SilentlyContinue; throw "upgraded app selftest failed" }
+          python scripts/ota_smoke.py verify --home $profileDir --install-dir $app --build $build
+          if ($LASTEXITCODE -ne 0) { throw "data or identity check failed after the upgrade" }
+          if (-not (Test-Path "$app\google-prep-update.exe")) { throw "the installed app has no update helper" }
+          if (-not (Test-Path $desk)) { throw "the upgrade lost the desktop shortcut the user chose" }
+          if ([Environment]::GetEnvironmentVariable('Path', 'User') -like "*$app*") { throw "the upgrade added a PATH entry the user did not choose" }
+
+          # 5. Running the helper again must not install the same build twice.
+          $log = Get-ChildItem (Join-Path $profileDir 'updates') -Recurse -Filter install.log | Select-Object -First 1
+          $before = $log.LastWriteTimeUtc
+          $h2 = Start-Process -FilePath $helper -ArgumentList $helperArgs -Wait -PassThru
+          if ($h2.ExitCode -ne 0) { throw "second helper run failed: $($h2.ExitCode)" }
+          if ((Get-Item $log.FullName).LastWriteTimeUtc -ne $before) { throw "the same update was installed twice" }
+
+          Start-Process -FilePath "$app\unins000.exe" -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
+          Write-Output "OTA upgrade ok: 1.5.0 -> build $build, data kept, shortcut/PATH choices kept, no double install"
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
           name: GoogleSWEPrep-Setup-Windows
-          path: google-swe-prep/dist/GoogleSWEPrep-Setup.exe
+          path: |
+            google-swe-prep/dist/GoogleSWEPrep-Setup.exe
+            google-swe-prep/dist/google-prep-update.json
+            google-swe-prep/dist/build_info.json
           if-no-files-found: error
+
+  publish-update:
+    # Only a fully green main build becomes an automatic update; branch builds never do.
+    needs: build
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: google-prep-stable-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: GoogleSWEPrep-Setup-Windows
+          path: update-release
+      - name: Publish the verified Windows update
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          result=$(python google-swe-prep/scripts/release_update.py publish --directory update-release)
+          echo "$result"
+          echo "result=${result#publish: }" >> "$GITHUB_OUTPUT"
+      - name: Check an installed app can see it (anonymous lookup)
+        if: steps.publish.outputs.result == 'published'
+        run: python google-swe-prep/scripts/release_update.py verify-public --directory update-release

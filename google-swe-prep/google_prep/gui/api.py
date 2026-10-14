@@ -32,8 +32,31 @@ def _crumbs(session, day, *parts: str) -> list[str]:
 class Api:
     """Method names are the RPC names the window calls (POST /api/<name>)."""
 
-    def __init__(self, now=clock.now):
+    def __init__(self, now=clock.now, updater=None):
         self.now = now
+        self.updater = updater
+
+    def update_status(self) -> dict:
+        if self.updater is not None:
+            return self.updater.status()
+        return {'supported':False, 'enabled':False, 'state':'unsupported', 'version':__version__, 'build_number':0,
+                'message':'Automatic installation requires the installed Windows app.',
+                'release_url':'https://github.com/bitwizard25/DSA-Daily-Grind/releases'}
+
+    def update_check(self) -> dict:
+        if self.updater is None:
+            raise ApiError('Updates can be checked from the desktop app. Manual downloads are on GitHub Releases.')
+        return self.updater.check()
+
+    def update_preferences(self, enabled: bool) -> dict:
+        if type(enabled) is not bool:
+            raise ApiError('Automatic updates must be on or off.')
+        if self.updater is None:
+            raise ApiError('Automatic updates require the installed Windows app.')
+        try:
+            return self.updater.set_enabled(enabled)
+        except (OSError, ValueError) as exc:
+            raise ApiError('Could not save your update preference. Try again.') from exc
 
     def _plain(self, s, kind: str, item_id: str, field: str, original):
         """In simple language mode, the plain-English version from data/simple_text.json (if there is one)."""
@@ -57,6 +80,7 @@ class Api:
             pace = scheduler.pace(s, t.date())
             return {
                 "version": __version__,
+                "build_number": self.update_status().get('build_number', 0),
                 "app": scheduler.APP_NAME,
                 "now": t.isoformat(),
                 "day": day, "week": week, "dow": dow, "plan_days": scheduler.PLAN_DAYS,
