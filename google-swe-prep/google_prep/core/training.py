@@ -139,7 +139,8 @@ def practice_progress(session: Session, when: datetime) -> dict:
                    "current": reflections, "target": 3, "source": "Daily reflections · self-report"}]
     for milestone in milestones:
         milestone["reached"] = milestone["current"] >= milestone["target"]
-    return {"daily": {"items": items, "completed": sum(item["done"] for item in required), "total": len(required)},
+    return {"daily": {"items": items, "completed": sum(item["done"] for item in required), "total": len(required),
+                      "micro_completed": schedule.mode == "micro" and schedule.morning_completed},
             "comparison": {"current_start": first, "previous_start": previous_first,
                            "current_solo": current_solo, "previous_solo": previous_solo,
                            "solo_delta": current_solo - previous_solo,

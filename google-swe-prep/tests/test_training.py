@@ -7,7 +7,7 @@ from sqlmodel import Session, create_engine, select
 from google_prep import db
 from google_prep.core import scheduler, training
 from google_prep.gui.api import Api, ApiError, RPC, call
-from google_prep.models import Attempt, MockSession, TrainingCheckin
+from google_prep.models import Attempt, DailySchedule, MockSession, TrainingCheckin
 
 NOW = datetime(2026, 10, 12, 7, 30)
 
@@ -192,6 +192,13 @@ def test_progress_uses_distinct_attempts_and_confirmed_solo_solves(session):
     assert progress['comparison']['current_attempts'] == 5
     assert progress['comparison']['current_solo'] == 1
     assert progress['milestones'][0]['current'] == 1
+
+
+def test_micro_completion_comes_from_the_saved_daily_schedule(session):
+    assert training.practice_progress(session, NOW)['daily']['micro_completed'] is False
+    session.add(DailySchedule(date_str=NOW.date().isoformat(), mode='micro', morning_completed=True))
+    session.commit()
+    assert training.practice_progress(session, NOW)['daily']['micro_completed'] is True
 
 
 def test_week_comparison_and_milestones_exclude_future_records(session):

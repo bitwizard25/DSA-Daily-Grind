@@ -519,10 +519,13 @@ function progressMilestones(training) {
       h('p', null, item.label), bar(item.current/item.target, item.reached ? 'green' : ''),
       h('span', {class:'muted small'}, item.source)))));
 }
-function dailyChecklist(training) {
+function dailyChecklist(training, micro = false) {
   if (!training || !training.progress) return h('section', {class:'daily-checklist'}, h('h2', null, 'Today’s checklist'),
     h('p', {class:'muted'}, 'Progress could not load. You can still start your next session.'));
-  const daily = training.progress.daily;
+  const saved = training.progress.daily;
+  const daily = micro ? {completed:saved.micro_completed ? 1 : 0, total:1,
+    items:[{id:'micro', title:'10-minute practice', done:saved.micro_completed, route:'#/recall?mode=micro',
+            detail:'One pattern drill and one bug hunt.', optional:false}, ...saved.items.filter(item => item.optional)]} : saved;
   return h('section', {class:'daily-checklist', 'data-test':'daily-checklist'},
     h('div', {class:'section-heading'}, h('h2', null, 'Today’s checklist'), h('span', {class:'daily-count'}, `${daily.completed}/${daily.total}`)),
     bar(daily.completed/daily.total),
@@ -587,7 +590,7 @@ ROUTES.today = async (ctx) => {
     btn('View progress', () => go('#/roadmap'), {cls:'ghost small'}));
   mount(ctx, h('div', {class:'page today-page'}, pageTitle(mode === 'micro' ? 'A small session still counts.' : 'Build the habit. Do the work.',
     `${new Date(st.now).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'})} · Day ${st.day} · ${st.phase.short}`),
-    h('div', {class:'today-workspace'}, hero, dailyChecklist(training)), summary, habitPreview(training), progressMilestones(training), status));
+    h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
   return {onKey(e, typing) {
     if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'm' && mode !== 'micro' && d.kind !== 'fasttrack') {
       go('#/today?mode=micro'); return true;

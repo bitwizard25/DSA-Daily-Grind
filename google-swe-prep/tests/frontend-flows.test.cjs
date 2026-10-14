@@ -67,6 +67,15 @@ test('optional coaching failure resolves to null with a bounded request', async(
   assert.equal(await state.optionalTraining(),null);
   assert.equal(options.timeoutMs,4000);
 });
+test('Micro-Mode checklist asks only for the short session, not the full coding goal',()=>{
+  const state=env();
+  vm.runInContext(source('function dailyChecklist(', '\nfunction habitPreview'),state);
+  const root=state.dailyChecklist({progress:{daily:{micro_completed:true, completed:0, total:2,
+    items:[{title:'Practise 3 problems', optional:false}, {title:'Quick reflection', optional:true}]}}},true);
+  assert.match(root.textContent,/10-minute practice/);
+  assert.match(root.textContent,/1\/1/);
+  assert.doesNotMatch(root.textContent,/Practise 3 problems/);
+});
 test('failed whiteboard save offers export, safe default and explicit escape', async()=>{
   let downloaded=false;
   const state=env({confirmBox:()=>assert.fail('failed save must show the recovery dialog'),
