@@ -7,7 +7,7 @@ const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || safeGet("prep-token") || "";
 safeSet("prep-token", TOKEN);
 const DEBUG = params.get("debug") === "1";
-const COLORS = { blue: "#4285F4", green: "#34A853", yellow: "#FBBC05", red: "#EA4335" };
+const COLORS = { blue: "#6F90C0", green: "#6FA582", yellow: "#C8A961", red: "#C47F77" };
 const FOLLOW_UP_AT = 35 / 45;
 const RUBRIC_AT = 40 / 45;
 
