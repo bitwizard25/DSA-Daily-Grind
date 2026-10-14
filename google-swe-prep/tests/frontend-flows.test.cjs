@@ -134,3 +134,34 @@ test('update check stays disabled while downloading and disposed settings make n
   await button.attrs.onclick();assert.equal(button.disabled,true);
   ui.cleanup();const before=requests;await ui.refresh();assert.equal(requests,before);
 });
+
+test('sidebar update indicator uses real download progress and handles unavailable states',()=>{
+  const state=env();
+  vm.runInContext(source('function updateIndicatorState(', '\nfunction startUpdateIndicator'),state);
+  const show=status=>state.updateIndicatorState(status);
+  assert.equal(show({state:'available'}).available,true);
+  const download=show({state:'downloading',downloaded:25,total:100});
+  assert.equal(download.progress,.25);assert.equal(download.detail,'25% downloaded');
+  assert.equal(show({state:'downloading',downloaded:150,total:100}).progress,1);
+  assert.equal(show({state:'downloading',downloaded:10,total:0}).detail,'Downloading…');
+  assert.equal(show({state:'ready',enabled:true}).detail,'Installs after closing');
+  assert.equal(show({state:'ready',enabled:false}).detail,'Automatic updates off');
+  assert.equal(show({state:'unsupported'}).detail,'Manual download');
+  assert.equal(show({state:'offline'}).available,false);
+  assert.equal(show({state:'failed'}).detail,'Needs attention');
+});
+
+test('sidebar polling never overlaps and stops after page close',async()=>{
+  let tick, resolve, calls=0, removed=false, cleared=false;
+  const button=tree('button');
+  const state=env({$:()=>button, COLORS:{blue:'#4285F4'},ring:()=>tree('svg'),
+    document:{visibilityState:'visible',addEventListener:()=>{},removeEventListener:()=>{removed=true;}},
+    setInterval:fn=>{tick=fn;return 1;},clearInterval:()=>{cleared=true;},
+    api:()=>{calls++;return new Promise(r=>{resolve=r;});}});
+  vm.runInContext(source('function updateIndicatorState(', '\nasync function openUpdates'),state);
+  const stop=state.startUpdateIndicator();
+  await tick();assert.equal(calls,1);
+  stop();resolve({state:'available'});await Promise.resolve();
+  await tick();assert.equal(calls,1);assert.ok(removed && cleared);
+  assert.equal(button.textContent,'');
+});
