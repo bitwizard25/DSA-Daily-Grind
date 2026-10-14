@@ -20,6 +20,7 @@ def seed(home: Path):
         s.add(attempt); s.add(story); s.add(checkin)
         scheduler.set_setting(s, 'design:lld:learned', '["lld-responsibilities"]')
         s.commit()
+        s.refresh(attempt); s.refresh(story)
         evidence = {'attempt_id': attempt.id, 'star_id': story.id, 'day': checkin.date_str}
     (home/'ota-evidence.json').write_text(json.dumps(evidence), encoding='utf-8')
     session_store.save({'kind':'mock','problem_id':problem.id,'minutes':45,'elapsed':120,'ticks':[],'shown':0})
