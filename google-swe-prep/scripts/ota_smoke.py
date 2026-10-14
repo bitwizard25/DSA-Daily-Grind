@@ -5,13 +5,15 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from google_prep import db
 from google_prep.core import scheduler, session_store
-from google_prep.models import Attempt, StarStory, TrainingCheckin
+from google_prep.models import Attempt, StarStory, TrainingCheckin, Problem
+from sqlmodel import select
 
 def seed(home: Path):
     home = Path(home); home.mkdir(parents=True, exist_ok=True)
     import os; os.environ['GOOGLE_PREP_HOME'] = str(home)
     with db.get_session() as s:
-        problem = scheduler.next_problem(s)
+        problem = s.exec(select(Problem)).first()
+        if problem is None: raise AssertionError('problem bank is empty')
         attempt = Attempt(problem_id=problem.id, day='2026-10-14', minutes=28, solved=True, dry_run_ok=True, help='none')
         story = StarStory(dimension='Ownership', title='OTA ownership evidence', situation='A release needed safe updates.', task='Preserve study data.', action='Added verified staged updates.', result='The profile remains intact.')
         checkin = TrainingCheckin(date_str='2026-10-14', habit_id='clarity', intention='Explain one tradeoff.', reflection='Check one edge case.')
