@@ -1,6 +1,6 @@
 # Proposed OTA updates for Google SWE II OS
 
-Status: approved by the user on 14 October 2026; updater code has not been implemented.
+Status: approved by the user on 14 October 2026. Implemented in version 1.6.0: app side (Tasks 1–4) and CI publishing with a real Windows upgrade test (Task 5). End-to-end delivery is confirmed only after the first `main` build publishes a release.
 
 ## What the app will do
 

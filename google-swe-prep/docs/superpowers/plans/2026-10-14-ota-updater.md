@@ -10,7 +10,7 @@
 
 **Spec:** [Approved OTA design](../specs/2026-10-14-ota-updater-design.md), approved by the user on 14 October 2026.
 
-**Execution status:** Planning only. Product code has not been modified. Recommend native execution in this chat because the launcher, helper and release format depend on the same small set of interfaces.
+**Execution status:** Tasks 1–5 implemented. Task 5 adds `scripts/release_update.py`, `scripts/ota_smoke.py`, `tests/test_update_release.py` and the Windows upgrade test plus `publish-update` job in `build-exe.yml`. Still to confirm after merge: the first real release on `main`, and one installed app picking it up.
 
 ## Global Constraints
 
