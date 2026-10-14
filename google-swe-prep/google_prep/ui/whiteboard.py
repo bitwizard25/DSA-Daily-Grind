@@ -214,7 +214,7 @@ class RubricScreen(Screen[dict]):
     3-tier outcome (skipped after a seen answer: that is a miss), then one yes/no per pillar check
     (your checklist ticks are pre-noted), then the mistake if needed."""
 
-    BINDINGS = [Binding(k, f"key('{k}')", show=False) for k in "12345yn"] + [Binding("b", "back", "Back a step")]
+    BINDINGS = [Binding(k, f"key('{k}')", show=False) for k in "123456789yn"] + [Binding("b", "back", "Back a step")]
 
     def __init__(self, problem, path: str, practice: bool, used: int, ticks: list[bool], follow_up: str,
                  trace_rows: int, needs_mistake: Callable[[bool, bool], bool], mistakes: dict[str, str],
@@ -296,7 +296,7 @@ class RubricScreen(Screen[dict]):
             self.step += 1
             if self.step > n + 1 and not self.needs_mistake(self.outcome != "1", self.checks["dry_run_passed"]):
                 return self.finish(None)
-        elif self.step > n + 1 and key in "12345":
+        elif self.step > n + 1 and key in "123456789" and int(key) <= len(self.mistakes):
             return self.finish(list(self.mistakes)[int(key) - 1])
         self.render_card()
 

@@ -1,0 +1,618 @@
+{
+  "version": 1,
+  "intro": "Use these learning checklists, then try a short practice exercise when ready. Checked topics are your own assessment. Ask your recruiter which design or ML rounds apply to your role.",
+  "tracks": [
+    {
+      "id": "lld",
+      "title": "Low-level design",
+      "short": "LLD",
+      "description": "Turn requirements into classes, interfaces, state and tests.",
+      "learning": [
+        {
+          "title": "Classes",
+          "items": [
+            {
+              "id": "lld-responsibilities",
+              "title": "Give each class one clear responsibility",
+              "explanation": "Learn which data and actions belong together. Example: an account stores its balance and handles deposits; a notification sender sends messages."
+            },
+            {
+              "id": "lld-composition",
+              "title": "Choose how objects work together",
+              "explanation": "Learn composition versus inheritance. Explain when one object should use another object, and when two objects truly share a parent type."
+            }
+          ]
+        },
+        {
+          "title": "Interfaces",
+          "items": [
+            {
+              "id": "lld-contracts",
+              "title": "Define inputs, outputs and allowed behavior",
+              "explanation": "For each operation, name its inputs, return value and errors. Example: what does cache.get return when the key is missing?"
+            },
+            {
+              "id": "lld-dependencies",
+              "title": "Replace a dependency without changing callers",
+              "explanation": "Learn why a small interface helps testing. Explain how a fake message sender or fake clock can replace the real one."
+            }
+          ]
+        },
+        {
+          "title": "State",
+          "items": [
+            {
+              "id": "lld-transitions",
+              "title": "List valid states and transitions",
+              "explanation": "Example: a job can be pending, running, completed or failed. Explain which changes are allowed and what cancellation does."
+            },
+            {
+              "id": "lld-invariants",
+              "title": "State what must always remain true",
+              "explanation": "An invariant is a rule that every operation must preserve. Example: a cache must never exceed its capacity; a balance must obey the account rules."
+            }
+          ]
+        },
+        {
+          "title": "Errors",
+          "items": [
+            {
+              "id": "lld-validation",
+              "title": "Handle invalid input and missing data",
+              "explanation": "Decide what happens for empty input, an unknown ID or an invalid value. Explain whether the caller gets an error, a default value or an empty result."
+            },
+            {
+              "id": "lld-retries",
+              "title": "Separate temporary failures from permanent ones",
+              "explanation": "A timeout may succeed on retry; an invalid request will not. Explain retry limits and how to avoid repeating a side effect such as charging twice."
+            }
+          ]
+        },
+        {
+          "title": "Test cases",
+          "items": [
+            {
+              "id": "lld-cases",
+              "title": "Choose normal, boundary and failure cases",
+              "explanation": "For a cache: test a hit, a miss, an update, zero capacity and eviction. Explain the expected result before writing a test."
+            },
+            {
+              "id": "lld-testability",
+              "title": "Test behavior with controlled dependencies",
+              "explanation": "Use fake clocks, storage and network responses to make tests repeatable. Check public behavior rather than private implementation details."
+            }
+          ]
+        }
+      ],
+      "reading": []
+    },
+    {
+      "id": "hld",
+      "title": "System design",
+      "short": "HLD",
+      "description": "Connect APIs, storage and services, then explain scaling and failure trade-offs.",
+      "learning": [
+        {
+          "title": "Requirements",
+          "items": [
+            {
+              "id": "hld-scope",
+              "title": "Define users and the main workflow",
+              "explanation": "Say who uses the system, what they need to do, and what is outside the first version. Trace one successful request before adding components."
+            },
+            {
+              "id": "hld-targets",
+              "title": "Set traffic, latency and availability targets",
+              "explanation": "Estimate requests per second and data size. Explain how quickly the user needs a response and how much downtime the product can tolerate."
+            }
+          ]
+        },
+        {
+          "title": "APIs",
+          "items": [
+            {
+              "id": "hld-requests",
+              "title": "Design requests, responses and error behavior",
+              "explanation": "Name the main endpoints, required fields, IDs and status codes. Explain how the client checks the status of work that finishes later."
+            },
+            {
+              "id": "hld-duplicates",
+              "title": "Handle repeated requests and authorization",
+              "explanation": "Learn idempotency: repeating a request should not repeat an unwanted side effect. Explain who may call each API and how duplicate requests are recognized."
+            }
+          ]
+        },
+        {
+          "title": "Data",
+          "items": [
+            {
+              "id": "hld-model",
+              "title": "Define records and the queries they must support",
+              "explanation": "Choose key fields, IDs and relationships. List the reads and writes the product needs before choosing a database or index."
+            },
+            {
+              "id": "hld-storage",
+              "title": "Choose storage and consistency for a reason",
+              "explanation": "Learn when relational tables, key-value storage and object storage fit. Explain what users see when replicas or cached data are briefly out of date."
+            }
+          ]
+        },
+        {
+          "title": "Scaling",
+          "items": [
+            {
+              "id": "hld-bottlenecks",
+              "title": "Find the first bottleneck with a rough estimate",
+              "explanation": "Estimate compute, storage and network demand. Explain which component reaches its limit first instead of adding every scaling technique at once."
+            },
+            {
+              "id": "hld-techniques",
+              "title": "Choose caching, queues or partitioning",
+              "explanation": "Learn what each technique solves. Caches reduce repeated reads, queues absorb bursts, and partitions split data or work. Explain the new problems each choice creates."
+            }
+          ]
+        },
+        {
+          "title": "Reliability",
+          "items": [
+            {
+              "id": "hld-recovery",
+              "title": "Plan timeouts, retries and failure recovery",
+              "explanation": "Trace a failed dependency or crashed worker. Explain retry limits, duplicate protection and what happens to work that repeatedly fails."
+            },
+            {
+              "id": "hld-operations",
+              "title": "Monitor the system and recover lost data",
+              "explanation": "Choose useful metrics and alerts. Explain backups, restore testing and how users or operators discover that processing is stuck."
+            }
+          ]
+        },
+        {
+          "title": "Trade-offs",
+          "items": [
+            {
+              "id": "hld-choices",
+              "title": "Compare two reasonable designs",
+              "explanation": "State what you gain and lose: latency versus cost, fresh data versus availability, or a simple service versus many services. Tie the choice to the requirements."
+            },
+            {
+              "id": "hld-growth",
+              "title": "Explain how the first version can evolve",
+              "explanation": "Keep the initial design small. Identify one signal that would justify a bigger design, and explain how you would change it without losing data."
+            }
+          ]
+        }
+      ],
+      "reading": [
+        {
+          "book_id": "llm-era",
+          "section": "Chapter 3: requirements, APIs and data modelling",
+          "pages": "printed pages 56–83",
+          "goal": "Trace one request and identify which component owns each piece of data."
+        },
+        {
+          "book_id": "llm-era",
+          "section": "Chapter 2: architectural patterns",
+          "pages": "printed pages 31–53",
+          "goal": "Choose a cache, queue, timeout or fallback only when it solves a stated problem."
+        }
+      ]
+    },
+    {
+      "id": "ml",
+      "title": "ML / GenAI design",
+      "short": "ML",
+      "description": "Design useful AI behavior with evaluation, access control and recovery.",
+      "learning": [
+        {
+          "title": "Retrieval",
+          "items": [
+            {
+              "id": "ml-pipeline",
+              "title": "Explain the path from documents to retrieved evidence",
+              "explanation": "Learn parsing, chunks, embeddings, indexes and ranking. Trace one question from search to the pieces of evidence used in the answer."
+            },
+            {
+              "id": "ml-permissions",
+              "title": "Keep retrieved evidence useful and authorized",
+              "explanation": "Learn keyword versus vector search, permission filters and document freshness. Explain how the system avoids using documents the user cannot access."
+            }
+          ]
+        },
+        {
+          "title": "Agents",
+          "items": [
+            {
+              "id": "ml-tools",
+              "title": "Define tool contracts and action permissions",
+              "explanation": "Say which tools the assistant can call, what each accepts and returns, and which actions need approval. Treat instructions inside retrieved content as untrusted data."
+            },
+            {
+              "id": "ml-limits",
+              "title": "Bound the workflow and preserve its state",
+              "explanation": "Set limits on steps, time and cost. Explain how the assistant stops, resumes interrupted work and avoids performing the same external action twice."
+            }
+          ]
+        },
+        {
+          "title": "Evaluation",
+          "items": [
+            {
+              "id": "ml-dataset",
+              "title": "Build a small test set with expected outcomes",
+              "explanation": "Include normal questions, missing evidence, conflicting documents and access restrictions. Define a good answer and a harmful failure before choosing a model."
+            },
+            {
+              "id": "ml-metrics",
+              "title": "Measure retrieval and answer quality separately",
+              "explanation": "Check whether search found the right evidence, then whether the answer used it correctly. Track unsupported claims, task success, latency and cost."
+            }
+          ]
+        },
+        {
+          "title": "Failure handling",
+          "items": [
+            {
+              "id": "ml-abstention",
+              "title": "Respond clearly when evidence is weak or missing",
+              "explanation": "Explain when to ask a clarifying question, show partial evidence or say the answer is unknown. Do not invent facts to fill a gap."
+            },
+            {
+              "id": "ml-fallbacks",
+              "title": "Recover from model and tool failures safely",
+              "explanation": "Plan timeouts, bounded retries and useful fallback behavior. Log enough to diagnose the failed step while respecting private data and approval boundaries."
+            }
+          ]
+        }
+      ],
+      "reading": [
+        {
+          "book_id": "llm-era",
+          "section": "Chapter 1: RAG and context; Chapter 2: ingestion and retrieval",
+          "pages": "printed pages 19–26 and 41–44",
+          "goal": "Explain how a question becomes retrieved evidence and an answer."
+        },
+        {
+          "book_id": "llm-era",
+          "section": "Chapter 2: tools, evaluation, security and resilience",
+          "pages": "printed pages 32–35 and 44–53",
+          "goal": "Explain one tool boundary, one evaluation test and one recovery path."
+        },
+        {
+          "book_id": "genai-interview",
+          "section": "Chapter 1: Introduction and Overview",
+          "pages": "start of the supplied PDF",
+          "goal": "Learn the basic model and data vocabulary before tackling a case study."
+        },
+        {
+          "book_id": "genai-interview",
+          "section": "Chapter 3: Google Translate — evaluation discussion",
+          "pages": "PDF page 120 / printed page 106",
+          "goal": "Compare evaluation methods and explain why a metric can miss useful meaning."
+        }
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "id": "lld-cache",
+      "track": "lld",
+      "title": "Design an in-memory cache",
+      "minutes": 15,
+      "brief": "Design a Python cache with get and put operations, a fixed capacity and least-recently-used eviction. Describe the contract before choosing a data structure. Start with one process and one thread.",
+      "steps": [
+        {
+          "title": "Clarify the contract",
+          "prompts": [
+            "What happens when a key is missing?",
+            "Does updating a key change its position? What about zero capacity?"
+          ]
+        },
+        {
+          "title": "Name the responsibilities",
+          "prompts": [
+            "Which object owns values and eviction order?",
+            "What public interface will callers use?"
+          ]
+        },
+        {
+          "title": "Describe state changes",
+          "prompts": [
+            "Walk through put A, put B, get A, put C with capacity two.",
+            "Which invariants must hold after every operation?"
+          ]
+        },
+        {
+          "title": "Sketch and test",
+          "prompts": [
+            "Write the class outline and explain operation costs.",
+            "Choose tests for updates, missing keys and eviction."
+          ]
+        }
+      ],
+      "followups": [
+        "What changes if multiple threads call the cache?",
+        "How would expiry change the API and state?"
+      ],
+      "review": [
+        "I made the API behavior explicit.",
+        "I explained state and invariants.",
+        "I walked through an edge case and a trade-off."
+      ]
+    },
+    {
+      "id": "lld-worker",
+      "track": "lld",
+      "title": "Design a retryable task runner",
+      "minutes": 15,
+      "brief": "Design a small Python task runner that executes a job, reports status and retries temporary failures. Focus on object boundaries and testability; distributed deployment is a follow-up.",
+      "steps": [
+        {
+          "title": "Clarify behavior",
+          "prompts": [
+            "Which failures should be retried?",
+            "What should a caller see after cancellation or permanent failure?"
+          ]
+        },
+        {
+          "title": "Separate responsibilities",
+          "prompts": [
+            "Who executes a job, chooses retry delays and stores status?",
+            "Which interfaces make a fake clock and fake task possible in tests?"
+          ]
+        },
+        {
+          "title": "Model states",
+          "prompts": [
+            "List valid transitions between pending, running, retrying and finished.",
+            "What stops a retry after cancellation?"
+          ]
+        },
+        {
+          "title": "Sketch and test",
+          "prompts": [
+            "Walk through failure followed by success.",
+            "Test retry limits and a job whose side effect is unsafe to repeat."
+          ]
+        }
+      ],
+      "followups": [
+        "What changes when jobs must survive a process crash?",
+        "How would two workers avoid doing the same job at once?"
+      ],
+      "review": [
+        "I separated execution from retry policy.",
+        "I described error and cancellation states.",
+        "I identified a side effect that needs duplicate protection."
+      ]
+    },
+    {
+      "id": "hld-jobs",
+      "track": "hld",
+      "title": "Design a document-processing service",
+      "minutes": 20,
+      "brief": "Users upload documents and receive processing results later. Uploads arrive in bursts, workers can crash, and clients need job status. Choose explicit traffic and document-size assumptions for this exercise.",
+      "steps": [
+        {
+          "title": "Set requirements",
+          "prompts": [
+            "What does a completed job produce?",
+            "Which matters most: upload latency, processing time, availability or cost?"
+          ]
+        },
+        {
+          "title": "Define APIs and data",
+          "prompts": [
+            "What are the upload, status and result APIs?",
+            "Where do files, job state and result references live?"
+          ]
+        },
+        {
+          "title": "Draw the main flow",
+          "prompts": [
+            "Trace one request from client to storage, queue and worker.",
+            "Explain why each service exists before adding more components."
+          ]
+        },
+        {
+          "title": "Stress the design",
+          "prompts": [
+            "What happens after a worker crashes mid-job?",
+            "Where do you apply backpressure, retries and duplicate protection?"
+          ]
+        },
+        {
+          "title": "Explain a trade-off",
+          "prompts": [
+            "What breaks at ten times your assumed traffic?",
+            "Choose one bottleneck, one metric and one change."
+          ]
+        }
+      ],
+      "followups": [
+        "The same upload request is sent twice. What should the client observe?",
+        "One tenant sends most of the traffic. How do you protect other tenants?"
+      ],
+      "review": [
+        "I stated assumptions before scaling.",
+        "I traced APIs and data ownership.",
+        "I explained failure recovery and one measurable bottleneck."
+      ]
+    },
+    {
+      "id": "hld-notifications",
+      "track": "hld",
+      "title": "Design a notification service",
+      "minutes": 20,
+      "brief": "An application sends email and push notifications. Users choose preferences, providers can fail, and duplicate messages are undesirable. Define your scale and delivery expectations explicitly.",
+      "steps": [
+        {
+          "title": "Set requirements",
+          "prompts": [
+            "Which notifications are urgent and which can wait?",
+            "What delivery and duplicate guarantees can you realistically promise?"
+          ]
+        },
+        {
+          "title": "Define APIs and data",
+          "prompts": [
+            "How are notification requests and user preferences represented?",
+            "How does a caller track delivery status?"
+          ]
+        },
+        {
+          "title": "Draw the delivery path",
+          "prompts": [
+            "Trace an event through routing, queues and provider adapters.",
+            "Where are ordering, rate limits and tenant boundaries enforced?"
+          ]
+        },
+        {
+          "title": "Handle failures",
+          "prompts": [
+            "A provider times out after sending a message. What do you do?",
+            "How do you handle permanent failures and a growing backlog?"
+          ]
+        },
+        {
+          "title": "Explain a trade-off",
+          "prompts": [
+            "What do you monitor for missed or delayed delivery?",
+            "Explain one cost versus reliability choice."
+          ]
+        }
+      ],
+      "followups": [
+        "How would you add a new provider without changing callers?",
+        "A user opts out while a message is queued. What should happen?"
+      ],
+      "review": [
+        "I separated preferences from delivery.",
+        "I addressed ambiguous provider responses.",
+        "I stated a delivery guarantee and its limits."
+      ]
+    },
+    {
+      "id": "ml-rag",
+      "track": "ml",
+      "title": "Design an internal-document assistant",
+      "minutes": 20,
+      "brief": "Employees ask questions about internal documents. Answers should cite evidence, respect document permissions and admit when evidence is missing. Design the data and evaluation flow before selecting models.",
+      "steps": [
+        {
+          "title": "Define success",
+          "prompts": [
+            "What makes an answer useful and what counts as a harmful failure?",
+            "What latency, freshness and cost assumptions will you use?"
+          ]
+        },
+        {
+          "title": "Design retrieval",
+          "prompts": [
+            "How are documents parsed, chunked and indexed?",
+            "Where do access checks happen, including during retrieval?"
+          ]
+        },
+        {
+          "title": "Trace a question",
+          "prompts": [
+            "Explain query processing, retrieval, answer generation and citations.",
+            "What happens if the retrieved evidence is weak or contradictory?"
+          ]
+        },
+        {
+          "title": "Evaluate and recover",
+          "prompts": [
+            "Build a small evaluation set with expected evidence and permission cases.",
+            "How do you separate retrieval failures from generation failures?"
+          ]
+        },
+        {
+          "title": "Defend trade-offs",
+          "prompts": [
+            "Why vectors, keyword search, a graph or a combination?",
+            "How will you update documents and monitor regressions?"
+          ]
+        }
+      ],
+      "followups": [
+        "An employee loses document access. How quickly should cached answers change?",
+        "The model provider is unavailable. What can the assistant still do safely?"
+      ],
+      "review": [
+        "I made permission boundaries explicit.",
+        "I designed abstention and evidence checks.",
+        "I described an evaluation set and failure-specific metrics."
+      ]
+    },
+    {
+      "id": "ml-agent",
+      "track": "ml",
+      "title": "Design a tool-using workflow assistant",
+      "minutes": 20,
+      "brief": "An assistant reads a request and proposes actions through tools. Some tools change data, calls can fail and the assistant has a limited budget. Define which actions need human approval in this exercise.",
+      "steps": [
+        {
+          "title": "Define the boundary",
+          "prompts": [
+            "Which actions are allowed, and who approves consequential changes?",
+            "Which inputs and tool outputs should be treated as untrusted?"
+          ]
+        },
+        {
+          "title": "Model the workflow",
+          "prompts": [
+            "Separate reasoning, tool execution, authorization and durable state.",
+            "What state is needed to pause and resume safely?"
+          ]
+        },
+        {
+          "title": "Trace execution",
+          "prompts": [
+            "Walk through one request, including a tool failure.",
+            "How do you avoid repeating a completed write after losing its response?"
+          ]
+        },
+        {
+          "title": "Evaluate behavior",
+          "prompts": [
+            "Test tool selection, permission boundaries and unsupported requests.",
+            "What evidence shows the workflow helped rather than merely produced text?"
+          ]
+        },
+        {
+          "title": "Control resources",
+          "prompts": [
+            "Where are timeouts, retries and budgets enforced?",
+            "Explain what happens when the budget runs out or a provider fails."
+          ]
+        }
+      ],
+      "followups": [
+        "A tool response contains instructions to ignore the user. What happens?",
+        "How do you audit one failed workflow without exposing private data?"
+      ],
+      "review": [
+        "I separated model suggestions from authorized actions.",
+        "I explained duplicate protection and recovery.",
+        "I proposed behavioral evaluations and resource limits."
+      ]
+    }
+  ],
+  "references": [
+    {
+      "id": "llm-era",
+      "title": "System Design for the LLM Era",
+      "authors": "Sampriti Mitra",
+      "short": "LLM Era",
+      "use": "Production architecture: retrieval, agents, reliability, latency, cost and evaluation."
+    },
+    {
+      "id": "genai-interview",
+      "title": "Generative AI System Design Interview",
+      "authors": "Ali Aminian and Hao Sheng",
+      "short": "GenAI Interview",
+      "use": "Interview examples: define the problem, discuss data and models, evaluate results and explain choices."
+    }
+  ]
+}

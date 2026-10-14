@@ -106,6 +106,55 @@ class Api:
                 raise ApiError(str(exc)) from exc
             return training.state(s, t)
 
+    def design_prep(self) -> dict:
+        data = db.load_json("design_prep.json")
+        with get_session() as s:
+            tracks = []
+            for track in data["tracks"]:
+                known = {item["id"] for group in track["learning"] for item in group["items"]}
+                try:
+                    saved = json.loads(scheduler.get_setting(s, f"design:{track['id']}:learned", "[]"))
+                except (ValueError, TypeError):
+                    saved = []
+                learned = [key for key in saved if isinstance(key, str) and key in known] if isinstance(saved, list) else []
+                learned = sorted(set(learned))
+                tracks.append({**track, "learned": learned, "learned_count": len(learned), "learning_total": len(known)})
+            exercises = [{**item, "notes": scheduler.get_setting(s, f"design:{item['id']}:notes", ""),
+                          "practised": scheduler.get_setting(s, f"design:{item['id']}:practised", "0") == "1"}
+                         for item in data["exercises"]]
+            return {"tracks": tracks, "exercises": exercises, "references": data.get("references", []), "intro": data["intro"],
+                    "completed": sum(item["practised"] for item in exercises), "total": len(exercises)}
+
+    def design_learning_save(self, track_id: str, completed: list[str]) -> dict:
+        data = db.load_json("design_prep.json")
+        track = next((item for item in data["tracks"] if item["id"] == track_id), None)
+        if track is None:
+            raise ApiError("Choose a known learning track.")
+        known = {item["id"] for group in track["learning"] for item in group["items"]}
+        if not isinstance(completed, list) or any(not isinstance(key, str) or key not in known for key in completed):
+            raise ApiError("Choose learning topics from this track's checklist.")
+        with get_session() as s:
+            scheduler.set_setting(s, f"design:{track_id}:learned", json.dumps(sorted(set(completed))))
+        return self.design_prep()
+
+    def design_prep_save(self, exercise_id: str, notes: str | None = None, practised: bool | None = None) -> dict:
+        data = db.load_json("design_prep.json")
+        if not isinstance(exercise_id, str) or exercise_id not in {item["id"] for item in data["exercises"]}:
+            raise ApiError("Choose a known design exercise.")
+        if notes is not None and (not isinstance(notes, str) or len(notes) > 12000):
+            raise ApiError("Keep design notes to 12,000 characters or fewer.")
+        if practised is not None and type(practised) is not bool:
+            raise ApiError("Practice status must be true or false.")
+        with get_session() as s:
+            saved_notes = scheduler.get_setting(s, f"design:{exercise_id}:notes", "") if notes is None else notes
+            if practised and not saved_notes.strip():
+                raise ApiError("Write brief notes from your practice before marking it practised.")
+            if notes is not None:
+                scheduler.set_setting(s, f"design:{exercise_id}:notes", notes)
+            if practised is not None:
+                scheduler.set_setting(s, f"design:{exercise_id}:practised", "1" if practised else "0")
+        return self.design_prep()
+
     # ---- today --------------------------------------------------------------------
     def today(self, mode: str = "normal") -> dict:
         t = self.now()

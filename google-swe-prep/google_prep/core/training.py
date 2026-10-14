@@ -8,7 +8,7 @@ from datetime import date, datetime, time, timedelta
 from sqlmodel import Session, select
 
 from google_prep.core import scheduler
-from google_prep.models import Attempt, MockSession, TrainingCheckin
+from google_prep.models import Attempt, DailySchedule, MockSession, TrainingCheckin
 
 
 HABITS = (
@@ -88,6 +88,65 @@ def _count(habit_id: str, observed: int, total: int, source: str, empty: str) ->
             "message": f"{observed} of {total} {source}" if total else empty}
 
 
+def practice_progress(session: Session, when: datetime) -> dict:
+    """Activity and modest practice goals, never a hiring or mastery prediction."""
+    from google_prep.modules import fasttrack
+
+    day = when.date()
+    key = day.isoformat()
+    day_number = scheduler.day_number(session, day)
+    schedule = session.get(DailySchedule, key) or DailySchedule(date_str=key)
+    checkin = session.get(TrainingCheckin, key)
+    if day_number <= 2:
+        lesson = fasttrack.pending_day(session, day_number) or max(1, min(day_number, 2))
+        items = [{"id": "lesson", "title": f"Python lesson · Day {lesson}",
+                  "done": fasttrack.is_done(session, lesson), "route": f"#/fasttrack/{lesson}",
+                  "detail": "One small step at a time.", "optional": False}]
+    else:
+        practised = len(scheduler.attempts_on(session, day))
+        goal = scheduler.daily_problems(session)
+        items = [{"id": "warmup", "title": "Recall warmup", "done": schedule.morning_completed,
+                  "route": "#/recall?mode=warmup",
+                  "detail": "Micro-Mode completed" if schedule.mode == "micro" and schedule.morning_completed
+                            else "Recall the pattern before seeing the answer.", "optional": False},
+                 {"id": "coding", "title": f"Practise {goal} problem{'s' if goal != 1 else ''}",
+                  "done": practised >= goal, "route": "#/mock", "current": practised, "target": goal,
+                  "detail": f"{practised} of {goal} distinct problems attempted", "optional": False}]
+    items.append({"id": "reflection", "title": "Quick reflection", "done": bool(checkin and checkin.reflection.strip()),
+                  "route": "#/training", "detail": "Optional · one or two lines", "optional": True})
+    required = [item for item in items if not item["optional"]]
+
+    attempts = list(session.exec(select(Attempt).where(Attempt.day <= key)).all())
+    mocks = list(session.exec(select(MockSession).where(
+        MockSession.date < datetime.combine(day + timedelta(days=1), time.min))).all())
+    checkins = list(session.exec(select(TrainingCheckin).where(TrainingCheckin.date_str <= key)).all())
+    first = (day - timedelta(days=6)).isoformat()
+    previous_first = (day - timedelta(days=13)).isoformat()
+    current = [a for a in attempts if a.day >= first]
+    previous = [a for a in attempts if previous_first <= a.day < first]
+
+    def solo_problems(rows):
+        return len({a.problem_id for a in rows if a.solved and a.help == "none"})
+
+    current_solo, previous_solo = solo_problems(current), solo_problems(previous)
+    explained = sum(m.clarified_constraints is True and m.stated_complexity is True for m in mocks)
+    reflections = sum(bool(row.reflection.strip()) for row in checkins)
+    milestones = [{"id": "coding", "title": "Coding", "label": "5 problems solved without help",
+                   "current": solo_problems(attempts), "target": 5, "source": "Saved solve grades"},
+                  {"id": "reasoning", "title": "Reasoning", "label": "Clarify and explain in 3 mocks",
+                   "current": explained, "target": 3, "source": "Self-graded clarification and complexity"},
+                  {"id": "habits", "title": "Habits", "label": "Reflect on 3 days",
+                   "current": reflections, "target": 3, "source": "Daily reflections · self-report"}]
+    for milestone in milestones:
+        milestone["reached"] = milestone["current"] >= milestone["target"]
+    return {"daily": {"items": items, "completed": sum(item["done"] for item in required), "total": len(required)},
+            "comparison": {"current_start": first, "previous_start": previous_first,
+                           "current_solo": current_solo, "previous_solo": previous_solo,
+                           "solo_delta": current_solo - previous_solo,
+                           "current_attempts": len(current), "previous_attempts": len(previous)},
+            "milestones": milestones}
+
+
 def state(session: Session, when: datetime) -> dict:
     day = when.date()
     first = day - timedelta(days=6)
@@ -137,6 +196,7 @@ def state(session: Session, when: datetime) -> dict:
     return {"date": day_key, "day": scheduler.day_number(session, day),
             "today": {"habit": habit_for_day(session, day), "checkin": _checkin(today_checkin)},
             "habits": list(HABITS), "confidence_label": "Optional confidence self-report (1-5)",
+            "progress": practice_progress(session, when),
             "week": {"start": first_key, "end": day_key, "checkins": len(checkins),
                      "completed_checkins": len(reflections), "practice_attempts": len(attempts),
                      "practice_solves": sum(attempt.source == "solve" for attempt in attempts),

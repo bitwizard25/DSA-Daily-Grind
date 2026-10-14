@@ -174,3 +174,51 @@ def test_new_mistake_choices_preserve_legacy_history(session):
     session.commit()
     profile = scheduler.mistake_profile(session)
     assert profile["implementation"] == profile["python_syntax"] == profile["implementation_logic"] == 1
+
+
+def test_progress_uses_distinct_attempts_and_confirmed_solo_solves(session):
+    scheduler.set_setting(session, 'daily_problems', '2')
+    for problem_id, solved, help_used in [('G-1', True, 'none'), ('G-1', True, 'none'),
+                                          ('G-5', False, 'none'), ('G-13', True, 'hint'), ('G-14', True, None)]:
+        session.add(Attempt(problem_id=problem_id, day=NOW.date().isoformat(), minutes=10,
+                            solved=solved, help=help_used))
+    session.add(Attempt(problem_id='G-162', day=(NOW.date()+timedelta(days=1)).isoformat(),
+                        minutes=10, solved=True, help='none'))
+    session.commit()
+    progress = training.practice_progress(session, NOW)
+    coding = next(i for i in progress['daily']['items'] if i['id'] == 'coding')
+    assert coding['current'] == 4 and coding['done']
+    assert progress['daily']['completed'] == 1 and progress['daily']['total'] == 2
+    assert progress['comparison']['current_attempts'] == 5
+    assert progress['comparison']['current_solo'] == 1
+    assert progress['milestones'][0]['current'] == 1
+
+
+def test_week_comparison_and_milestones_exclude_future_records(session):
+    for delta, problem_id in [(-13, 'G-1'), (-7, 'G-5'), (-6, 'G-13'), (0, 'G-14'), (1, 'G-162')]:
+        at = NOW+timedelta(days=delta)
+        session.add(Attempt(problem_id=problem_id, day=at.date().isoformat(), minutes=10, solved=True, help='none'))
+        session.add(MockSession(problem_id=problem_id, date=at, duration_seconds=600,
+                                clarified_constraints=True, stated_complexity=True))
+        session.add(TrainingCheckin(date_str=at.date().isoformat(), habit_id='reflect',
+                                   reflection='I checked an edge case.', created_at=at, updated_at=at))
+    session.commit()
+    progress = training.practice_progress(session, NOW)
+    assert progress['comparison']['previous_solo'] == progress['comparison']['current_solo'] == 2
+    assert progress['comparison']['solo_delta'] == 0
+    assert [m['current'] for m in progress['milestones']] == [4, 4, 4]
+    assert [m['reached'] for m in progress['milestones']] == [False, True, True]
+    assert progress['daily']['items'][-1]['done'] and progress['daily']['items'][-1]['optional']
+
+
+@pytest.mark.fasttrack
+def test_phase_zero_checklist_follows_earliest_unfinished_lesson(session):
+    from google_prep.modules import fasttrack
+    scheduler.set_setting(session, 'start_date', (NOW.date()-timedelta(days=1)).isoformat())
+    progress = training.practice_progress(session, NOW)
+    assert progress['daily']['items'][0]['title'] == 'Python lesson · Day 1'
+    assert progress['daily']['total'] == 1
+    fasttrack.complete(session, 1, NOW)
+    assert training.practice_progress(session, NOW)['daily']['items'][0]['title'] == 'Python lesson · Day 2'
+    fasttrack.complete(session, 2, NOW)
+    assert training.practice_progress(session, NOW)['daily']['completed'] == 1

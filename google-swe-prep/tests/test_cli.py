@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from typer.testing import CliRunner
 
 import google_prep
@@ -136,11 +138,20 @@ def test_discarding_a_saved_session():
 
 
 def test_solve_specific_problem():
-    r = run("solve", "G-5", "--no-editor", input="s\n1\n2\nn\n5\n")
+    r = run("solve", "G-5", "--no-editor", input="s\n1\n2\nn\n6\n")
     assert r.exit_code == 0, r.output
     with get_session() as s:
         a = s.exec(scheduler.select(Attempt)).one()
     assert a.problem_id == "G-5" and a.mistake == "follow_up" and a.dry_run_ok is False and a.help == "none"
+
+
+@pytest.mark.parametrize('key,mistake', [('2', 'python_syntax'), ('3', 'implementation_logic'), ('6', 'follow_up')])
+def test_cli_mistake_choices_match_the_window(key, mistake):
+    result = run('solve', 'G-1', '--no-editor', input=f's\n1\n1\nn\n{key}\n')
+    assert result.exit_code == 0, result.output
+    assert 'Knew the pattern, could not code it' not in result.output
+    with get_session() as s:
+        assert s.exec(scheduler.select(Attempt)).one().mistake == mistake
 
 
 def test_a_seen_answer_is_not_a_solve_and_comes_back_tomorrow(monkeypatch):

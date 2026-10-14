@@ -284,7 +284,8 @@ def rubric_screen(problem: Problem, minutes: int, practice: bool, timer: Countdo
     follow_up = fups[board["shown"] % len(fups)] if board["shown"] >= 0 else ""
     trace = board.get("trace_text") or trace_pad(problem).read_text(encoding="utf-8")
     return RubricScreen(problem, path, practice, used, board["ticks"], follow_up, trace_rows(trace),
-                        lambda solved, dry: needs_mistake(solved, dry, used, minutes), scheduler.MISTAKES,
+                        lambda solved, dry: needs_mistake(solved, dry, used, minutes),
+                        {key: scheduler.MISTAKES[key] for key in scheduler.MISTAKE_CHOICES},
                         over_time=used > minutes * 60 * readiness.CODING_SHARE)
 
 
@@ -379,8 +380,8 @@ def evaluate(session, problem: Problem, minutes: int, timer: Countdown, ticks: l
             checks[field] = _ask(f"{label}{question}?{hint}", [("y", "Yes"), ("n", "No")]) == "y"
     mistake = None
     if needs_mistake(outcome != "1", checks["dry_run_passed"], used, minutes):
-        options = [(str(i), label) for i, label in enumerate(scheduler.MISTAKES.values(), 1)]
-        mistake = list(scheduler.MISTAKES)[int(_ask("What hurt most? (tunes tomorrow's warmup)", options)) - 1]
+        options = [(str(i), scheduler.MISTAKES[key]) for i, key in enumerate(scheduler.MISTAKE_CHOICES, 1)]
+        mistake = scheduler.MISTAKE_CHOICES[int(_ask("What hurt most? (tunes tomorrow's warmup)", options)) - 1]
     result = record(session, problem, minutes, used, outcome, checks, follow_up, practice, mistake, now, help)
     show(Text(""), card("RESULT", result_lines(result, minutes, practice)))
     return result
