@@ -2089,6 +2089,19 @@ window.addEventListener("beforeunload", (e) => {
   if (current && current.isDirty && current.isDirty()) e.preventDefault(); // closing with an unsaved STAR story
 });
 
+// Sidebar badge: the installed version and CI build, so an automatic update is visible at a glance.
+async function showBuildTag() {
+  const tag = $("#build-tag");
+  if (!tag) return;
+  try {
+    const status = await api("update_status", {}, { timeoutMs: 4000 });
+    if (!status || !status.version) return;
+    tag.replaceChildren(h("i", { "aria-hidden": "true" }),
+      `v${status.version}${status.build_number ? ` · build ${status.build_number}` : ""}`);
+    tag.title = status.message || "";
+    tag.hidden = false;
+  } catch (_) { /* the badge is cosmetic; never block the app on it */ }
+}
 async function boot() {
   buildNav();
   if (!TOKEN) {
@@ -2105,6 +2118,7 @@ async function boot() {
   }
   if (!location.hash) history.replaceState(null, "", `${location.search}#/today`);
   await route(); // an unfinished drill or mock shows as the first thing on Today (auto-recovery)
+  showBuildTag();
   setInterval(() => api("heartbeat").catch(() => {}), 30000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") api("heartbeat").catch(() => {}); });
 }
