@@ -120,3 +120,40 @@ jobs:
           name: GoogleSWEPrep-Setup-Windows
           path: google-swe-prep/dist/GoogleSWEPrep-Setup.exe
           if-no-files-found: error
+
+      - name: Generate verified update metadata
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
+        shell: bash
+        working-directory: google-swe-prep
+        run: |
+          python scripts/release_update.py metadata --platform windows-x64
+          python scripts/release_update.py manifest --directory dist
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/main'
+        with:
+          name: GoogleSWEPrep-Update-Release
+          path: |
+            google-swe-prep/dist/GoogleSWEPrep-Setup.exe
+            google-swe-prep/dist/google-prep-update.json
+            google-swe-prep/dist/build_info.json
+          if-no-files-found: error
+
+  publish-update:
+    needs: build
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: google-prep-stable-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/download-artifact@v4
+        with: {name: GoogleSWEPrep-Update-Release, path: update-release}
+      - name: Publish verified Windows update
+        env: {GH_TOKEN: '${{ github.token }}', GITHUB_REF: '${{ github.ref }}', GITHUB_SHA: '${{ github.sha }}', GITHUB_RUN_NUMBER: '${{ github.run_number }}'}
+        run: python google-swe-prep/scripts/release_update.py publish --directory update-release
