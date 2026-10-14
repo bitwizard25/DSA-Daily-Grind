@@ -124,3 +124,11 @@ def test_source_and_portable_detection_never_install():
     try: windows=importlib.import_module('google_prep.updates.windows')
     except ModuleNotFoundError: pytest.fail('Installed-mode detection is missing')
     assert windows.detect_installation() is None
+
+
+def test_helper_after_pending_was_confirmed_is_a_noop(prepared, monkeypatch):
+    helper, windows, home, target, folder, binary = prepared
+    (folder/'pending.json').unlink()
+    monkeypatch.setattr(helper.subprocess, 'run', lambda *a, **k: pytest.fail('installer launched'))
+    assert helper.install_pending(home, 0) == 0
+    assert not (folder/'result.json').exists()

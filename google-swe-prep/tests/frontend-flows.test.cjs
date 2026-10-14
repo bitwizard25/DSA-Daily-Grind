@@ -11,6 +11,7 @@ function tree(tag, attrs, ...children) {
   const node = {tag, attrs:attrs||{}, children:children.flat(Infinity).filter(x=>x!=null),
     checked:!!attrs?.checked, value:attrs?.value||'', disabled:!!attrs?.disabled,
     replaceChildren(...kids) {this.children=kids.flat(Infinity).filter(x=>x!=null);},
+    setAttribute(name,value) {this.attrs[name]=value;},
     get textContent() {return this.children.map(x=>typeof x==='object' ? x.textContent : String(x)).join('');},
     set textContent(value) {this.children=[value];},
   };
@@ -106,4 +107,30 @@ test('learning track opens a checklist and saves checked topics without a code p
   assert.equal(JSON.stringify(calls[0].payload.completed),'["lld-contracts"]');
   assert.equal(page.isDirty(),false);assert.equal(await page.beforeLeave(),true);
   assert.match(state.root.textContent,/1\/10 learned/);
+});
+
+test('update settings preserve preference after a failed save and stop polling on close',async()=>{
+  let cleared=false, requests=[];
+  const state=env({setInterval:()=>7,clearInterval:id=>{assert.equal(id,7);cleared=true;},
+    api:async(name,payload)=>{requests.push(name);
+      if(name==='update_preferences') throw Error('Could not save update preference.');
+      return {supported:true,enabled:true,state:'idle',version:'1.6.0',build_number:100,message:'Up to date.'};}});
+  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings();await ui.refresh();
+  const checkbox=find(ui.node,n=>n.attrs['data-test']==='auto-updates');
+  checkbox.checked=false;await checkbox.attrs.onchange();
+  assert.equal(checkbox.checked,true);
+  assert.match(ui.node.textContent,/Could not save/);
+  ui.cleanup();assert.ok(cleared);
+});
+
+test('update check stays disabled while downloading and disposed settings make no requests',async()=>{
+  let requests=0;
+  const state=env({setInterval:()=>7,clearInterval:()=>{},
+    api:async()=>{requests++;return {supported:true,enabled:true,state:'downloading',version:'1.6.0',build_number:100,message:'Downloading'};}});
+  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings();await ui.refresh();
+  const button=find(ui.node,n=>n.attrs['data-test']==='update-check');
+  await button.attrs.onclick();assert.equal(button.disabled,true);
+  ui.cleanup();const before=requests;await ui.refresh();assert.equal(requests,before);
 });

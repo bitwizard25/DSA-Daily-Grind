@@ -34,6 +34,7 @@ def install_pending(home: Path, parent_pid: int, reopen=False) -> int:
     folder, tag = None, None
     try:
         folder = cache.root(home)
+        if not (folder/'pending.json').exists(): return 0
         candidate, installer = cache.pending(folder)
         tag = candidate.tag
         if not cache.enabled(folder): return 1

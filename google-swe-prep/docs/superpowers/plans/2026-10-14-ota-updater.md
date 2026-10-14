@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12/stdlib, existing SQLModel application, plain JavaScript, PyInstaller, Inno Setup 6, GitHub Actions and GitHub Releases. No new runtime third-party dependencies.
 
-**Spec:** [Approved OTA design](./OTA-Updater-Design.md), approved by the user on 14 October 2026.
+**Spec:** [Approved OTA design](../specs/2026-10-14-ota-updater-design.md), approved by the user on 14 October 2026.
 
 **Execution status:** Planning only. Product code has not been modified. Recommend native execution in this chat because the launcher, helper and release format depend on the same small set of interfaces.
 

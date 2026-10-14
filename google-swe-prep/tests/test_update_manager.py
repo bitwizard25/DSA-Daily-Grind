@@ -141,3 +141,12 @@ def test_worker_honors_github_rate_limit(home):
     subject=manager(home, Limited());subject.start()
     assert 'wait' in wait_state(subject, {'offline'})['message']
     subject.stop()
+
+
+def test_source_opening_an_installed_cache_offers_manual_download(home):
+    subject = manager(home, Client()); subject.start(); wait_state(subject, {'ready'}); subject.stop()
+    source = manager(home, Client(), installed=False)
+    assert source.status()['state'] == 'available'
+    assert 'manual' in source.status()['message']
+    assert source.status()['release_url'].endswith(CANDIDATE.tag)
+    assert source.pending() is None

@@ -243,3 +243,11 @@ Verification:
 python -m pytest -q
 node --test tests/frontend-autosave.test.cjs
 ```
+
+## Automatic Windows updates
+
+Version 1.6 adds updates to **Settings → App updates**. Install this version manually once using `GoogleSWEPrep-Setup.exe`; older versions cannot update themselves. The installed Windows x64 app checks GitHub in the background, downloads a tested main-branch release and verifies its size and SHA-256 checksum. It installs after the owned app window closes, or on the next safe launch. It never interrupts a study session, kills another instance or restarts Windows.
+
+Turn **Automatic updates** off to stop automatic downloads and installation. **Check now** still offers a manual download. Source runs, portable executables, macOS and Linux use manual downloads. Offline checks retry quietly; studying does not depend on GitHub. A successful CI build on a development branch does not publish an update.
+
+Progress stays in your existing `.google_prep` folder (or `GOOGLE_PREP_HOME`). The helper makes a verified SQLite backup under `updates/backups` before upgrading. Failed installers retain their log and downloaded installer under `updates`; check again or run a fresh Setup manually. This preserves a backup, but does not promise automatic rollback of a partially installed program. Windows may require a restart; the updater reports that rather than restarting your computer.

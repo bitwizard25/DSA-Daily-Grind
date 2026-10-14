@@ -47,6 +47,10 @@ class UpdateManager:
                 return
             self._status.update(candidate=candidate.as_dict(), total=candidate.installer_size, state='ready',
                                 downloaded=candidate.installer_size, message='Update downloaded and verified. It will install after the app closes.')
+            self._status['release_url'] = f'https://github.com/bitwizard25/DSA-Daily-Grind/releases/tag/{candidate.tag}'
+            if not self.installation:
+                self._status.update(state='available', message='A tested update is available for manual download.')
+                return
             result = self._status['last_result']
             if isinstance(result, dict) and result.get('tag') == candidate.tag and result.get('status') in ('failed','restart_required','installed'):
                 self._status.update(state='failed', message=result.get('message','The update needs attention.'))
