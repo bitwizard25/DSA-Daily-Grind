@@ -403,7 +403,7 @@ async function openSettings() {
         h("option", { value: "1", selected: st.settings.daily_problems !== 3 || null }, "Part-time: warmup + 1 problem in the evening"),
         h("option", { value: "3", selected: st.settings.daily_problems === 3 || null }, "Full-time: warmup + 3 problems a day"))),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
-      field("Interview date", "interview_date", st.settings.interview_date, "date")),
+      field("Interview target date", "interview_date", st.settings.interview_date, "date")),
     h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
     h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
       ". Updating or uninstalling the app never deletes it."));
@@ -474,7 +474,7 @@ function mount(ctx, ...nodes) {
   const view = $("#view");
   view.replaceChildren(...nodes);
   const destinations = {mock:[['Recall warmup','recall'],['Interview habits','training']],
-    fasttrack:[['Concept notes','vault']], role:[['STAR stories','star']]};
+    fasttrack:[['Concept notes','vault']]};
   const links = destinations[S.routeName];
   const page = view.querySelector('.page');
   if (links && page) page.insertBefore(h('div', {class:'context-links'}, ...links.map(([label, name]) =>
@@ -553,7 +553,7 @@ ROUTES.training = async (ctx) => {
       placeholder:'One real example, and one thing to try next time.', value:checkin.reflection || '', 'data-test':'training-reflection'});
     const feedback = h('p', {class:'save-feedback', role:'status', 'aria-live':'polite'});
     const confidenceSelect = (id, value) => h('select', {id},
-      h('option', {value:''}, 'Skip'), [1,2,3,4,5].map(n => h('option', {value:String(n), selected:value === n || null},
+      h('option', {value:''}, value ? 'Keep saved value' : 'Skip'), [1,2,3,4,5].map(n => h('option', {value:String(n), selected:value === n || null},
         `${n}${n === 1 ? ' · very unsure' : n === 5 ? ' · very confident' : ''}`)));
     const before = confidenceSelect('confidence-before', checkin.confidence_before);
     const after = confidenceSelect('confidence-after', checkin.confidence_after);
@@ -571,8 +571,8 @@ ROUTES.training = async (ctx) => {
     async function save() {
       if (busy) return;
       const payload = {date:data.date, habit_id:habit.id};
-      if (intention.value.trim()) payload.intention = intention.value.trim();
-      if (reflection.value.trim()) payload.reflection = reflection.value.trim();
+      if (intention.value.trim() || checkin.intention) payload.intention = intention.value.trim();
+      if (reflection.value.trim() || checkin.reflection) payload.reflection = reflection.value.trim();
       if (before.value) payload.confidence_before = Number(before.value);
       if (after.value) payload.confidence_after = Number(after.value);
       const captured = JSON.stringify([intention.value, reflection.value, before.value, after.value]);
@@ -1168,7 +1168,7 @@ ROUTES.board = async (ctx) => {
     try { res = await api("mock_hint", { problem_id: B.problem_id, elapsed: B.elapsed }); } catch (err) { toast(err.message, true); return; }
     if (res.locked) {
       await openModal("Struggle a little longer", h("div", null,
-        h("p", null, "Hints open in ", h("b", null, mmss(res.wait)), ". The struggle is the practice: it is what makes the pattern stick. Copying is how hundreds of \"solved\" problems turn into no skill."),
+        h("p", null, "Hints open in ", h("b", null, mmss(res.wait)), ". Use this time to try a small example or explain exactly where you are stuck."),
         h("p", { class: "q" }, "Try these first:"),
         h("ol", { class: "bullets" }, res.tips.map((t) => h("li", null, rich(t))))),
       [{ label: "Back to it", value: true, primary: true, key: "Enter" }]);

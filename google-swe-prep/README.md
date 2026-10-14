@@ -202,3 +202,20 @@ brand colours are used only for borders.
 readiness, the CLI, the terminal UI, the window's API and server guards (token, host check, path
 traversal), and runs every lesson and vault code block (C++ blocks need `g++`; they are skipped
 without it).
+
+## Interview habit training (v1.4.0)
+
+Today now connects your next study session to one small interview habit. Set an intention before practice, then save an honest reflection afterward. The six rotating habits are clarification, explaining your plan, recovering when stuck, hand tracing, adapting to follow-ups, and reviewing your work. Press **h** to open the habit screen.
+
+The last-seven-days view uses your saved grades and reflections. Missing observations stay missing. Confidence is an optional self-report; the practice estimate includes its sample counts and is not an offer prediction.
+
+The whiteboard hides global navigation for focus. Smaller windows use **Problem**, **Code**, and **Dry-run trace** tabs. **Regroup** provides a short reasoning prompt without stopping the clock or revealing a solution.
+
+Autosave keeps pending edits until the corresponding save succeeds, serializes requests, and stores a session-specific local recovery draft when browser storage is available. Keep the window open when a connection warning appears. This release does not diagnose the previously reported background-server shutdown.
+
+Verification:
+
+```sh
+python -m pytest -q
+node --test tests/frontend-autosave.test.cjs
+```

@@ -22,6 +22,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python -m pytest -q
+      - name: Check frontend autosave recovery
+        run: node --test tests/frontend-autosave.test.cjs
       - run: python build.py
       - name: Smoke-test the terminal app
         env:
