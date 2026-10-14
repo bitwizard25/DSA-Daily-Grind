@@ -261,20 +261,32 @@ const SECTIONS = [
   { name: "vault", label: "Concept Vault", key: "v" },
 ];
 const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
+NAV_KEYS.h = 'training';
+const MAIN_SECTIONS = [
+  { name: 'today', label: 'Today', key: 't' },
+  { name: 'mock', label: 'Practice', key: 'w' },
+  { name: 'fasttrack', label: 'Learn', key: 'f' },
+  { name: 'role', label: 'Interview prep', key: 'j' },
+  { name: 'roadmap', label: 'Progress', key: 'r' },
+];
 const icon = (name) => svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" },
   svg("path", { d: ICONS[name] }));
 
 const S = { state: null, boardStart: null, lang: "standard", hintSeen: new Set() };
 
 function buildNav() {
-  $("#nav").replaceChildren(...SECTIONS.map((x) => h("button", {
+  $("#nav").replaceChildren(...MAIN_SECTIONS.map((x) => h("button", {
     type: "button", "data-section": x.name, onclick: () => go(`#/${x.name}`),
   }, icon(x.name), h("span", null, x.label), h("span", { class: "nav-end" }, h("span", { class: "badge", hidden: true }), kbd(x.key)))));
   $("#settings-btn").addEventListener("click", openSettings);
   $("#help-btn").addEventListener("click", openHelp);
+  $('#nav-toggle').addEventListener('click', () => {
+    const open = document.querySelector('.app').classList.toggle('nav-open');
+    $('#nav-toggle').setAttribute('aria-expanded', String(open));
+  });
 }
 function markNav(name) {
-  const section = name === "board" ? "mock" : name;
+  const section = ({board:'mock', recall:'mock', vault:'fasttrack', star:'role', training:'today'})[name] || name;
   for (const b of $$("#nav button")) {
     if (b.dataset.section === section) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
@@ -305,7 +317,7 @@ async function refreshState() {
   $("#brand-sub").textContent = st.settings.target || "Interview prep";
   const pills = [h("span", { class: "pill", "data-test": "streak" }, `Streak ${plural(st.streak, "day")}`)];
   pills.push(h("span", { class: `pill ${st.days_left <= 14 ? "warn" : ""}`.trim() },
-    st.days_left >= 0 ? `${plural(st.days_left, "day")} to interview` : "Interview date passed"));
+    st.days_left >= 0 ? `${plural(st.days_left, "day")} to target` : "Target date passed"));
   $("#meta").replaceChildren(...pills);
   const ftBadge = $('#nav button[data-section="fasttrack"] .badge');
   const pending = st.fasttrack.pending;
@@ -315,10 +327,12 @@ async function refreshState() {
 }
 
 // ---------------------------------------------------------------- toasts and modals
+let toastTimer;
 function toast(message, bad = false) {
+  clearTimeout(toastTimer);
   const el = h("div", { class: bad ? "bad" : null, role: bad ? "alert" : null }, message);
-  $("#toast").append(el);
-  setTimeout(() => el.remove(), bad ? 7000 : 3500);
+  $("#toast").replaceChildren(el);
+  toastTimer = setTimeout(() => el.remove(), bad ? 9000 : 3500);
 }
 let modalState = null;
 /** Opens a dialog; resolves with the clicked button's value, or null on Esc / backdrop. */
@@ -432,6 +446,9 @@ async function route() {
   markNav(name);
   const view = $("#view");
   view.classList.toggle("board-mode", name === "board");
+  document.querySelector('.app').classList.toggle('focus-session', name === 'board');
+  document.querySelector('.app').classList.remove('nav-open');
+  $('#nav-toggle').setAttribute('aria-expanded', 'false');
   const ctx = { parts, query: new URLSearchParams(qs || ""), alive: () => seq === navSeq };
   resetHints();
   try {
@@ -456,6 +473,12 @@ function mount(ctx, ...nodes) {
   if (!ctx.alive()) return false;
   const view = $("#view");
   view.replaceChildren(...nodes);
+  const destinations = {mock:[['Recall warmup','recall'],['Interview habits','training']],
+    fasttrack:[['Concept notes','vault']], role:[['STAR stories','star']]};
+  const links = destinations[S.routeName];
+  const page = view.querySelector('.page');
+  if (links && page) page.insertBefore(h('div', {class:'context-links'}, ...links.map(([label, name]) =>
+    btn(label, () => go(`#/${name}`), {cls:'ghost small'}))), page.children[1] || null);
   view.scrollTop = 0;
   return true;
 }
@@ -463,66 +486,132 @@ const pageTitle = (title, sub, ...right) => h("div", { class: "page-title" },
   h("div", null, h("h1", null, title), sub ? h("p", null, sub) : null), right.length ? h("div", { class: "row" }, right) : null);
 
 // ---------------------------------------------------------------- Today
+function habitPreview(training) {
+  const habit = training.today.habit;
+  const checkin = training.today.checkin;
+  return h('section', {class:'habit-preview', 'data-test':'habit-preview'},
+    h('div', {class:'habit-icon', 'aria-hidden':'true'}, icon('star')),
+    h('div', null, h('h2', null, 'Today’s interview habit'), h('h3', null, habit.title),
+      h('p', null, habit.cue),
+      checkin && checkin.intention ? h('p', {class:'intention-preview'}, 'Your intention: ', checkin.intention) : null),
+    btn(checkin && checkin.completed ? 'Review reflection' : checkin ? 'Reflect on practice' : 'Set an intention',
+      () => go('#/training'), {cls:'ghost', test:'open-training'}));
+}
 ROUTES.today = async (ctx) => {
-  const mode = ctx.query.get("mode") || "normal";
-  const [d, st] = await Promise.all([api("today", { mode }), refreshState()]);
-  setCrumbs(d.crumbs, ctx);
-  const tone = { green: "green", yellow: "yellow" }[d.tone] || "";
-  const unfinished = Boolean(st.session); // finishing it comes first, like the terminal app's launch
-  const kicker = { fasttrack: "Phase 0 · C++ → Python", warmup: "Next", deep: "Next", micro: "Never zero", review: "Re-solve", done: "Today" }[d.kind] || "Next";
-  const actions = [];
-  if (d.action) {
-    actions.push(btn(d.cta, () => runAction(d), unfinished ? { cls: "big", test: "primary" }
-      : { cls: "primary big", primary: true, key: "Enter", test: "primary" }));
-  }
-  if (mode === "micro") actions.push(btn("Back to the full plan", () => go("#/today?mode=full")));
-  else if (d.kind !== "fasttrack") actions.push(btn("Long day? Micro-Mode · 10 min", () => go("#/today?mode=micro"), { key: "m" }));
-  const hero = h("section", { class: `hero ${tone}`.trim(), "data-test": "next-card" },
-    h("div", { class: "kicker" }, kicker), h("h2", null, d.title),
-    h("ul", { class: "bullets" }, d.bullets.map((b) => h("li", null, rich(b)))),
-    actions.length ? h("div", { class: "actions" }, actions) : null);
-
-  const resume = st.session ? h("div", { class: "banner resume", "data-test": "resume" },
-    h("b", null, "Unfinished"), h("span", { class: "text" }, st.session.text.replace(/^Session restored: /, "")),
-    btn("Continue", () => resumeSession(st.session), { cls: "primary", primary: true, key: "Enter", test: "resume-continue" }),
-    btn("Discard", async () => {
-      const ok = await confirmBox("Discard the unfinished session?", `${st.session.text.replace(/^Session restored: /, "")} It cannot be resumed afterwards. Drills you already graded still count.`, "Discard", "Keep it", true);
-      if (!ok) return;
-      await api("session_discard");
-      toast("Discarded.");
-      route();
-    }, { cls: "ghost" })) : null;
-
-  const statusRows = d.status.length ? h("div", { class: "status-rows" }, d.status.map((row) => {
-    const cls = { Done: "ok-t", Open: "warn-t" }[row.tag] || "muted";
-    const open = row.tag === "Open" ? btn("Open", () => go("#/fasttrack"), { cls: "ghost small" }) : null;
-    return h("div", { class: "status-row" }, h("span", { class: `tag ${cls}` }, row.tag), h("span", { class: "spacer" }, rich(row.text)), open);
-  })) : null;
-
-  const pace = st.pace;
-  let paceSub;
-  if (st.day < 3) paceSub = "Problem bank starts on Day 3";
-  else if (pace.solved >= pace.total) paceSub = "Bank done";
-  else if (pace.behind) paceSub = `Behind by ${pace.behind} · need ${pace.per_day.toFixed(1)}/day`;
-  else paceSub = "On track";
-  const change = st.weekly_change;
-  const tiles = h("div", { class: "grid-4" },
-    tile(ring(st.readiness / 100, { size: 58, stroke: 7, label: `${Math.round(st.readiness)}` }), "Readiness", `${Math.round(st.readiness)}%`,
-      change == null ? "Weekly change after 7 days" : `${change >= 0 ? "+" : ""}${change.toFixed(0)} this week`),
-    tile(null, "Streak", plural(st.streak, "day"), "Micro-Mode keeps it alive"),
-    tile(null, "Interview", st.days_left >= 0 ? plural(st.days_left, "day") : "Passed", fmtDate(st.interview_date)),
-    tile(ring(pace.total ? pace.solved / pace.total : 0, { size: 58, stroke: 7, color: COLORS.green, label: `${pace.solved}` }),
-      "Problems solved", `${pace.solved}/${pace.total}`, paceSub));
-  mount(ctx, h("div", { class: "page" }, pageTitle(mode === "micro" ? "Micro-Mode" : "Today",
-    `${new Date(st.now).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })} · Day ${st.day} of ${st.plan_days} · Phase ${st.phase.number}: ${st.phase.name}`),
-  resume, hero, statusRows, tiles));
-  return {
-    onKey(e, typing) {
-      if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === "m" && mode !== "micro" && d.kind !== "fasttrack") { go("#/today?mode=micro"); return true; }
-      return false;
-    },
-  };
+  const mode = ctx.query.get('mode') || 'normal';
+  const [d, st, training] = await Promise.all([api('today', {mode}), refreshState(), api('training_state')]);
+  setCrumbs(['Google SWE II OS', 'Today'], ctx);
+  const unfinished = Boolean(st.session);
+  const actionLabel = {fasttrack:'Continue Python lesson', warmup:'Start warmup', deep:'Start this problem',
+    review:'Start re-solve', micro:'Start 10-minute practice'}[d.kind] || d.cta;
+  const hero = h('section', {class:'today-next', 'data-test':'next-card'},
+    h('div', {class:'next-copy'}, h('h2', null, unfinished ? 'Pick up where you left off' : 'Your next session'),
+      h('h3', null, unfinished ? st.session.text.replace(/^Session restored: /, '') : d.title),
+      h('ul', {class:'bullets'}, d.bullets.map(b => h('li', null, rich(b)))),
+      h('div', {class:'actions'}, unfinished
+        ? btn('Resume session', () => resumeSession(st.session), {cls:'primary big', primary:true, key:'Enter', test:'resume-continue'})
+        : d.action ? btn(actionLabel, () => runAction(d), {cls:'primary big', primary:true, key:'Enter', test:'primary'}) : null,
+        mode === 'micro' ? btn('Return to full plan', () => go('#/today?mode=full'), {cls:'ghost'})
+          : d.kind !== 'fasttrack' ? btn('Only 10 minutes today?', () => go('#/today?mode=micro'), {cls:'ghost', key:'m'}) : null)),
+    h('div', {class:'next-mark', 'aria-hidden':'true'}, icon(unfinished ? 'mock' : d.kind === 'fasttrack' ? 'fasttrack' : 'today')));
+  const status = d.status.length ? h('section', {class:'study-status'}, h('h2', null, 'Today’s study'),
+    d.status.map(row => h('div', {class:'status-row'}, h('span', {class:row.tag === 'Done' ? 'ok-t' : 'muted'}, row.tag),
+      h('span', {class:'spacer'}, rich(row.text)), row.tag === 'Open' ? btn('Open lesson', () => go('#/fasttrack'), {cls:'ghost small'}) : null))) : null;
+  const steps = h('div', {class:'practice-loop', 'aria-label':'Daily training loop'},
+    h('div', {class:training.today.checkin ? 'complete' : ''}, h('span', null, '1'), h('b', null, 'Choose a habit'), h('p', null, 'One behavior to practise today.')),
+    h('div', null, h('span', null, '2'), h('b', null, 'Think out loud'), h('p', null, 'Use it in your next session.')),
+    h('div', {class:training.today.checkin && training.today.checkin.completed ? 'complete' : ''}, h('span', null, '3'), h('b', null, 'Reflect honestly'), h('p', null, 'Keep one useful next step.')));
+  const lastDay = training.week.days[training.week.days.length - 1];
+  const summary = h('section', {class:'today-summary'},
+    h('div', null, h('b', null, String(lastDay.attempts)), h('span', null, 'practice attempts today')),
+    h('div', null, h('b', null, String(training.week.completed_checkins)), h('span', null, 'reflections in 7 days')),
+    h('div', null, h('b', null, `${st.pace.solved}/${st.pace.total}`), h('span', null, 'problems solved')),
+    btn('View progress', () => go('#/roadmap'), {cls:'ghost small'}));
+  mount(ctx, h('div', {class:'page today-page'}, pageTitle(mode === 'micro' ? 'A small session still counts.' : 'Build the habit. Do the work.',
+    `${new Date(st.now).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'})} · Day ${st.day} · ${st.phase.short}`),
+    hero, steps, habitPreview(training), status, summary));
+  return {onKey(e, typing) {
+    if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'm' && mode !== 'micro' && d.kind !== 'fasttrack') {
+      go('#/today?mode=micro'); return true;
+    }
+    return false;
+  }};
 };
+
+ROUTES.training = async (ctx) => {
+  let data = await api('training_state');
+  setCrumbs(['Google SWE II OS', 'Today', 'Interview habits'], ctx);
+  let dirty = false;
+  let busy = false;
+  const host = h('div', {class:'page training-page'});
+  function render() {
+    const habit = data.today.habit;
+    const checkin = data.today.checkin || {};
+    const intention = h('textarea', {id:'training-intention', rows:'2', maxlength:'500',
+      placeholder:'For example: I will ask about input size before I code.', value:checkin.intention || '', 'data-test':'training-intention'});
+    const reflection = h('textarea', {id:'training-reflection', rows:'4', maxlength:'2000',
+      placeholder:'One real example, and one thing to try next time.', value:checkin.reflection || '', 'data-test':'training-reflection'});
+    const feedback = h('p', {class:'save-feedback', role:'status', 'aria-live':'polite'});
+    const confidenceSelect = (id, value) => h('select', {id},
+      h('option', {value:''}, 'Skip'), [1,2,3,4,5].map(n => h('option', {value:String(n), selected:value === n || null},
+        `${n}${n === 1 ? ' · very unsure' : n === 5 ? ' · very confident' : ''}`)));
+    const before = confidenceSelect('confidence-before', checkin.confidence_before);
+    const after = confidenceSelect('confidence-after', checkin.confidence_after);
+    const form = h('form', {class:'training-form'},
+      h('div', {class:'field'}, h('label', {for:'training-intention'}, 'Before practice: one intention'), intention),
+      h('div', {class:'field'}, h('label', {for:'training-reflection'}, 'After practice: what happened?'),
+        h('p', {class:'muted small'}, habit.reflection_prompt), reflection),
+      h('details', {class:'confidence-details'}, h('summary', null, 'Optional: how confident did you feel?'),
+        h('div', {class:'grid-2'}, h('div', {class:'field'}, h('label', {for:'confidence-before'}, 'Before practice'), before),
+          h('div', {class:'field'}, h('label', {for:'confidence-after'}, 'After practice'), after))),
+      h('div', {class:'row'}, btn('Save check-in', () => save(), {cls:'primary', primary:true, key:'Enter', test:'training-save'}),
+        h('span', {class:'muted small'}, checkin.completed ? 'Reflection saved for today.' : 'Saved on this computer.')), feedback);
+    form.addEventListener('submit', e => {e.preventDefault(); save();});
+    form.addEventListener('input', () => {dirty = true;});
+    async function save() {
+      if (busy) return;
+      const payload = {date:data.date, habit_id:habit.id};
+      if (intention.value.trim()) payload.intention = intention.value.trim();
+      if (reflection.value.trim()) payload.reflection = reflection.value.trim();
+      if (before.value) payload.confidence_before = Number(before.value);
+      if (after.value) payload.confidence_after = Number(after.value);
+      const captured = JSON.stringify([intention.value, reflection.value, before.value, after.value]);
+      busy = true;
+      const button = $('[data-test="training-save"]', form); button.disabled = true;
+      feedback.textContent = 'Saving…';
+      try {
+        data = await api('training_checkin', payload);
+        if (!ctx.alive()) return;
+        if (captured === JSON.stringify([intention.value, reflection.value, before.value, after.value])) {
+          dirty = false; render();
+          $('[data-test="training-save"]', host).focus();
+          $('.save-feedback', host).textContent = 'Check-in saved. Bring this habit into your next session.';
+        } else feedback.textContent = 'Previous version saved. Save again to keep your latest edits.';
+      } catch(err) {feedback.textContent = err.message;}
+      finally {busy = false; button.disabled = false;}
+    }
+    const week = h('section', {class:'training-evidence'},
+      h('div', {class:'section-heading'}, h('h2', null, 'Your last 7 days'), h('span', {class:'muted small'}, `${data.week.mock_sessions} mocks · ${data.week.practice_attempts} attempts`)),
+      h('p', {class:'muted small'}, 'These observations come from your saved grades and reflections.'),
+      h('div', {class:'week-days'}, data.week.days.map(day => h('div', {class:day.date === data.date ? 'current-day' : ''},
+        h('span', null, new Date(day.date+'T12:00:00').toLocaleDateString(undefined, {weekday:'short'})),
+        h('b', null, day.attempts), h('span', {class:'small'}, day.checkin && day.checkin.completed ? 'Reflected' : 'attempts')))),
+      h('div', {class:'evidence-list'}, data.week.habits.map(item => h('div', {class:'evidence-row'},
+        h('b', null, item.title), h('span', {class:item.status === 'no_evidence' ? 'muted' : ''}, item.message)))));
+    const catalog = h('details', {class:'habit-catalog'}, h('summary', null, 'Explore all 6 interview habits'),
+      data.habits.map(item => h('div', null, h('h3', null, item.title), h('p', {class:'muted'}, item.cue),
+        h('ul', {class:'bullets'}, item.practice_steps.map(step => h('li', null, step))))));
+    host.replaceChildren(pageTitle('Train how you think.', 'One habit. One session. One honest reflection.',
+      btn('Back to Today', () => go('#/today'), {cls:'ghost small'})),
+      h('div', {class:'training-layout'}, h('section', {class:'habit-lesson'}, h('h2', null, habit.title),
+        h('p', {class:'lead'}, habit.cue), h('ol', {class:'habit-steps'}, habit.practice_steps.map(step => h('li', null, step))),
+        h('p', {class:'habit-note'}, 'Try the habit even when the problem is difficult. Record what actually happened.')), form), week, catalog);
+  }
+  render(); mount(ctx, host);
+  return {isDirty:() => dirty, beforeLeave:async () => !dirty || confirmBox('Leave without saving your check-in?',
+    'Your latest intention or reflection has not been saved.', 'Leave', 'Keep editing', true)};
+};
+
 function tile(visual, label, value, sub) {
   return h("div", { class: "tile" }, visual, h("div", null, h("div", { class: "label" }, label), h("div", { class: "value" }, value), h("div", { class: "sub" }, sub)));
 }
@@ -1018,6 +1107,12 @@ ROUTES.board = async (ctx) => {
   let dirty = false;
   let last = performance.now();
   let lastSaved = 0;
+  let editRevision = 0;
+  let saveTail = Promise.resolve();
+  const draftKey = `prep-draft:${data.session_started || 'legacy'}:${p.id}`;
+  function localDraft() {
+    store.set(draftKey, JSON.stringify({code:code.value, trace:trace.value}));
+  }
   if (data.submitted) return scorecard(ctx, B, data);
   setCrumbs(data.crumbs, ctx);
 
@@ -1036,6 +1131,15 @@ ROUTES.board = async (ctx) => {
   code.value = data.code;
   const trace = h("textarea", { class: "code", spellcheck: "false", hidden: true, "aria-label": "Dry-run trace", "data-test": "trace" });
   trace.value = data.trace;
+  let recoveredDraft = false;
+  try {
+    const draft = JSON.parse(store.get(draftKey) || 'null');
+    if (draft && typeof draft.code === 'string' && typeof draft.trace === 'string') {
+      code.value = draft.code; trace.value = draft.trace;
+      dirty = true; editRevision += 1; recoveredDraft = true;
+    }
+  } catch (_) { /* a damaged local draft does not replace saved work */ }
+  const tabProblem = h('button', {type:'button', role:'tab', class:'problem-tab', 'aria-selected':'false', onclick:() => showTab('problem')}, 'Problem');
   const tabCode = h("button", { type: "button", role: "tab", "aria-selected": "true", onclick: () => showTab("code") }, "Code");
   const tabTrace = h("button", { type: "button", role: "tab", "aria-selected": "false", onclick: () => showTab("trace") }, "Dry-run trace");
   const checks = data.checklist.map((item, i) => {
@@ -1077,12 +1181,15 @@ ROUTES.board = async (ctx) => {
   }
 
   function showTab(which) {
-    const isCode = which === "code";
+    const isProblem = which === 'problem';
+    const isCode = which === 'code';
+    boardBody.dataset.panel = which;
+    tabProblem.setAttribute('aria-selected', String(isProblem));
     code.hidden = !isCode;
-    trace.hidden = isCode;
+    trace.hidden = isCode || isProblem;
     tabCode.setAttribute("aria-selected", String(isCode));
     tabTrace.setAttribute("aria-selected", String(!isCode));
-    (isCode ? code : trace).focus();
+    if (isProblem) left.focus(); else (isCode ? code : trace).focus();
   }
   function renderBanner() {
     if (B.shown < 0) { banner.hidden = true; return; }
@@ -1123,19 +1230,36 @@ ROUTES.board = async (ctx) => {
   }
   async function save(withText, keepalive = false) {
     lastSaved = performance.now();
+    const includeText = withText || dirty;
+    const revision = editRevision;
     const payload = {
-      problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, ticks: B.ticks, shown: B.shown,
-      hints: B.hints,
+      problem_id:B.problem_id, practice:B.practice, minutes:B.minutes, elapsed:B.elapsed,
+      ticks:[...B.ticks], shown:B.shown, hints:B.hints,
     };
-    if (withText) { payload.code = code.value; payload.trace = trace.value; dirty = false; }
-    try {
-      await api("mock_save", payload, { keepalive });
-      savedTag.textContent = `Saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
-      return true;
-    } catch (err) { savedTag.textContent = "Not saved"; toast(err.message, true); return false; }
+    if (includeText) {payload.code = code.value; payload.trace = trace.value; localDraft();}
+    const operation = async () => {
+      savedTag.textContent = 'Saving…';
+      try {
+        await api('mock_save', payload, {keepalive});
+        if (includeText && revision === editRevision) {
+          dirty = false;
+          try {localStorage.removeItem(draftKey);} catch (_) { /* private mode */ }
+        }
+        savedTag.textContent = dirty ? 'Latest edits waiting to save' : `Saved ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        return true;
+      } catch(err) {
+        savedTag.textContent = 'Not saved to app · retrying';
+        toast('Connection lost. Keep this window open; your edits will be retried.', true);
+        return false;
+      }
+    };
+    saveTail = saveTail.then(operation, operation);
+    return saveTail;
   }
   function onInput() {
     dirty = true;
+    editRevision += 1;
+    localDraft();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => save(true), 600);
   }
@@ -1160,7 +1284,13 @@ ROUTES.board = async (ctx) => {
     B.done = true;
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); // typing must not answer the scorecard
     stopAll();
-    await save(true);
+    if (!(await save(true))) {
+      B.done = false;
+      loop = setInterval(tick, 250);
+      document.addEventListener('visibilitychange', onVisibility);
+      toast('Your work has not reached the app. Save it before finishing this round.', true);
+      return;
+    }
     if (current) current.beforeLeave = null;
     scorecard(ctx, B, data).then((handle) => { if (ctx.alive()) current = handle; })
       .catch((err) => { toast(err.message, true); if (ctx.alive()) current = {}; });
@@ -1178,7 +1308,7 @@ ROUTES.board = async (ctx) => {
     pad.addEventListener("keydown", (e) => editorKeys(e, pad, onInput));
   }
 
-  const left = h("div", { class: "wb-left" },
+  const left = h("div", { class: "wb-left", tabindex:"-1" },
     h("section", { class: "card" },
       h("div", { class: "row" }, h("span", { class: `chip ${p.difficulty.toLowerCase()}` }, p.difficulty), h("span", { class: "chip blue" }, p.category_name),
         p.recency_label ? h("span", { class: "chip" }, p.recency_label) : null),
@@ -1189,21 +1319,34 @@ ROUTES.board = async (ctx) => {
     hintCard,
     DEBUG ? btn("+5 min (debug)", () => { B.elapsed += 300; tick(); }, { cls: "ghost small", test: "ff" }) : null);
   const right = h("div", { class: "wb-right" },
-    h("div", { class: "tabs", role: "tablist" }, tabCode, tabTrace, h("span", { class: "hint" }, savedTag, " · Ctrl+S saves · Tab = 4 spaces · Esc leaves the pad")),
+    h("div", { class: "tabs", role: "tablist" }, tabProblem, tabCode, tabTrace, h("span", { class: "hint" }, savedTag, " · Ctrl+S saves · Tab = 4 spaces · Esc leaves the pad")),
     code, trace);
 
+  const boardBody = h('div', {class:'wb-body', 'data-panel':'code'}, left, right);
+  const trainingData = await api('training_state');
+  if (!ctx.alive()) return {};
+  const habit = trainingData.today.habit;
+  const habitCue = h('details', {class:'board-habit'}, h('summary', null, 'Practise: ', habit.title),
+    h('ul', {class:'bullets'}, habit.practice_steps.map(step => h('li', null, step))));
   mount(ctx, h("div", { class: "page wb" },
     h("div", { class: "wb-top" },
       h("div", null, h("div", { class: "muted small" }, B.practice ? `Timed solve · ${B.minutes} min` : "Mock interview · 45 min"), clock),
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
       h("div", { class: "row" }, btn("I'm stuck", stuck, { cls: "ghost", key: "Alt+H", test: "stuck", title: `Hints open after ${Math.round(data.hint_unlock / 60)} minutes of trying` }),
-        pauseBtn, btn("Abandon", abandon, { cls: "ghost" }),
+        pauseBtn, btn('Regroup', () => {
+          const panel = h('div', {class:'regroup'}, h('p', null, 'Name the exact obstacle out loud.'),
+            h('ol', null, h('li', null, 'What do I already know?'), h('li', null, 'Can I try a smaller input or brute force?'),
+              h('li', null, 'What one question would help?')),
+            h('p', {class:'muted small'}, 'The interview clock keeps running. This prompt gives no solution.'));
+          openModal('Take one useful next step', panel, [{label:'Back to the problem', value:true, primary:true}]);
+        }, {cls:'ghost', test:'regroup'}), btn("Abandon", abandon, { cls: "ghost small" }),
         btn("Submit & grade", () => submit(), { cls: "primary", key: "Ctrl+Enter", test: "submit" }))),
-    banner, h("div", { class: "wb-body" }, left, right)));
+    habitCue, banner, boardBody));
   renderBanner();
   renderHints(data.hints || []);
+  if (recoveredDraft) toast('Recovered edits from an interrupted save. Review your code and save again.');
   paint();
-  const loop = setInterval(tick, 250);
+  let loop = setInterval(tick, 250);
   const onVisibility = () => { if (document.visibilityState === "hidden") save(true, true); };
   document.addEventListener("visibilitychange", onVisibility);
   if (!data.code.trim() || data.elapsed === 0) code.focus();
@@ -1212,8 +1355,10 @@ ROUTES.board = async (ctx) => {
     cleanup() {
       if (!B.done) { stopAll(); save(true, true); }
     },
+    isDirty:() => dirty,
     async beforeLeave() {
       if (B.done) return true;
+      if (!(await save(true))) {toast('Save is still pending. Keep this window open and try again.', true); return false;}
       return confirmBox("Leave the whiteboard?", "Your code, trace and clock are saved. Continue later from Today.", "Leave", "Stay");
     },
     onKey(e, typing) {
@@ -1414,6 +1559,7 @@ function showResult(ctx, res, B, data) {
       h("div", { class: "meter total" }, h("b", null, "Score"), bar(res.score / 100, toneFor(res.score / 100)), h("span", { class: "val" }, `${Math.round(res.score)}/100`))),
       h("div", { class: "actions" },
         btn("Back to Today", () => go("#/today"), { cls: "primary big", primary: true, key: "Enter" }),
+        btn('Reflect on today’s habit', () => go('#/training'), {cls:'ghost', test:'result-reflect'}),
         btn("Check it on LeetCode", () => api("open_link", { url: data.problem.url }).catch((err) => toast(err.message, true))),
         btn("Another round", () => go("#/mock"), { cls: "ghost", key: "w" })))));
 }
@@ -1428,7 +1574,11 @@ ROUTES.roadmap = async (ctx) => {
   const change = r.weekly_change;
   const gauge = h("section", { class: "card gauge-card" },
     ring(r.index / 100, { size: 210, stroke: 16, label: `${Math.round(r.index)}%`, sub: "readiness", color: r.index >= 70 ? COLORS.green : r.index >= 40 ? COLORS.yellow : COLORS.blue }),
-    h("div", null, h("h2", null, "Google Readiness Index"), comps, h("div", { class: "formula" }, r.formula),
+    h("div", null, h("h2", null, r.readiness_provisional ? "Early practice estimate" : "Practice estimate"),
+      h('p', {class:'readiness-evidence', 'data-test':'readiness-evidence'},
+        `${r.readiness_evidence?.mock_sample_count || 0}/5 recent mocks · ${r.readiness_evidence?.dry_run_sample_count || 0}/10 recent dry-run grades`,
+        r.readiness_provisional ? ' · sample incomplete' : ''),
+      h('p', {class:'muted small'}, 'A summary of your self-graded practice, not a prediction of an offer.'), comps, h("div", { class: "formula" }, r.formula),
       h("p", { class: "muted small" }, change == null ? "Weekly change shows after a week of history." : `${change >= 0 ? "+" : ""}${change.toFixed(1)} points vs. 7 days ago.`)));
   const history = r.history.length > 1 ? sparkline(r.history) : h("p", { class: "muted" }, "The trend line starts after your second day.");
   const phases = h("div", { class: "timeline" }, r.phases.map((ph) => h("div", { class: "tl-row" },
@@ -1444,7 +1594,7 @@ ROUTES.roadmap = async (ctx) => {
     : h("p", { class: "muted" }, "No misses logged yet. Each failed or slow solve asks one question and lands here.");
   const pace = r.pace;
   mount(ctx, h("div", { class: "page" },
-    pageTitle("Roadmap", `Day ${r.day} of ${r.plan_days} · interview ${fmtDate(r.interview_date)}`),
+    pageTitle("Progress", `Day ${r.day} of ${r.plan_days} · target ${fmtDate(r.interview_date)}`),
     gauge,
     h("div", { class: "grid-2" },
       h("section", { class: "card" }, h("h2", null, "Readiness trend · 14 days"), history),
@@ -1604,7 +1754,7 @@ ROUTES.role = async (ctx) => {
       item.star ? h("div", { class: "row" }, btn("Write it as a STAR story", () => go("#/star"), { cls: "ghost small" })) : null);
   });
   paintMeter();
-  mount(ctx, h("div", { class: "page" }, pageTitle("Role prep", data.intro),
+  mount(ctx, h("div", { class: "page" }, pageTitle("Interview prep", data.intro, btn('STAR stories', () => go('#/star'), {cls:'ghost'})),
     h("section", { class: "card" }, meter), h("div", { class: "role-list" }, cards)));
   return { cleanup: flush, beforeLeave: async () => { flush(); return true; }, isDirty: () => pending.size > 0 };
 };

@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import select
 
 from google_prep import __version__, db
-from google_prep.core import clock, readiness, rubric, scheduler, session_store
+from google_prep.core import clock, readiness, rubric, scheduler, session_store, training
 from google_prep.db import get_session
 from google_prep.models import LessonProgress, Problem, RecallDrill, StarStory, UserProgress
 from google_prep.modules import fasttrack, mock, recall, star, today
@@ -63,7 +63,8 @@ class Api:
                 "phase": {"number": phase, "name": scheduler.PHASES[phase][0], "short": PHASE_SHORT[phase],
                           "last_day": scheduler.PHASES[phase][2]},
                 "streak": scheduler.streak(s, t.date()),
-                "readiness": round(r.index, 1), "weekly_change": None if change is None else round(change, 1),
+                "readiness": round(r.index, 1), "readiness_evidence": r.evidence,
+                "readiness_provisional": r.is_provisional, "weekly_change": None if change is None else round(change, 1),
                 "interview_date": scheduler.interview_date(s).isoformat(),
                 "days_left": (scheduler.interview_date(s) - t.date()).days,
                 "pace": pace,
@@ -87,6 +88,23 @@ class Api:
 
     def heartbeat(self) -> dict:
         return {"ok": True}
+
+    # ---- interview habits ----------------------------------------------------------
+    def training_state(self) -> dict:
+        with get_session() as s:
+            return training.state(s, self.now())
+
+    def training_checkin(self, date: str, habit_id: str, intention: str | None = None,
+                         reflection: str | None = None, confidence_before: int | None = None,
+                         confidence_after: int | None = None) -> dict:
+        t = self.now()
+        with get_session() as s:
+            try:
+                training.save_checkin(s, t, date, habit_id, intention, reflection,
+                                      confidence_before, confidence_after)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+            return training.state(s, t)
 
     # ---- today --------------------------------------------------------------------
     def today(self, mode: str = "normal") -> dict:
@@ -249,6 +267,7 @@ class Api:
                                 "started": started, "submitted_at": (state or {}).get("submitted_at"),
                                 "hints": used_hints})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
+                    "session_started": started,
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                     "hints": self._hints(s, p)[:used_hints], "hint_unlock": mock.hint_unlock_seconds(bool(practice)),
                     "hint_total": len(mock.hints(p)), "stuck_tips": mock.STUCK_TIPS,
@@ -328,7 +347,7 @@ class Api:
                     "again_answer": rubric.AGAIN_ANSWER,
                     "questions": questions, "trace_rows": mock.trace_rows(trace),
                     "follow_up": fups[shown % len(fups)] if shown >= 0 else "",
-                    "mistakes": [{"key": k, "label": v} for k, v in scheduler.MISTAKES.items()],
+                    "mistakes": [{"key": k, "label": scheduler.MISTAKES[k]} for k in scheduler.MISTAKE_CHOICES],
                     "pillars": rubric.PILLARS,
                     "crumbs": _crumbs(s, self.now().date(), "Solve" if practice else "Mock",
                                       scheduler.CATEGORIES[p.category], p.title,
@@ -472,7 +491,8 @@ class Api:
             mistakes = scheduler.mistake_profile(s)
             return {
                 "crumbs": _crumbs(s, t.date(), "Roadmap"),
-                "index": round(r.index, 1), "day": day, "plan_days": scheduler.PLAN_DAYS,
+                "index": round(r.index, 1), "readiness_evidence": r.evidence,
+                "readiness_provisional": r.is_provisional, "day": day, "plan_days": scheduler.PLAN_DAYS,
                 "components": [{"name": n, "key": k, "weight": w, "value": round(getattr(r, k), 4), "explain": explain[k]}
                                for n, k, w in comps],
                 "formula": " + ".join(f"{w / 100:.2f}×{getattr(r, k) * 100:.0f}%" for _, k, w in comps)

@@ -46,7 +46,12 @@ MISTAKES = {
     "bug_edge": "Bug or missed edge case",
     "slow": "Too slow",
     "follow_up": "Stuck on the follow-up",
+    "python_syntax": "Knew the pattern, stuck on Python syntax or library use",
+    "implementation_logic": "Knew the pattern, stuck on implementation logic",
 }
+# Keep the legacy aggregate in history and terminal numeric shortcuts. New window
+# grades distinguish language fluency from translating an idea into correct code.
+MISTAKE_CHOICES = ("pattern", "python_syntax", "implementation_logic", "bug_edge", "slow", "follow_up")
 PROBLEM_TARGET_DAY = PLAN_DAYS  # mocks in weeks 7-8 also solve bank problems
 PROBLEM_START_DAY = PHASES[1][1]  # the bank starts after the 2-day Python fast-track
 

@@ -1,7 +1,9 @@
 from datetime import timedelta
 
+import pytest
+
 from google_prep.core import readiness, scheduler
-from google_prep.models import MockSession, StarStory
+from google_prep.models import Attempt, MockSession, StarStory
 
 from conftest import NOW
 
@@ -17,7 +19,58 @@ def test_weights_match_spec():
 
 
 def test_starts_at_zero(session):
-    assert readiness.compute(session).index == 0
+    r = readiness.compute(session)
+    assert r.index == 0
+    assert r.is_provisional
+    assert r.evidence == {"mock_sample_count": 0, "mock_window": 5,
+                          "dry_run_sample_count": 0, "dry_run_window": 10,
+                          "is_provisional": True}
+
+
+def test_sparse_practice_is_provisional_without_damping_scores(session):
+    add_mock(session, 40 * 60 + 3)
+    scheduler.log_attempt(session, "G-200", 40, True, True, 4, NOW)
+    r = readiness.compute(session)
+
+    assert r.mock_sample_count == r.dry_run_sample_count == 1
+    assert r.is_provisional
+    assert r.mock_speed == pytest.approx(35 * 60 / (40 * 60 + 3))
+    assert r.dry_run == 1.0
+    assert r.index == pytest.approx(100 * (0.4 * r.pattern_mastery + 0.3 * r.mock_speed + 0.15))
+
+
+def test_evidence_counts_exact_score_windows(session):
+    for solved in [False, False] + [True] * readiness.MOCK_WINDOW:
+        add_mock(session, 20 * 60, solved=solved)
+    for ok in [False, False] + [True] * readiness.DRY_RUN_WINDOW + [None]:
+        session.add(Attempt(problem_id="G-200", day=NOW.date().isoformat(), minutes=20,
+                            solved=True, dry_run_ok=ok))
+    session.commit()
+    r = readiness.compute(session)
+
+    assert r.mock_speed == r.dry_run == 1.0  # old failures and missing results are outside the sample
+    assert r.mock_sample_count == readiness.MOCK_WINDOW
+    assert r.dry_run_sample_count == readiness.DRY_RUN_WINDOW
+    assert not r.is_provisional  # full recent windows, not a claim of interview readiness
+
+
+@pytest.mark.parametrize("mock_count,dry_run_count", [(5, 1), (1, 10)])
+def test_evidence_needs_each_components_own_sample(session, mock_count, dry_run_count):
+    for _ in range(mock_count):
+        add_mock(session, 20 * 60)
+    for _ in range(dry_run_count):
+        session.add(Attempt(problem_id="G-200", day=NOW.date().isoformat(), minutes=20,
+                            solved=True, dry_run_ok=False))
+    # Attempts without a recorded dry run must not pad the evidence count.
+    session.add(Attempt(problem_id="G-200", day=NOW.date().isoformat(), minutes=20,
+                        solved=True, dry_run_ok=None))
+    session.commit()
+    r = readiness.compute(session)
+
+    assert r.mock_sample_count == mock_count
+    assert r.dry_run_sample_count == dry_run_count
+    assert r.dry_run == 0.0  # failed dry runs are still evidence
+    assert r.is_provisional
 
 
 def test_mock_speed(session):

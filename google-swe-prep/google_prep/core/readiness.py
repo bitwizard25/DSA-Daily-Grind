@@ -21,10 +21,28 @@ class Readiness:
     mock_speed: float
     dry_run: float
     star: float
+    mock_sample_count: int = 0
+    dry_run_sample_count: int = 0
 
     @property
     def index(self) -> float:
         return 100 * sum(WEIGHTS[k] * getattr(self, k) for k in WEIGHTS)
+
+    @property
+    def is_provisional(self) -> bool:
+        """Whether the recent practice sample is incomplete, not a hiring prediction.
+
+        Filling the existing score windows gives the UI more context for the estimate;
+        it does not establish that a learner is ready for an interview.
+        """
+        return self.mock_sample_count < MOCK_WINDOW or self.dry_run_sample_count < DRY_RUN_WINDOW
+
+    @property
+    def evidence(self) -> dict[str, int | bool]:
+        """Sample sizes for exactly the recent rows used by the two practice scores."""
+        return {"mock_sample_count": self.mock_sample_count, "mock_window": MOCK_WINDOW,
+                "dry_run_sample_count": self.dry_run_sample_count, "dry_run_window": DRY_RUN_WINDOW,
+                "is_provisional": self.is_provisional}
 
 
 def pattern_mastery(session: Session) -> float:
@@ -45,17 +63,27 @@ def mock_score(m: MockSession) -> float:
     return min(1.0, target / max(1, m.duration_seconds))
 
 
-def mock_speed(session: Session) -> float:
+def _mock_measure(session: Session) -> tuple[float, int]:
     rows = session.exec(select(MockSession).order_by(col(MockSession.id).desc()).limit(MOCK_WINDOW)).all()
-    return sum(mock_score(m) for m in rows) / len(rows) if rows else 0.0
+    score = sum(mock_score(m) for m in rows) / len(rows) if rows else 0.0
+    return score, len(rows)
 
 
-def dry_run_accuracy(session: Session) -> float:
+def mock_speed(session: Session) -> float:
+    return _mock_measure(session)[0]
+
+
+def _dry_run_measure(session: Session) -> tuple[float, int]:
     rows = session.exec(
         select(Attempt).where(col(Attempt.dry_run_ok).is_not(None))
         .order_by(col(Attempt.id).desc()).limit(DRY_RUN_WINDOW)
     ).all()
-    return sum(1 for a in rows if a.dry_run_ok) / len(rows) if rows else 0.0
+    score = sum(1 for a in rows if a.dry_run_ok) / len(rows) if rows else 0.0
+    return score, len(rows)
+
+
+def dry_run_accuracy(session: Session) -> float:
+    return _dry_run_measure(session)[0]
 
 
 def star_counts(session: Session) -> dict[str, int]:
@@ -73,8 +101,10 @@ def star_coverage(session: Session) -> float:
 
 
 def compute(session: Session) -> Readiness:
-    return Readiness(pattern_mastery(session), mock_speed(session),
-                     dry_run_accuracy(session), star_coverage(session))
+    mock_speed_value, mock_count = _mock_measure(session)
+    dry_run_value, dry_run_count = _dry_run_measure(session)
+    return Readiness(pattern_mastery(session), mock_speed_value,
+                     dry_run_value, star_coverage(session), mock_count, dry_run_count)
 
 
 # ---- trend ------------------------------------------------------------------

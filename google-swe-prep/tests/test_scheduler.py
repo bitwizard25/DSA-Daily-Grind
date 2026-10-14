@@ -135,7 +135,8 @@ def test_warmup_adapts_to_mistakes(session):
         scheduler.log_attempt(session, pid, 30, False, False, 2, NOW, mistake="pattern")
     assert kinds(scheduler.pick_warmup(session, NOW)) == 0
     assert scheduler.mistake_profile(session) == {"pattern": 3, "implementation": 0, "bug_edge": 2,
-                                                  "slow": 0, "follow_up": 0}
+                                                  "slow": 0, "follow_up": 0, "python_syntax": 0,
+                                                  "implementation_logic": 0}
 
 
 def test_pace(session):
