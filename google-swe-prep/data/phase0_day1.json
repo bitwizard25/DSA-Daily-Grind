@@ -1,0 +1,874 @@
+{
+  "day": 1,
+  "title": "Python from zero, the interview way",
+  "title_simple": "Python from the start",
+  "subtitle": "Ten short steps take you from Python syntax to the traps that catch C++ coders in interviews.",
+  "subtitle_simple": "Learn Python step by step, using what you know from C++.",
+  "minutes": 60,
+  "vault": "00_python_basics_for_cpp_devs.md",
+  "glossary": [
+    {
+      "key": "indentation",
+      "term": "indentation",
+      "meaning": "Spaces at the start of a line. Lines with the same indentation form one block, like `{ }` in C++.",
+      "meaning_simple": "Spaces at the start of a line. They show which lines go together.",
+      "example": "4 spaces before print('yes') put it inside the if"
+    },
+    {
+      "key": "comment",
+      "term": "# comment",
+      "meaning": "`#` starts a comment: a note for people. Python ignores the rest of the line.",
+      "meaning_simple": "A note for people. Python skips it.",
+      "example": "# check the empty case"
+    },
+    {
+      "key": "print",
+      "term": "print",
+      "meaning": "Writes values to the screen with one space between them, then starts a new line.",
+      "meaning_simple": "Shows values on the screen.",
+      "example": "print('age', 20) → age 20"
+    },
+    {
+      "key": "variable",
+      "term": "variable",
+      "meaning": "A name for a value. The first `=` creates it, and no type is written.",
+      "meaning_simple": "A name for a value.",
+      "example": "count = 3"
+    },
+    {
+      "key": "types",
+      "term": "int, float, str, bool",
+      "meaning": "The basic types (kinds of value): whole number, decimal number, text, and `True` or `False`.",
+      "meaning_simple": "Kinds of value: whole number, decimal number, text, true or false.",
+      "example": "3, 2.5, 'hi', True"
+    },
+    {
+      "key": "none",
+      "term": "None",
+      "meaning": "A special value that means \"no value here\", like `nullptr` in C++.",
+      "meaning_simple": "Means: there is no value.",
+      "example": "result = None"
+    },
+    {
+      "key": "elif",
+      "term": "elif",
+      "meaning": "Short for \"else if\": the next condition to check when the ones above were false.",
+      "meaning_simple": "Means else if.",
+      "example": "elif score >= 70:"
+    },
+    {
+      "key": "logic_words",
+      "term": "and / or / not",
+      "meaning": "Words that join conditions. They replace `&&`, `||` and `!` from C++.",
+      "meaning_simple": "Join checks: both true, one true, or the opposite.",
+      "example": "x > 0 and x < 5"
+    },
+    {
+      "key": "chained",
+      "term": "chained comparison",
+      "meaning": "Several comparisons in a row, like `1 < x < 5`. All of them must be true.",
+      "meaning_simple": "Many checks in one line, like `1 < x < 5`.",
+      "example": "1 < 3 < 5 → True"
+    },
+    {
+      "key": "list",
+      "term": "list",
+      "meaning": "An ordered collection that can grow, written with `[ ]`. Like a C++ `vector`.",
+      "meaning_simple": "Many values in order, inside `[ ]`.",
+      "example": "nums = [3, 1, 4]"
+    },
+    {
+      "key": "append",
+      "term": "append",
+      "meaning": "Adds one item at the end of a list, like `push_back` in C++.",
+      "meaning_simple": "Adds one item at the end of a list.",
+      "example": "nums.append(5)"
+    },
+    {
+      "key": "range",
+      "term": "range",
+      "meaning": "Numbers for a loop: `range(start, stop, step)`. The `stop` number is never included.",
+      "meaning_simple": "Numbers to count over. The end number is not included.",
+      "example": "range(1, 10, 3) → 1, 4, 7"
+    },
+    {
+      "key": "def",
+      "term": "def",
+      "meaning": "Starts a function: `def name(inputs):` and then an indented body.",
+      "meaning_simple": "Makes a new function.",
+      "example": "def add(a, b):"
+    },
+    {
+      "key": "default_value",
+      "term": "default value",
+      "meaning": "The value a parameter (input) gets when the caller leaves it out.",
+      "meaning_simple": "The value used when you give nothing.",
+      "example": "def area(w, h=1):"
+    },
+    {
+      "key": "tuple",
+      "term": "tuple",
+      "meaning": "A fixed group of values in `( )`. `return a, b` gives back one tuple.",
+      "meaning_simple": "A few values kept together in `( )`.",
+      "example": "(1, 9)"
+    },
+    {
+      "key": "power",
+      "term": "**",
+      "meaning": "Power: `a ** b` is a to the power of b.",
+      "meaning_simple": "To the power of.",
+      "example": "2 ** 10 → 1024"
+    },
+    {
+      "key": "overflow",
+      "term": "overflow",
+      "meaning": "A value too big for its type, so the result goes wrong. Python ints never overflow.",
+      "meaning_simple": "A number too big for its box. Python numbers never do this.",
+      "example": "2 ** 100 works fine"
+    },
+    {
+      "key": "infinity",
+      "term": "float('inf')",
+      "meaning": "Infinity: bigger than every number. `float('-inf')` is smaller than every number.",
+      "meaning_simple": "A value bigger than any number.",
+      "example": "best = float('inf')"
+    },
+    {
+      "key": "floor_division",
+      "term": "//",
+      "meaning": "Floor division: divide, then round down (toward minus infinity).",
+      "meaning_simple": "Divide, then round down.",
+      "example": "-7 // 2 → -4"
+    },
+    {
+      "key": "modulo",
+      "term": "%",
+      "meaning": "Modulo: the remainder. When `b` is positive, `a % b` is between 0 and b - 1.",
+      "meaning_simple": "The remainder after dividing.",
+      "example": "-7 % 2 → 1"
+    },
+    {
+      "key": "truncate",
+      "term": "truncate",
+      "meaning": "Cut off the part after the decimal point, moving toward zero. `int(-3.5)` is -3.",
+      "meaning_simple": "Drop the part after the dot.",
+      "example": "int(-7 / 2) → -3"
+    },
+    {
+      "key": "slice",
+      "term": "slice",
+      "meaning": "A part of a string or list: `s[a:b]` takes index `a` up to, but not including, `b`.",
+      "meaning_simple": "A piece cut out of text or a list.",
+      "example": "'python'[1:4] → 'yth'"
+    },
+    {
+      "key": "immutable",
+      "term": "immutable / mutable",
+      "meaning": "Immutable: cannot be changed after it is made (strings). Mutable: can be changed (lists).",
+      "meaning_simple": "Immutable means it cannot change. Mutable means it can.",
+      "example": "s[0] = 'P' fails for a string"
+    },
+    {
+      "key": "join",
+      "term": "join",
+      "meaning": "Glues a list of strings into one string: `''.join(parts)`.",
+      "meaning_simple": "Glues many pieces of text into one.",
+      "example": "''.join(['a', 'b']) → 'ab'"
+    },
+    {
+      "key": "reference",
+      "term": "reference",
+      "meaning": "A name points at an object (a value in memory). Two names can point at the same object.",
+      "meaning_simple": "A name that points at a value. Two names can share one value.",
+      "example": "b = a  → one list, two names"
+    },
+    {
+      "key": "grid",
+      "term": "2D list",
+      "meaning": "A list of lists, used as a grid of rows and columns: `grid[r][c]`.",
+      "meaning_simple": "A list of rows, like a table.",
+      "example": "grid = [[0, 0], [0, 0]]"
+    },
+    {
+      "key": "comprehension",
+      "term": "list comprehension",
+      "meaning": "Builds a list from a loop in one line: `[value for x in ...]`.",
+      "meaning_simple": "A short way to build a list, with a `for` inside.",
+      "example": "[i * 2 for i in range(3)] → [0, 2, 4]"
+    },
+    {
+      "key": "deep_copy",
+      "term": "shallow vs deep copy",
+      "meaning": "A shallow copy makes a new outer list but shares the inner lists. `copy.deepcopy` copies every level.",
+      "meaning_simple": "A shallow copy shares the rows. A deep copy copies them too.",
+      "example": "copy.deepcopy(grid)"
+    },
+    {
+      "key": "enumerate",
+      "term": "enumerate",
+      "meaning": "Gives (index, value) pairs while you loop over a list.",
+      "meaning_simple": "Gives each position with its value.",
+      "example": "for i, x in enumerate(nums):"
+    },
+    {
+      "key": "zip",
+      "term": "zip",
+      "meaning": "Walks two lists together and gives one pair from each position.",
+      "meaning_simple": "Walks two lists side by side.",
+      "example": "zip([1, 2], ['a', 'b']) → (1, 'a'), (2, 'b')"
+    },
+    {
+      "key": "bitwise",
+      "term": "& | ^",
+      "meaning": "Bitwise operators: AND, OR and XOR on each bit, the same as in C++.",
+      "meaning_simple": "Work on each bit, like in C++.",
+      "example": "6 & 3 → 2"
+    },
+    {
+      "key": "shift",
+      "term": "<< >>",
+      "meaning": "Shift bits left (times 2 per step) or right (divide by 2 per step, rounding down).",
+      "meaning_simple": "Move bits left or right.",
+      "example": "1 << 4 → 16"
+    },
+    {
+      "key": "mask",
+      "term": "mask",
+      "meaning": "A number used with `&` to keep only some bits: `x & 0xFFFFFFFF` keeps the low 32 bits.",
+      "meaning_simple": "Keeps only some of the bits.",
+      "example": "-1 & 0xFFFFFFFF → 4294967295"
+    }
+  ],
+  "sections": [
+    {
+      "id": "d1-s1",
+      "optional": false,
+      "title": "How Python code looks",
+      "title_simple": "What Python code looks like",
+      "new_words": [
+        "indentation",
+        "comment",
+        "print"
+      ],
+      "python": "# This is a comment. Python skips it.\nage = 20\nif age >= 18:\n    # Both indented lines belong to the if.\n    print('adult')  # adult\n    print('age is', age)  # age is 20\n# Back at the left edge: the if block is over.\nprint('done')  # done\n",
+      "points": [
+        "No braces: **indentation** (spaces at the start of a line) shows which lines belong to the `if`.",
+        "A line ends at the line break, so no `;` is needed. `#` starts a **comment** that Python skips.",
+        "`print('age is', age)` shows both values with one space between them, then starts a new line."
+      ],
+      "points_simple": [
+        "Python has no `{ }`. Spaces at the start of a line group lines together.",
+        "No `;` at the end of a line. A `#` starts a note that Python skips.",
+        "`print(a, b)` shows both values with a space between them."
+      ],
+      "summary": "Indentation shows the block, `#` starts a comment, and lines need no `;` and no `{ }`.",
+      "summary_simple": "Spaces show the block. `#` starts a note. No `;` needed.",
+      "analogy": "Indentation works like a to-do list where sub-tasks are moved a little to the right. That space alone shows which task they belong to.",
+      "analogy_simple": "Think of a to-do list. Sub-tasks sit a bit to the right. That shows they belong to the task above.",
+      "bridge": [
+        {
+          "cpp": "if (age >= 18) { ... }",
+          "python": "if age >= 18:",
+          "note": "same if: colon, then indent; more in step 3"
+        },
+        {
+          "cpp": "total += 1;",
+          "python": "total += 1",
+          "note": "+= works the same, just no ;"
+        },
+        {
+          "cpp": "// a comment",
+          "python": "# a comment",
+          "note": "// means something else in Python (step 7)"
+        }
+      ],
+      "gotcha": "Mistake: lines in one block start at different places, so Python stops with `IndentationError`. Fix: use 4 spaces for every level.",
+      "gotcha_simple": "Mistake: lines in one block start at different places. Fix: use 4 spaces for each level."
+    },
+    {
+      "id": "d1-s2",
+      "optional": false,
+      "title": "Variables and values",
+      "title_simple": "Names and values",
+      "new_words": [
+        "variable",
+        "types",
+        "none"
+      ],
+      "python": "# No type in front of the name.\ncount = 3\nprice = 2.5\nname = 'Asha'\nis_open = True\nresult = None\nprint(type(count), type(price))  # <class 'int'> <class 'float'>\nprint(type(name), type(is_open))  # <class 'str'> <class 'bool'>\nprint(result)  # None\n",
+      "points": [
+        "A **variable** (a name for a value) is made by `=`. You never write its type, and it may later hold another type.",
+        "The basic **types** (kinds of value) are `int` (whole number), `float` (decimal), `str` (text) and `bool` (`True`/`False`).",
+        "`None` means \"no value yet\", like `nullptr`. `type(x)` tells you the type of `x`."
+      ],
+      "points_simple": [
+        "A variable is a name for a value. You do not write its type.",
+        "`int` is a whole number. `float` has a dot. `str` is text. `bool` is `True` or `False`.",
+        "`None` means there is no value yet."
+      ],
+      "summary": "Write `name = value` and Python works out the type: `int`, `float`, `str`, `bool` or `None`.",
+      "summary_simple": "Just write `name = value`. Python knows the type by itself.",
+      "analogy": "A variable is like a sticky note with a name on it. You stick it on a value, and you never say in advance what kind of value it will be.",
+      "analogy_simple": "A variable is a name label. You put the label on a value. You do not say the kind of value first.",
+      "bridge": [
+        {
+          "cpp": "int count = 3;",
+          "python": "count = 3"
+        },
+        {
+          "cpp": "bool is_open = true;",
+          "python": "is_open = True",
+          "note": "True and False start with a capital"
+        },
+        {
+          "cpp": "Node* node = nullptr;",
+          "python": "node = None"
+        }
+      ],
+      "gotcha": "Mistake: writing `true`, `false` or `null` from C++ habit, so Python stops with `NameError`. Fix: write `True`, `False` and `None`.",
+      "gotcha_simple": "Mistake: writing `true` or `null` like in C++. Fix: write `True`, `False` and `None`."
+    },
+    {
+      "id": "d1-s3",
+      "optional": false,
+      "title": "Making choices",
+      "title_simple": "Choosing what to do",
+      "new_words": [
+        "elif",
+        "logic_words",
+        "chained"
+      ],
+      "python": "score = 72\nif score >= 90:\n    print('A')\nelif score >= 70:\n    print('B')  # B\nelse:\n    print('C')\nx = 3\nprint(x > 0 and x < 5, not x > 10)  # True True\nprint(1 < x < 5)  # True\n",
+      "points": [
+        "`elif` means \"else if\". Python checks from the top and runs only the first block whose condition is true.",
+        "Conditions are joined with the words `and`, `or`, `not`, not with `&&`, `||`, `!`.",
+        "A **chained comparison** like `1 < x < 5` means `1 < x and x < 5`, just as in math."
+      ],
+      "points_simple": [
+        "`elif` means else if. Only the first true block runs.",
+        "Use the words `and`, `or`, `not`. Do not use `&&`, `||`, `!`.",
+        "`1 < x < 5` means x is between 1 and 5, like in math."
+      ],
+      "summary": "Write `if` / `elif` / `else` with a colon, and join conditions with `and`, `or`, `not`.",
+      "summary_simple": "Use `if`, `elif`, `else`. Join checks with `and`, `or`, `not`.",
+      "analogy": "`if` / `elif` / `else` works like a ticket desk: child ticket? Else student ticket? Else full price. You get only the first one that fits.",
+      "analogy_simple": "Think of ticket prices. Child? Student? Else full price. You stop at the first one that fits.",
+      "bridge": [
+        {
+          "cpp": "} else if (score >= 70) {",
+          "python": "elif score >= 70:"
+        },
+        {
+          "cpp": "if (!found || x < 0) {",
+          "python": "if not found or x < 0:"
+        },
+        {
+          "cpp": "if (1 < x && x < 5) {",
+          "python": "if 1 < x < 5:",
+          "note": "C++ reads 1 < x < 5 as (1 < x) < 5"
+        }
+      ],
+      "gotcha": "Mistake: typing `&&`, `||` or `!x` from C++ habit, so Python stops with `SyntaxError`. Fix: type `and`, `or` and `not x`.",
+      "gotcha_simple": "Mistake: typing `&&` or `!` like in C++. Fix: type the words `and`, `or`, `not`."
+    },
+    {
+      "id": "d1-s4",
+      "optional": false,
+      "title": "Loops: for, range, while",
+      "title_simple": "Doing things again",
+      "new_words": [
+        "list",
+        "append",
+        "range"
+      ],
+      "python": "nums = []\nfor i in range(4):\n    nums.append(i * 10)\nprint(nums)  # [0, 10, 20, 30]\n# range(start, stop, step): stop is not included.\nprint(list(range(1, 10, 3)))  # [1, 4, 7]\nn = 1\nwhile n < 50:\n    n = n * 2\nprint(n)  # 64\n",
+      "points": [
+        "A **list** like `[3, 1, 4]` is Python's growing array (a C++ `vector`). `append(x)` adds `x` at the end.",
+        "`range(1, 10, 3)` starts at 1, adds 3 each time, and stops before 10. `list(...)` shows its numbers.",
+        "`for x in nums` visits each item of a list, one by one. `while`, `break` and `continue` work as in C++."
+      ],
+      "points_simple": [
+        "A list keeps many values in order. `append` adds one at the end.",
+        "`range(4)` gives 0, 1, 2, 3. The last number is not included.",
+        "`for x in nums` takes each item in turn. `while` and `break` work like in C++."
+      ],
+      "summary": "`for i in range(n)` counts 0 to n - 1, and `range(a, b, step)` always stops before `b`.",
+      "summary_simple": "`range(n)` counts from 0 up to n - 1. The end is never included.",
+      "analogy": "`range(1, 10, 3)` is like climbing stairs three at a time, starting on step 1 and stopping before step 10. You stand on steps 1, 4 and 7.",
+      "analogy_simple": "Climb stairs 3 at a time. Start on step 1. Stop before step 10. You stand on 1, 4 and 7.",
+      "bridge": [
+        {
+          "cpp": "for (int i = 0; i < n; i++)",
+          "python": "for i in range(n):"
+        },
+        {
+          "cpp": "for (int i = n - 1; i >= 0; i--)",
+          "python": "for i in range(n - 1, -1, -1):",
+          "note": "counts down; stop at -1 so that 0 is included"
+        },
+        {
+          "cpp": "v.push_back(x);",
+          "python": "nums.append(x)"
+        }
+      ],
+      "gotcha": "Mistake: writing `i++`, which Python rejects with `SyntaxError`. Fix: write `i += 1`, or let `for i in range(n)` count for you.",
+      "gotcha_simple": "Mistake: writing `i++` like in C++. Fix: write `i += 1`."
+    },
+    {
+      "id": "d1-s5",
+      "optional": false,
+      "title": "Functions with def",
+      "title_simple": "Making your own functions",
+      "new_words": [
+        "def",
+        "default_value",
+        "tuple"
+      ],
+      "python": "def area(width, height=1):\n    return width * height\nprint(area(3, 4))  # 12\nprint(area(5))  # 5\n# min and max are built in: smallest and largest item.\ndef min_max(nums):\n    return min(nums), max(nums)\nprint(min_max([4, 1, 9]))  # (1, 9)\nlow, high = min_max([4, 1, 9])\nprint(low, high)  # 1 9\n",
+      "points": [
+        "`def` starts a function. Parameters (the inputs) have no types, and the body is the indented block.",
+        "`height=1` is a **default value**: when the caller leaves `height` out, it is 1.",
+        "`return a, b` sends back one **tuple** (a fixed group) like `(1, 9)`. `low, high = ...` gives each value a name."
+      ],
+      "points_simple": [
+        "`def` makes a function. The inputs have no types.",
+        "`height=1` is used when the caller gives no height.",
+        "A function can return two values. `low, high = ...` catches both."
+      ],
+      "summary": "`def name(a, b=0):` makes a function, and `return x, y` gives back two values at once.",
+      "summary_simple": "Use `def` to make a function. It can return two values.",
+      "analogy": "A function is like a recipe card: you give it ingredients and it hands back a dish. A default value is the amount the recipe uses when you do not say.",
+      "analogy_simple": "A function is like a recipe. You give inputs. You get a result back. A default is used when you give nothing.",
+      "bridge": [
+        {
+          "cpp": "int area(int w, int h = 1) {",
+          "python": "def area(w, h=1):"
+        },
+        {
+          "cpp": "return {lo, hi};  // a pair",
+          "python": "return lo, hi"
+        },
+        {
+          "cpp": "auto [lo, hi] = min_max(v);",
+          "python": "lo, hi = min_max(nums)"
+        }
+      ],
+      "gotcha": "Mistake: forgetting `return`. The function then gives back `None`, not your answer. Fix: end the function with `return` and the value.",
+      "gotcha_simple": "Mistake: forgetting `return`. You get `None` back. Fix: end with `return` and the value."
+    },
+    {
+      "id": "d1-s6",
+      "optional": false,
+      "title": "Numbers never overflow",
+      "title_simple": "Big numbers are safe",
+      "new_words": [
+        "power",
+        "overflow",
+        "infinity"
+      ],
+      "python": "print(2 ** 10)  # 1024\nbig = 2 ** 100\nprint(big)  # 1267650600228229401496703205376\nprint(big + 1 > big)  # True\n# A start value for a minimum search:\nbest = float('inf')\nfor x in [7, 3, 9]:\n    best = min(best, x)\nprint(best)  # 3\nprint(float('-inf') < -999999)  # True\n",
+      "points": [
+        "`**` means **power**, so `2 ** 10` is 1024. Python ints grow as big as needed.",
+        "So there is no **overflow** (a value too big for its type, which then goes wrong). You never need `long long`.",
+        "`float('inf')` is **infinity**: bigger than every number. Use it where C++ uses `INT_MAX` as a start value."
+      ],
+      "points_simple": [
+        "`**` means power. `2 ** 10` is 1024.",
+        "Python numbers never get too big. They just grow.",
+        "`float('inf')` is bigger than any number. Use it instead of `INT_MAX`."
+      ],
+      "summary": "Ints never overflow. Use `float('inf')` and `float('-inf')` instead of `INT_MAX` and `INT_MIN`.",
+      "summary_simple": "Numbers never get too big. Use `float('inf')` instead of `INT_MAX`.",
+      "analogy": "A C++ `int` is like a counter with a fixed number of digit wheels: past the top value it goes wrong. A Python int is like a notebook: you can always write more digits.",
+      "analogy_simple": "A C++ number is like a counter with few digits. Past the top, it goes wrong. A Python number is like a notebook. You can always add digits.",
+      "bridge": [
+        {
+          "cpp": "long long x = 1LL << 40;",
+          "python": "x = 2 ** 40",
+          "note": "every Python int is big enough"
+        },
+        {
+          "cpp": "int best = INT_MAX;",
+          "python": "best = float('inf')"
+        },
+        {
+          "cpp": "int best = INT_MIN;",
+          "python": "best = float('-inf')"
+        }
+      ],
+      "gotcha": "Mistake: returning `float('inf')` when nothing was found, but the problem wants -1. Fix: check `if best == float('inf'): return -1`.",
+      "gotcha_simple": "Mistake: giving back infinity when the answer should be -1. Fix: check for infinity first."
+    },
+    {
+      "id": "d1-s7",
+      "optional": false,
+      "title": "Division: /, // and %",
+      "title_simple": "Three ways to divide",
+      "new_words": [
+        "floor_division",
+        "modulo",
+        "truncate"
+      ],
+      "python": "print(7 / 2, 6 / 2)  # 3.5 3.0\nprint(7 // 2, 7 % 2)  # 3 1\n# -7 / 2 is -3.5, and // rounds it DOWN to -4.\nprint(-7 // 2)  # -4\nprint(-7 % 2)  # 1\n# C++ style: cut toward zero.\na, b = -7, 2\nprint(int(a / b))  # -3\n",
+      "points": [
+        "`/` always gives a `float`, so `6 / 2` is `3.0`. **Floor division** `//` gives a whole number, rounded down.",
+        "Down means toward minus infinity: `-7 // 2` is -4, but C++ gives -3. **Modulo** `-7 % 2` (the remainder) is 1, not -1.",
+        "To **truncate** (cut toward zero) like C++ does, write `int(a / b)`."
+      ],
+      "points_simple": [
+        "`/` always gives a decimal number, like `3.0`. `//` divides and rounds down.",
+        "Down means smaller, so `-7 // 2` is -4. Then `-7 % 2` is 1, as -4 * 2 + 1 = -7.",
+        "To cut toward zero like C++, write `int(a / b)`."
+      ],
+      "summary": "`//` rounds down, so `-7 // 2` is -4 and `-7 % 2` is 1. For the C++ result use `int(a / b)`.",
+      "summary_simple": "`//` rounds down, even below zero. `int(a / b)` gives the C++ answer.",
+      "analogy": "Picture a number line. Python `//` always steps to the left, so -3.5 becomes -4. C++ always steps toward 0, so -3.5 becomes -3.",
+      "analogy_simple": "Picture a number line. Python `//` always moves left, so -3.5 becomes -4. C++ moves toward 0.",
+      "bridge": [
+        {
+          "cpp": "double r = (double)a / b;",
+          "python": "r = a / b"
+        },
+        {
+          "cpp": "int q = a / b;  // a, b >= 0",
+          "python": "q = a // b",
+          "note": "same result when nothing is negative"
+        },
+        {
+          "cpp": "int q = a / b;  // a < 0 possible",
+          "python": "q = int(a / b)",
+          "note": "cuts toward zero, like C++"
+        }
+      ],
+      "gotcha": "Mistake: using `a // b` when the problem says \"truncate toward zero\". It gives -4 for -7 and 2. Fix: write `int(a / b)` to get -3.",
+      "gotcha_simple": "Mistake: using `//` when the answer must cut toward zero. Fix: write `int(a / b)`."
+    },
+    {
+      "id": "d1-s8",
+      "optional": false,
+      "title": "Strings: index, slice, join",
+      "title_simple": "Working with text",
+      "new_words": [
+        "slice",
+        "immutable",
+        "join"
+      ],
+      "python": "s = 'python'\nprint(s[0], s[-1], len(s))  # p n 6\nprint(s[1:4], s[:2], s[-3:])  # yth py hon\nprint(s[::-1])  # nohtyp\n# s[0] = 'P' fails: you cannot change a string.\nprint('P' + s[1:])  # Python\nparts = []\nfor ch in 'abc':\n    parts.append(ch + ch)\nprint(''.join(parts))  # aabbcc\n",
+      "points": [
+        "`s[-1]` is the last character: negative indexes count from the end. `len(s)` is the length.",
+        "A **slice** `s[a:b]` copies index `a` up to, not including, `b`. Leave out `a` or `b` for the start or end. `s[::-1]` is reversed.",
+        "Strings are **immutable** (cannot be changed). Collect pieces in a list, then glue them once with `''.join(parts)`."
+      ],
+      "points_simple": [
+        "`s[0]` is the first letter. `s[-1]` is the last letter.",
+        "`s[1:4]` takes positions 1, 2 and 3 (counting from 0), not 4. `s[::-1]` is the text backwards.",
+        "You cannot change a string. Collect pieces in a list, then use `''.join(parts)`."
+      ],
+      "summary": "A slice stops before its end index. Strings never change, so build a list and `''.join` it.",
+      "summary_simple": "`s[a:b]` stops before `b`. Build text in a list, then `join` it.",
+      "analogy": "A string is like a word printed on paper: you cannot rub out one letter. You cut out the pieces you need (slices) and glue them into a new word (`join`).",
+      "analogy_simple": "A string is like a printed word. You cannot erase one letter. You make a new word from pieces.",
+      "bridge": [
+        {
+          "cpp": "s.size()",
+          "python": "len(s)"
+        },
+        {
+          "cpp": "s.substr(1, 3)",
+          "python": "s[1:4]",
+          "note": "C++ takes a length, Python an end index"
+        },
+        {
+          "cpp": "s[0] = 'P';",
+          "python": "s = 'P' + s[1:]",
+          "note": "builds a new string"
+        }
+      ],
+      "gotcha": "Mistake: `s += ch` inside a long loop. Each step may copy the whole string, so it gets slow. Fix: append to a list, then `''.join(parts)` once.",
+      "gotcha_simple": "Mistake: adding letters to a string one by one in a big loop. Fix: use a list and `join`."
+    },
+    {
+      "id": "d1-s9",
+      "optional": false,
+      "title": "Lists and the shared-row trap",
+      "title_simple": "Lists and a grid trap",
+      "new_words": [
+        "reference",
+        "grid",
+        "comprehension"
+      ],
+      "python": "a = [1, 2, 3]\nb = a\nb[0] = 9\nprint(a)  # [9, 2, 3]\nbad = [[0] * 3] * 2\nbad[0][0] = 1\nprint(bad)  # [[1, 0, 0], [1, 0, 0]]\ngood = [[0] * 3 for _ in range(2)]\ngood[0][0] = 1\nprint(good)  # [[1, 0, 0], [0, 0, 0]]\n",
+      "points": [
+        "Lists are mutable (can change), and `b = a` does not copy. `b` is a **reference**: a name pointing at the same list.",
+        "`[0] * 3` is `[0, 0, 0]`. In a **2D list** (a list of rows), `[[0] * 3] * 2` holds the same row twice.",
+        "The **list comprehension** `[[0] * 3 for _ in range(2)]` builds a new row each time. `_` means \"unused name\"."
+      ],
+      "points_simple": [
+        "`b = a` does not copy the list. Both names point at the same list.",
+        "`[[0] * 3] * 2` makes one row and uses it twice.",
+        "`[[0] * 3 for _ in range(2)]` makes a new row each time. Use this."
+      ],
+      "summary": "`b = a` shares one list. Build a grid with `[[0] * cols for _ in range(rows)]`.",
+      "summary_simple": "Two names can share one list. Make each grid row with a `for`.",
+      "analogy": "A reference is like a house address on a card. `[[0] * 3] * 2` gives you two cards with the same address: one house, not two. The comprehension builds a new house per card.",
+      "analogy_simple": "Two cards can show the same house address. Paint that house. Both cards now lead to a painted house.",
+      "bridge": [
+        {
+          "cpp": "vector<vector<int>> g(2, vector<int>(3, 0));",
+          "python": "g = [[0] * 3 for _ in range(2)]"
+        },
+        {
+          "cpp": "vector<int>& b = a;",
+          "python": "b = a",
+          "note": "no copy: both names share one list"
+        },
+        {
+          "cpp": "v[0] = 7;",
+          "python": "nums[0] = 7",
+          "note": "lists can change, strings cannot"
+        }
+      ],
+      "gotcha": "Mistake: `grid = [[0] * cols] * rows`. Changing one cell then changes that column in every row. Fix: `[[0] * cols for _ in range(rows)]`.",
+      "gotcha_simple": "Mistake: `[[0] * cols] * rows`. All rows are one row. Fix: build rows with a `for`."
+    },
+    {
+      "id": "d1-s10",
+      "optional": false,
+      "title": "Copies and handy helpers",
+      "title_simple": "Copies and useful helpers",
+      "new_words": [
+        "deep_copy",
+        "enumerate",
+        "zip"
+      ],
+      "python": "import copy\ngrid = [[1, 2], [3, 4]]\nshallow = grid.copy()\ndeep = copy.deepcopy(grid)\ngrid[0][0] = 7\nprint(shallow[0][0], deep[0][0])  # 7 1\nnums = [30, 10, 20]\nprint(list(enumerate(nums)))  # [(0, 30), (1, 10), (2, 20)]\nprint(list(zip(nums, ['a', 'b', 'c'])))  # [(30, 'a'), (10, 'b'), (20, 'c')]\nprint(sorted(nums), nums)  # [10, 20, 30] [30, 10, 20]\n",
+      "points": [
+        "`grid.copy()` is a **shallow copy**: new outer list, same rows. `import copy` loads `copy.deepcopy`, which copies rows too.",
+        "`enumerate(nums)` gives (index, value) pairs. `zip(a, b)` pairs items from two lists, side by side.",
+        "`sorted(nums)` returns a new sorted list and leaves `nums` as it was."
+      ],
+      "points_simple": [
+        "`grid.copy()` still shares the rows. `copy.deepcopy(grid)` copies the rows too.",
+        "`enumerate` gives each position with its value. `zip` walks two lists side by side.",
+        "`sorted(nums)` gives a new sorted list. `nums` stays the same."
+      ],
+      "summary": "Copy a grid with `copy.deepcopy`. Loop with `enumerate` and `zip` instead of index math.",
+      "summary_simple": "`deepcopy` copies everything. `enumerate` and `zip` make loops easy.",
+      "analogy": "A shallow copy is a new address book with the same addresses, so both lead to the same houses. A deep copy builds a new house for each address. `zip` is like a zipper: it joins two sides tooth by tooth.",
+      "analogy_simple": "A shallow copy is a new address book. The addresses still lead to the same houses. A deep copy builds new houses too.",
+      "bridge": [
+        {
+          "cpp": "auto g2 = g;  // copies every row",
+          "python": "g2 = copy.deepcopy(g)"
+        },
+        {
+          "cpp": "for (int i = 0; i < n; i++) use(i, v[i]);",
+          "python": "for i, x in enumerate(nums):"
+        },
+        {
+          "cpp": "sort(v.begin(), v.end());",
+          "python": "nums.sort()",
+          "note": "sorted(nums) returns a new list instead"
+        }
+      ],
+      "gotcha": "Mistake: copying a grid with `grid.copy()` and then changing a cell, so the original changes too. Fix: use `copy.deepcopy(grid)`.",
+      "gotcha_simple": "Mistake: `grid.copy()` for a grid. The rows are still shared. Fix: use `copy.deepcopy(grid)`."
+    },
+    {
+      "id": "d1-s11",
+      "optional": true,
+      "title": "Extra: bit tricks (rare)",
+      "title_simple": "Extra: bit tricks (rare)",
+      "new_words": [
+        "bitwise",
+        "shift",
+        "mask"
+      ],
+      "python": "a, b = 6, 3\n# In binary, 6 is 110 and 3 is 011.\nprint(a & b, a | b, a ^ b)  # 2 7 5\nprint(1 << 4, 20 >> 2)  # 16 5\nprint(~5)  # -6\nprint(-1 & 0xFFFFFFFF)  # 4294967295\n",
+      "points": [
+        "**Bitwise** operators work on each bit: `&` (and), `|` (or), `^` (xor: 1 when the two bits differ). Same as C++.",
+        "A **shift** moves bits: `x << 1` doubles `x`, and `x >> 1` halves it, rounding down. `~x` is always `-(x + 1)`.",
+        "Python ints have no fixed 32 bits. The **mask** `x & 0xFFFFFFFF` keeps the low 32 bits, like C++ `uint32_t`."
+      ],
+      "points_simple": [
+        "`&`, `|` and `^` work on each bit, like in C++.",
+        "`x << 1` doubles a number. `x >> 1` halves it. `~x` is `-(x + 1)`.",
+        "To get a 32-bit answer, write `x & 0xFFFFFFFF`."
+      ],
+      "summary": "Bit operators match C++, but `~x` is `-(x + 1)` and 32-bit answers need `& 0xFFFFFFFF`.",
+      "summary_simple": "Bits work like in C++. Use `& 0xFFFFFFFF` to keep 32 bits.",
+      "analogy": "A mask is like a paint stencil with 32 holes: paint only goes through the holes, so only the low 32 bits stay.",
+      "analogy_simple": "A mask is like a stencil. Paint goes only through the holes.",
+      "bridge": [
+        {
+          "cpp": "uint32_t u = x;",
+          "python": "u = x & 0xFFFFFFFF"
+        },
+        {
+          "cpp": "int y = ~x;",
+          "python": "y = ~x",
+          "note": "same in both: -(x + 1)"
+        },
+        {
+          "cpp": "if (x & 1)",
+          "python": "if x & 1:",
+          "note": "true when x is odd"
+        }
+      ],
+      "gotcha": "Mistake: expecting `~5` to be a big positive number, as with a C++ `unsigned`. In Python it is -6. Fix: mask it: `~5 & 0xFFFFFFFF`.",
+      "gotcha_simple": "Mistake: thinking `~5` is a big positive number. It is -6. Fix: write `~5 & 0xFFFFFFFF`."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "d1-e1",
+      "section": "d1-s1",
+      "topic": "Indented blocks",
+      "prompt": "What does this print?",
+      "code": "total = 0\nx = 5\nif x > 10:\n    total += 1\n    total += 10\nprint(total)\n",
+      "options": [
+        "10",
+        "0",
+        "11"
+      ],
+      "answer": 1,
+      "explanation": "Both indented lines are inside the `if`, and `5 > 10` is false, so nothing is added. In C++ without `{ }` only the first line is inside the `if`, giving 10.",
+      "explanation_simple": "Both indented lines belong to the `if`. The `if` is false, so neither runs. `total` stays 0."
+    },
+    {
+      "id": "d1-e2",
+      "section": "d1-s2",
+      "topic": "Value types",
+      "prompt": "What does this print?",
+      "code": "x = 10\nx = 'ten'\nprint(type(x))\n",
+      "options": [
+        "<class 'int'>",
+        "Error: x is an int",
+        "<class 'str'>"
+      ],
+      "answer": 2,
+      "explanation": "A name has no fixed type. After `x = 'ten'`, `x` holds a `str`. In C++ the type is fixed when you declare it, so this would not compile.",
+      "explanation_simple": "A name can hold any kind of value. Now `x` holds text, so its type is `str`."
+    },
+    {
+      "id": "d1-e3",
+      "section": "d1-s3",
+      "topic": "Chained comparison",
+      "prompt": "What does this print?",
+      "code": "x = 7\nif 1 < x < 5:\n    print('inside')\nelse:\n    print('outside')\n",
+      "options": [
+        "outside",
+        "inside",
+        "Error"
+      ],
+      "answer": 0,
+      "explanation": "`1 < x < 5` means `1 < x and x < 5`, and `7 < 5` is false. In C++ the same text means `(1 < x) < 5`, which is always true.",
+      "explanation_simple": "`1 < x < 5` checks that x is between 1 and 5. 7 is not, so `else` runs."
+    },
+    {
+      "id": "d1-e4",
+      "section": "d1-s4",
+      "topic": "Range end",
+      "prompt": "What does this print?",
+      "code": "total = 0\nfor i in range(1, 5):\n    total += i\nprint(total)\n",
+      "options": [
+        "15",
+        "10",
+        "4"
+      ],
+      "answer": 1,
+      "explanation": "`range(1, 5)` gives 1, 2, 3, 4 and stops before 5, so the sum is 10. 15 would include 5; 4 counts the numbers instead of adding them.",
+      "explanation_simple": "`range(1, 5)` stops before 5. So we add 1 + 2 + 3 + 4 = 10."
+    },
+    {
+      "id": "d1-e5",
+      "section": "d1-s5",
+      "topic": "Returning two values",
+      "prompt": "What does this print?",
+      "code": "def min_max(nums):\n    return min(nums), max(nums)\n\nprint(min_max([3, 8, 1]))\n",
+      "options": [
+        "1 8",
+        "8",
+        "(1, 8)"
+      ],
+      "answer": 2,
+      "explanation": "`return a, b` returns one tuple, and `print` shows it with brackets: `(1, 8)`. In C++, `return a, b;` would return only `b` (8).",
+      "explanation_simple": "The function gives back two values together, in `( )`. So it prints `(1, 8)`."
+    },
+    {
+      "id": "d1-e6",
+      "section": "d1-s6",
+      "topic": "No overflow",
+      "prompt": "What does this print?",
+      "code": "x = 2 ** 31 - 1\nx = x + 1\nprint(x)\n",
+      "options": [
+        "2147483648",
+        "-2147483648",
+        "Error: overflow"
+      ],
+      "answer": 0,
+      "explanation": "`2 ** 31 - 1` is C++ `INT_MAX`. Python ints never overflow, so adding 1 just gives 2147483648. A 32-bit C++ `int` would overflow here.",
+      "explanation_simple": "Python numbers just grow. So the answer is one bigger: 2147483648."
+    },
+    {
+      "id": "d1-e7",
+      "section": "d1-s7",
+      "topic": "Floor division",
+      "prompt": "What does this print?",
+      "code": "print(-9 // 4, -9 % 4)\n",
+      "options": [
+        "-2 -1",
+        "-3 -1",
+        "-3 3"
+      ],
+      "answer": 2,
+      "explanation": "-9 / 4 is -2.25, and `//` rounds down to -3. The remainder is 3, because -3 * 4 + 3 = -9. C++ gives -2 and -1.",
+      "explanation_simple": "`//` rounds -2.25 down to -3. Then -3 * 4 + 3 = -9. So the remainder is 3."
+    },
+    {
+      "id": "d1-e8",
+      "section": "d1-s8",
+      "topic": "Slicing",
+      "prompt": "What does this print?",
+      "code": "s = 'interview'\nprint(s[2:5])\n",
+      "options": [
+        "tervi",
+        "ter",
+        "terv"
+      ],
+      "answer": 1,
+      "explanation": "`s[2:5]` takes indexes 2, 3 and 4, and stops before 5. The 5 is an end index, not a length like in C++ `substr(2, 5)`.",
+      "explanation_simple": "Positions count from 0. The slice takes positions 2, 3 and 4: t, e, r. Position 5 is not included."
+    },
+    {
+      "id": "d1-e9",
+      "section": "d1-s9",
+      "topic": "Shared rows",
+      "prompt": "What does this print?",
+      "code": "grid = [[0] * 2] * 3\ngrid[1][0] = 5\nprint(grid)\n",
+      "options": [
+        "[[5, 0], [5, 0], [5, 0]]",
+        "[[0, 0], [5, 0], [0, 0]]",
+        "[[5, 5], [0, 0], [0, 0]]"
+      ],
+      "answer": 0,
+      "explanation": "`* 3` repeats a reference to one row, so all three rows are the same list. Changing it shows up three times.",
+      "explanation_simple": "All three rows are one shared row. Change it once, and you see it three times."
+    },
+    {
+      "id": "d1-e10",
+      "section": "d1-s10",
+      "topic": "Shallow copy",
+      "prompt": "What does this print?",
+      "code": "import copy\ngrid = [[1, 2], [3, 4]]\na = grid.copy()\nb = copy.deepcopy(grid)\ngrid[0][0] = 7\nprint(a[0][0], b[0][0])\n",
+      "options": [
+        "7 7",
+        "7 1",
+        "1 1"
+      ],
+      "answer": 1,
+      "explanation": "`grid.copy()` is shallow, so `a` shares the rows and sees the 7. `copy.deepcopy` copied the rows, so `b` still has 1.",
+      "explanation_simple": "`a` shares its rows with `grid`, so it sees 7. `b` has its own rows, so it keeps 1."
+    }
+  ]
+}

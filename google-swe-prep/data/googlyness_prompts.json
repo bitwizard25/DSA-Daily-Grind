@@ -1,0 +1,22 @@
+{
+  "Ambiguity": [
+    "Tell me about an architecture decision you had to lead without clear requirements.",
+    "Describe a decision you made without all the data you wanted. How did you de-risk it?",
+    "Tell me about a project where the goal itself was unclear. How did you define success?"
+  ],
+  "Ownership": [
+    "Tell me about a production outage you owned from detection to fix and follow-up.",
+    "Describe a bug outside your direct responsibility that you chose to fix.",
+    "Tell me about something you shipped on your own initiative."
+  ],
+  "Disagreement": [
+    "Tell me about a technical architecture debate where you disagreed with a senior engineer.",
+    "Describe a time you changed your mind after a technical disagreement.",
+    "Tell me about working with another team whose priorities conflicted with yours."
+  ],
+  "Humility": [
+    "Tell me about a technical miscalculation you made and what you changed afterwards.",
+    "Describe critical feedback you received and how you acted on it.",
+    "Tell me about a time you had to learn a new technology quickly."
+  ]
+}

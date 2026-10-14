@@ -1,0 +1,817 @@
+{
+  "day": 2,
+  "title": "The data structures you will use every day",
+  "title_simple": "Your everyday tools for data",
+  "subtitle": "Ten tools that come with Python, each one next to the C++ you remember.",
+  "subtitle_simple": "Ten tools you will use in almost every answer.",
+  "minutes": 60,
+  "vault": "00_python_datastructures_for_cpp_devs.md",
+  "glossary": [
+    {
+      "key": "o1",
+      "term": "O(1)",
+      "meaning": "constant time: the step takes the same time for 10 items or 10 million items",
+      "meaning_simple": "always fast, even for a very long list",
+      "example": "stack.append(4) is O(1)"
+    },
+    {
+      "key": "on",
+      "term": "O(N)",
+      "meaning": "linear time: the work grows with N, the number of items",
+      "meaning_simple": "slower when the list is longer",
+      "example": "nums.pop(0) moves every other item"
+    },
+    {
+      "key": "stack",
+      "term": "stack",
+      "meaning": "last in, first out: you add and remove at the same end (the top)",
+      "meaning_simple": "a pile: the last thing in comes out first",
+      "example": "stack.append(5); stack.pop() → 5"
+    },
+    {
+      "key": "queue",
+      "term": "queue",
+      "meaning": "first in, first out: add at the back, remove from the front",
+      "meaning_simple": "a line: the first one in goes out first",
+      "example": "add 1, add 2, take → 1"
+    },
+    {
+      "key": "deque",
+      "term": "deque",
+      "meaning": "double-ended queue (say \"deck\"), from collections: O(1) add and remove at both ends",
+      "meaning_simple": "a line you can use from both ends, fast",
+      "example": "deque([1, 2]).popleft() → 1"
+    },
+    {
+      "key": "from_import",
+      "term": "from ... import",
+      "meaning": "loads one tool from a Python module (a file of ready-made code) so you can use its name",
+      "meaning_simple": "brings in a ready-made tool by name",
+      "example": "from collections import deque"
+    },
+    {
+      "key": "min_heap",
+      "term": "min-heap",
+      "meaning": "keeps the smallest item on top, at heap[0]; heapq makes a plain list work as one",
+      "meaning_simple": "a box that always gives the smallest first",
+      "example": "heappop on 5, 1, 4 → 1"
+    },
+    {
+      "key": "o_log_n",
+      "term": "O(log N)",
+      "meaning": "grows very slowly: doubling N adds only one step (about 20 steps for a million items)",
+      "meaning_simple": "very fast, even for huge inputs",
+      "example": "heappush, bisect_left"
+    },
+    {
+      "key": "max_heap",
+      "term": "max-heap",
+      "meaning": "gives the biggest item first; with heapq, push -x and flip the sign back",
+      "meaning_simple": "a box that gives the biggest first",
+      "example": "heappush(h, -5); -heappop(h) → 5"
+    },
+    {
+      "key": "dict",
+      "term": "dict",
+      "meaning": "Python's lookup table: finds the value for a key in O(1) on average, like C++ unordered_map",
+      "meaning_simple": "a phone book: give a name, get a number",
+      "example": "{\"amy\": 25}[\"amy\"] → 25"
+    },
+    {
+      "key": "key_value",
+      "term": "key / value",
+      "meaning": "the key is what you look up; the value is what you get back",
+      "meaning_simple": "key = the name, value = the number",
+      "example": "\"amy\": 25 (key \"amy\", value 25)"
+    },
+    {
+      "key": "keyerror",
+      "term": "KeyError",
+      "meaning": "the error from d[key] when the key is not in the dict",
+      "meaning_simple": "an error: this key is not in the dict",
+      "example": "{}[\"x\"] → KeyError"
+    },
+    {
+      "key": "defaultdict",
+      "term": "defaultdict",
+      "meaning": "a dict that creates a start value (like [] or 0) for a missing key",
+      "meaning_simple": "a dict that fills in a start value for new keys",
+      "example": "defaultdict(list)[\"a\"] → []"
+    },
+    {
+      "key": "counter",
+      "term": "Counter",
+      "meaning": "a dict that counts how many times each item appears; a missing item counts 0",
+      "meaning_simple": "counts things for you",
+      "example": "Counter(\"aab\")[\"a\"] → 2"
+    },
+    {
+      "key": "frequency",
+      "term": "frequency",
+      "meaning": "how many times an item appears",
+      "meaning_simple": "how often something appears",
+      "example": "in \"banana\", the frequency of a is 3"
+    },
+    {
+      "key": "set",
+      "term": "set",
+      "meaning": "a collection of unique values with O(1) add and in, like C++ unordered_set",
+      "meaning_simple": "a bag where each thing is only once",
+      "example": "set([1, 1, 2]) → {1, 2}"
+    },
+    {
+      "key": "duplicate",
+      "term": "duplicate",
+      "meaning": "a value that appears more than once",
+      "meaning_simple": "a repeat",
+      "example": "[4, 4, 1] has a duplicate 4"
+    },
+    {
+      "key": "hashable",
+      "term": "hashable",
+      "meaning": "can be a set item or a dict key: immutable values like int, str, tuple; a list is not",
+      "meaning_simple": "fixed, so it can go in a set or be a dict key",
+      "example": "(1, 2) yes, [1, 2] no"
+    },
+    {
+      "key": "class",
+      "term": "class",
+      "meaning": "a blueprint for your own objects, like a C++ struct",
+      "meaning_simple": "a plan for making your own boxes",
+      "example": "class ListNode:"
+    },
+    {
+      "key": "init",
+      "term": "__init__ / self",
+      "meaning": "`__init__` is the constructor; `self` is the new object being built, like `this` in C++",
+      "meaning_simple": "__init__ fills a new box; self is that box",
+      "example": "self.val = val"
+    },
+    {
+      "key": "node",
+      "term": "node",
+      "meaning": "one object in a linked list or tree: a value plus links to other nodes",
+      "meaning_simple": "one box with a value and links",
+      "example": "ListNode(1, ListNode(2))"
+    },
+    {
+      "key": "in_place",
+      "term": "in place",
+      "meaning": "changes the object itself instead of making a new one",
+      "meaning_simple": "changes the same list, no new list",
+      "example": "nums.sort() returns None"
+    },
+    {
+      "key": "lambda",
+      "term": "lambda",
+      "meaning": "a tiny function with no name, written in one line",
+      "meaning_simple": "a small function in one line",
+      "example": "lambda p: p[1]"
+    },
+    {
+      "key": "sort_key",
+      "term": "key=",
+      "meaning": "a function that tells the sort what to compare for each item",
+      "meaning_simple": "what to look at when sorting",
+      "example": "sorted(words, key=len)"
+    },
+    {
+      "key": "binary_search",
+      "term": "binary search",
+      "meaning": "search a sorted list by halving the range each step: O(log N)",
+      "meaning_simple": "look in the middle, throw away half, repeat",
+      "example": "find 7 in [1, 3, 7, 9]"
+    },
+    {
+      "key": "bisect_left",
+      "term": "bisect_left",
+      "meaning": "first index where nums[i] >= x (C++ lower_bound)",
+      "meaning_simple": "the leftmost spot to put x and keep the list sorted",
+      "example": "bisect_left([1, 3, 3], 3) → 1"
+    },
+    {
+      "key": "bisect_right",
+      "term": "bisect_right",
+      "meaning": "first index where nums[i] > x (C++ upper_bound)",
+      "meaning_simple": "the place just after the last x",
+      "example": "bisect_right([1, 3, 3], 3) → 3"
+    },
+    {
+      "key": "recursion",
+      "term": "recursion",
+      "meaning": "a function that calls itself on a smaller input",
+      "meaning_simple": "a function that calls itself",
+      "example": "fib(n) calls fib(n - 1)"
+    },
+    {
+      "key": "base_case",
+      "term": "base case",
+      "meaning": "the small input a recursive function answers directly, so the calls stop",
+      "meaning_simple": "the stop rule: a small case with a known answer",
+      "example": "if n < 2: return n"
+    },
+    {
+      "key": "memoization",
+      "term": "memoization",
+      "meaning": "remembering answers so each input is worked out only once",
+      "meaning_simple": "keep answers, so you never work twice",
+      "example": "@lru_cache(None) on the line above def"
+    }
+  ],
+  "sections": [
+    {
+      "id": "d2-s1",
+      "optional": false,
+      "title": "list: a growing array and a stack",
+      "title_simple": "list as a pile of plates",
+      "new_words": [
+        "stack",
+        "o1",
+        "on"
+      ],
+      "python": "stack = []\nstack.append(1)\nstack.append(2)\nstack.append(3)\nprint(stack)  # [1, 2, 3]\n# [-1] reads the last item (the top)\nprint(stack[-1])  # 3\n# pop() removes the last item and gives it back\nprint(stack.pop())  # 3\nprint(stack)  # [1, 2]\n",
+      "points": [
+        "Use a list as a **stack** (last in, first out): `append(x)` adds on top and `pop()` takes the top.",
+        "`append`, `pop()` and `[-1]` are **O(1)** (constant time: the same speed for 10 items or 10 million).",
+        "`pop(0)` takes the first item, but every other item must move: **O(N)** (time grows with N, the number of items)."
+      ],
+      "points_simple": [
+        "A stack is a pile. The last thing in is the first thing out.",
+        "`append`, `pop()` and `[-1]` are always fast. We call this O(1).",
+        "`pop(0)` takes the first item. All other items must move. This is slow: O(N)."
+      ],
+      "summary": "A list is your stack: `append` adds on top, `pop()` takes the top, `[-1]` looks at it. All three are O(1).",
+      "summary_simple": "List = pile. `append` adds on top. `pop()` takes from the top.",
+      "analogy": "A pile of plates. You put a new plate on top and you take from the top. Taking the bottom plate means lifting every other plate first: that is `pop(0)`.",
+      "analogy_simple": "Think of a pile of plates. New plates go on top. You take from the top too. The bottom plate is hard to reach.",
+      "bridge": [
+        {
+          "cpp": "st.push(x);",
+          "python": "stack.append(x)",
+          "note": "C++ std::stack or vector both map to a list"
+        },
+        {
+          "cpp": "st.top()",
+          "python": "stack[-1]",
+          "note": "look at the top, do not remove"
+        },
+        {
+          "cpp": "st.pop();",
+          "python": "stack.pop()",
+          "note": "Python's pop() also gives back the item"
+        }
+      ],
+      "gotcha": "Mistake: `nums.pop(0)` to take the first item, for example in a queue. It is O(N) every time. Fix: use a `deque` (next step).",
+      "gotcha_simple": "Mistake: `pop(0)` to take the first item. It is slow. Fix: use a deque. You learn it next."
+    },
+    {
+      "id": "d2-s2",
+      "optional": false,
+      "title": "deque: a fast queue",
+      "title_simple": "deque: a line at a shop",
+      "new_words": [
+        "queue",
+        "deque",
+        "from_import"
+      ],
+      "python": "from collections import deque\n\nqueue = deque([1, 2, 3])\nqueue.append(4)\n# popleft() takes from the front, in O(1)\nprint(queue.popleft())  # 1\nprint(queue)  # deque([2, 3, 4])\nprint(len(queue))  # 3\n",
+      "points": [
+        "A **queue** (first in, first out) serves items in arrival order. A **deque** (say \"deck\") is O(1) at both ends.",
+        "**from ... import** loads one tool from a module (a file of ready-made code): `from collections import deque`.",
+        "`append(x)` adds at the back; `popleft()` takes from the front. BFS (a search that visits near places first) uses this."
+      ],
+      "points_simple": [
+        "A queue is a line. The first one in is the first one out.",
+        "`from collections import deque` brings in the deque tool. Python has it ready.",
+        "`append` joins the back. `popleft()` takes the front. Later, BFS search uses this."
+      ],
+      "summary": "Need a queue? Use `deque`: `append` at the back, `popleft()` at the front. Both are O(1).",
+      "summary_simple": "For a line of items, use deque. Add with `append`. Take with `popleft()`.",
+      "analogy": "A line at a ticket counter. New people join at the back, and the person at the front is served first. That is first in, first out.",
+      "analogy_simple": "Think of a line at a shop. New people join at the back. The person at the front goes first.",
+      "bridge": [
+        {
+          "cpp": "std::queue<int> q;",
+          "python": "queue = deque()"
+        },
+        {
+          "cpp": "q.push(x);",
+          "python": "queue.append(x)",
+          "note": "add at the back"
+        },
+        {
+          "cpp": "int x = q.front(); q.pop();",
+          "python": "x = queue.popleft()",
+          "note": "one call reads and removes"
+        }
+      ],
+      "gotcha": "Mistake: `queue.pop()` to take the front, as with C++ `q.pop()`. On a deque, `pop()` takes the back. Fix: use `popleft()`.",
+      "gotcha_simple": "Mistake: `pop()` to take the front. It takes the back. Fix: use `popleft()`."
+    },
+    {
+      "id": "d2-s3",
+      "optional": false,
+      "title": "heapq: smallest item first",
+      "title_simple": "heapq: always get the smallest",
+      "new_words": [
+        "min_heap",
+        "o_log_n",
+        "max_heap"
+      ],
+      "python": "import heapq\nheap = []\nfor x in [5, 1, 4]:\n    heapq.heappush(heap, x)\nprint(heapq.heappop(heap))  # 1\n# Biggest first: push -x, then flip the sign back\nbig = []\nfor x in [5, 1, 4]:\n    heapq.heappush(big, -x)\nprint(-heapq.heappop(big))  # 5\n",
+      "points": [
+        "`heapq` keeps a list as a **min-heap**: `heappop` takes the smallest. Push and pop are **O(log N)** (~20 steps for a million).",
+        "Push `(priority, item)` tuples. Tuples compare by the first value, so the smallest priority (most urgent) comes out first.",
+        "C++ `priority_queue` gives the biggest first. For a **max-heap**, push `-x` and flip the sign after `heappop`."
+      ],
+      "points_simple": [
+        "heapq always gives back the smallest item. Adding and taking are fast.",
+        "Push pairs like `(2, \"email\")`. The smallest first number comes out first.",
+        "Want the biggest first? Push `-x`. Flip the sign back when you take it."
+      ],
+      "summary": "`heapq` is a min-heap: `heappush` adds, `heappop` takes the smallest. Push `(priority, item)` tuples or `-x`.",
+      "summary_simple": "heapq always gives the smallest first. Push `-x` to get the biggest first.",
+      "analogy": "A hospital waiting room: the most urgent patient goes first, not the one who came first. With heapq, the smallest priority number means the most urgent.",
+      "analogy_simple": "Think of a hospital. The most urgent person goes first. Here, the smallest number is the most urgent.",
+      "bridge": [
+        {
+          "cpp": "pq.push(x);",
+          "python": "heapq.heappush(heap, x)",
+          "note": "heap is a plain list: heap = []"
+        },
+        {
+          "cpp": "int s = pq.top(); pq.pop();",
+          "python": "s = heapq.heappop(heap)",
+          "note": "one call reads and removes"
+        },
+        {
+          "cpp": "priority_queue<int> pq; pq.push(x);",
+          "python": "heapq.heappush(heap, -x)",
+          "note": "biggest first: store -x"
+        }
+      ],
+      "gotcha": "Mistake: expecting the biggest item first, as with C++ `priority_queue`. `heapq` gives the smallest. Fix: push `-x` and flip the sign after `heappop`.",
+      "gotcha_simple": "Mistake: expecting the biggest first, like in C++. heapq gives the smallest. Fix: push `-x`, flip it back."
+    },
+    {
+      "id": "d2-s4",
+      "optional": false,
+      "title": "dict: find a value by its key",
+      "title_simple": "dict: a phone book",
+      "new_words": [
+        "dict",
+        "key_value",
+        "keyerror"
+      ],
+      "python": "ages = {\"amy\": 25, \"bob\": 30}\nages[\"cat\"] = 22\nprint(ages[\"bob\"])  # 30\n# get() gives a default value when the key is missing\nprint(ages.get(\"dan\", 0))  # 0\nprint(\"dan\" in ages)  # False\n# items() gives (key, value) pairs: amy 25, bob 30, cat 22\nfor name, age in ages.items():\n    print(name, age)\n",
+      "points": [
+        "A **dict** (dictionary) links each **key** to a **value**, like C++ `unordered_map`. `d[key]` is O(1) on average.",
+        "`d[key]` with a missing key gives the error **KeyError** and the program stops. `d.get(key, 0)` returns 0 instead.",
+        "`key in d` checks if a key exists, in O(1). `d.items()` gives `(key, value)` pairs for a `for` loop."
+      ],
+      "points_simple": [
+        "A dict links a key to a value. Think: a name and its phone number.",
+        "A missing key in `d[key]` is an error. `d.get(key, 0)` gives 0 instead.",
+        "`key in d` asks: is this key there? `d.items()` gives each key with its value."
+      ],
+      "summary": "dict = key → value in O(1). Read with `d[key]`, or safely with `d.get(key, 0)`. Check with `key in d`.",
+      "summary_simple": "A dict finds a value from its key, fast. Use `d.get(key, 0)` if the key may be missing.",
+      "analogy": "A phone book: you look up a name (the key) and get a number (the value). You never read the whole book; you jump straight to the name.",
+      "analogy_simple": "Think of a phone book. You look up a name. You get the number. You do not read every page.",
+      "bridge": [
+        {
+          "cpp": "unordered_map<string, int> ages;",
+          "python": "ages = {}"
+        },
+        {
+          "cpp": "ages[\"amy\"] = 25;",
+          "python": "ages[\"amy\"] = 25",
+          "note": "same"
+        },
+        {
+          "cpp": "if (ages.count(\"amy\")) { ... }",
+          "python": "if \"amy\" in ages:"
+        }
+      ],
+      "gotcha": "Mistake: `count[w] += 1` for a new key. C++ `m[k]++` starts at 0, but Python raises KeyError. Fix: `count[w] = count.get(w, 0) + 1`.",
+      "gotcha_simple": "Mistake: `count[w] += 1` for a new word. Python gives KeyError. Fix: `count[w] = count.get(w, 0) + 1`."
+    },
+    {
+      "id": "d2-s5",
+      "optional": false,
+      "title": "defaultdict and Counter",
+      "title_simple": "Dicts that fill themselves",
+      "new_words": [
+        "defaultdict",
+        "counter",
+        "frequency"
+      ],
+      "python": "from collections import Counter, defaultdict\n# defaultdict(list): a new key starts as an empty list\ngroups = defaultdict(list)\ngroups[\"a\"].append(\"apple\")\nprint(groups[\"a\"])  # ['apple']\n# Counter: how many times each item appears\ncount = Counter(\"banana\")\nprint(count[\"a\"])  # 3\nprint(count[\"z\"])  # 0\nprint(count.most_common(1))  # [('a', 3)]\n",
+      "points": [
+        "A **defaultdict** creates a missing key for you. `defaultdict(list)` starts it as `[]`; `defaultdict(int)` starts it at 0.",
+        "**Counter** counts the **frequency** (how many times each item appears) in O(N). A missing item counts as 0.",
+        "`count.most_common(k)` returns the k most frequent `(item, count)` pairs, biggest count first."
+      ],
+      "points_simple": [
+        "`defaultdict(list)` makes an empty list for a new key. So there is no KeyError.",
+        "`Counter` counts each item for you. A missing item gives 0.",
+        "`most_common(2)` gives the two items you saw most often."
+      ],
+      "summary": "Group things with `defaultdict(list)`. Count things with `Counter(items)`. Neither raises KeyError.",
+      "summary_simple": "Use `defaultdict(list)` to group things. Use `Counter` to count things.",
+      "analogy": "A defaultdict is a filing cabinet that makes a new empty folder the first time you ask for a name. A Counter is a tally sheet: one mark each time you see a word.",
+      "analogy_simple": "A defaultdict is a cabinet. Ask for a new name and you get an empty folder. A Counter is a tally sheet.",
+      "bridge": [
+        {
+          "cpp": "unordered_map<int, vector<int>> g;",
+          "python": "g = defaultdict(list)"
+        },
+        {
+          "cpp": "g[u].push_back(v);",
+          "python": "g[u].append(v)",
+          "note": "no key check needed"
+        },
+        {
+          "cpp": "for (char c : s) freq[c]++;",
+          "python": "freq = Counter(s)",
+          "note": "one line, O(N)"
+        }
+      ],
+      "gotcha": "Mistake: reading `groups[x]` just to check it. A defaultdict then adds `x` with an empty list. Fix: check with `x in groups`.",
+      "gotcha_simple": "Mistake: reading `groups[x]` to check it. That adds x to the dict. Fix: ask `x in groups`."
+    },
+    {
+      "id": "d2-s6",
+      "optional": false,
+      "title": "set: have I seen this before?",
+      "title_simple": "set: a guest list at the door",
+      "new_words": [
+        "set",
+        "duplicate",
+        "hashable"
+      ],
+      "python": "seen = set()\nseen.add(3)\nseen.add(5)\nseen.add(3)\nprint(len(seen))  # 2\nprint(5 in seen)  # True\n# set() removes duplicates; sort it if you need an order\nnums = [4, 1, 4, 4, 1]\nprint(len(set(nums)))  # 2\nprint(sorted(set(nums)))  # [1, 4]\n",
+      "points": [
+        "A **set** stores each value once. `add(x)` puts it in; `x in seen` checks it in O(1), not O(N) as in a list.",
+        "`set(nums)` removes **duplicates** (repeated values). A set has no order, so sort it when order matters.",
+        "Items must be **hashable** (immutable: numbers, strings, tuples). Store a grid cell as a tuple: `seen.add((r, c))`."
+      ],
+      "points_simple": [
+        "A set keeps each value only once. Checking `x in seen` is very fast.",
+        "`set(nums)` throws away the repeats. The order is not kept.",
+        "Only fixed values go in a set: numbers, text, tuples. Lists cannot go in."
+      ],
+      "summary": "Use a set to ask \"have I seen this?\" in O(1). `set(nums)` removes duplicates.",
+      "summary_simple": "A set answers \"seen it before?\" very fast. It also removes repeats.",
+      "analogy": "A guest list at a party door. The guard checks a name at a glance, and writing the same name twice changes nothing.",
+      "analogy_simple": "Think of a guest list at a door. Each name is there once. The guard checks a name very fast.",
+      "bridge": [
+        {
+          "cpp": "unordered_set<int> seen; seen.insert(x);",
+          "python": "seen = set(); seen.add(x)"
+        },
+        {
+          "cpp": "if (seen.count(x)) { ... }",
+          "python": "if x in seen:"
+        },
+        {
+          "cpp": "set<pair<int,int>> cells; cells.insert({r, c});",
+          "python": "cells.add((r, c))",
+          "note": "a tuple is one item"
+        }
+      ],
+      "gotcha": "Mistake: `seen = {}` for an empty set. That makes an empty dict. Fix: `seen = set()`.",
+      "gotcha_simple": "Mistake: `seen = {}`. That makes an empty dict, not a set. Fix: `seen = set()`."
+    },
+    {
+      "id": "d2-s7",
+      "optional": false,
+      "title": "Build your own nodes with class",
+      "title_simple": "Make your own boxes with class",
+      "new_words": [
+        "class",
+        "init",
+        "node"
+      ],
+      "python": "class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\n# Two nodes: 1 -> 2. None means \"no node\" (nullptr)\nhead = ListNode(1, ListNode(2))\nprint(head.val, head.next.val)  # 1 2\nprint(head.next.next)  # None\n",
+      "points": [
+        "A **class** is a plan for making your own objects, like a C++ `struct`. `__init__` is its constructor; `self` is the new object.",
+        "A **node** holds a value plus links: `next` in a `ListNode`, `left` and `right` in a `TreeNode`. `None` means \"no node\".",
+        "`a, b = b, a` swaps two variables in one line. Python reads the whole right side first, so no temp variable is needed."
+      ],
+      "points_simple": [
+        "A class is a plan for your own boxes. `__init__` fills a new box, called `self`.",
+        "A node box holds a value and links to other boxes. `None` means no box.",
+        "`a, b = b, a` swaps two names in one line."
+      ],
+      "summary": "A node is a small class: `__init__` saves `val` and the links. `None` is an empty link, like `nullptr`.",
+      "summary_simple": "A node is a small box with a value and links. `None` means no link.",
+      "analogy": "A treasure hunt: each card has a prize (the value) and says where the next card is (the link). The last card says \"no next card\": that is `None`.",
+      "analogy_simple": "Think of a treasure hunt. Each card has a prize. It also says where the next card is. The last card says none.",
+      "bridge": [
+        {
+          "cpp": "struct ListNode { int val; ListNode* next; };",
+          "python": "class ListNode:",
+          "note": "fields are set in __init__"
+        },
+        {
+          "cpp": "node->next = nullptr;",
+          "python": "node.next = None",
+          "note": "no * and no ->"
+        },
+        {
+          "cpp": "int t = a; a = b; b = t;",
+          "python": "a, b = b, a",
+          "note": "swap, no temp variable"
+        }
+      ],
+      "gotcha": "Mistake: reading `node.next.val` when `node.next` is None. Python stops with an error (AttributeError). Fix: check `if node.next is not None:` first.",
+      "gotcha_simple": "Mistake: reading `.val` of an empty link. Python stops with an error. Fix: check `is not None` first."
+    },
+    {
+      "id": "d2-s8",
+      "optional": false,
+      "title": "Sorting: sorted(), sort(), key=",
+      "title_simple": "Putting things in order",
+      "new_words": [
+        "in_place",
+        "lambda",
+        "sort_key"
+      ],
+      "python": "nums = [3, 1, 2]\nprint(sorted(nums), nums)  # [1, 2, 3] [3, 1, 2]\n# sort() changes the list itself and returns None\nnums.sort(reverse=True)\nprint(nums)  # [3, 2, 1]\n# Tuples sort by the first item, then the second\npairs = [(2, \"b\"), (1, \"z\"), (2, \"a\")]\nprint(sorted(pairs))  # [(1, 'z'), (2, 'a'), (2, 'b')]\n# key=lambda p: p[1] sorts by the second item\nprint(sorted(pairs, key=lambda p: p[1]))  # [(2, 'a'), (2, 'b'), (1, 'z')]\n",
+      "points": [
+        "`sorted(nums)` returns a new list. `nums.sort()` sorts **in place** (changes the list itself) and returns `None`.",
+        "`key=` says what to compare. A **lambda** is a tiny one-line function: `key=lambda p: p[1]` compares the second item.",
+        "`reverse=True` puts the biggest first. Tuples compare item by item. Sorting is O(N log N) (a little slower than O(N))."
+      ],
+      "points_simple": [
+        "`sorted(nums)` makes a new list. `nums.sort()` changes nums and gives back None.",
+        "`key=` says what to look at. `lambda p: p[1]` means: look at the second item.",
+        "`reverse=True` puts the biggest first. Tuples compare the first item, then the next."
+      ],
+      "summary": "`sorted(x)` gives a new list; `x.sort()` changes x. Use `key=lambda ...` to choose what to compare.",
+      "summary_simple": "`sorted()` makes a new list. `.sort()` changes the old one. `key=` picks what to compare.",
+      "analogy": "Lining up students: `key=` is what you line them up by, like height or name. `sorted()` writes the new order on paper; `sort()` moves the real students.",
+      "analogy_simple": "Think of students in a line. `key=` is what you sort by, like height. `sorted()` writes a new list. `sort()` moves the real students.",
+      "bridge": [
+        {
+          "cpp": "sort(v.begin(), v.end());",
+          "python": "v.sort()"
+        },
+        {
+          "cpp": "sort(v.rbegin(), v.rend());",
+          "python": "v.sort(reverse=True)",
+          "note": "biggest first"
+        },
+        {
+          "cpp": "sort(v.begin(), v.end(), bySecond);",
+          "python": "v.sort(key=lambda p: p[1])",
+          "note": "key= replaces the compare function"
+        }
+      ],
+      "gotcha": "Mistake: `nums = nums.sort()`. `sort()` returns None, so nums becomes None. Fix: write `nums.sort()` alone, or `nums = sorted(nums)`.",
+      "gotcha_simple": "Mistake: `nums = nums.sort()`. Now nums is None. Fix: write `nums.sort()` alone."
+    },
+    {
+      "id": "d2-s9",
+      "optional": false,
+      "title": "bisect: binary search for free",
+      "title_simple": "bisect: find a spot in sorted data",
+      "new_words": [
+        "binary_search",
+        "bisect_left",
+        "bisect_right"
+      ],
+      "python": "from bisect import bisect_left, bisect_right\n\nnums = [1, 3, 3, 3, 8]\n# first index where nums[i] >= 3 (like lower_bound)\nprint(bisect_left(nums, 3))  # 1\n# first index where nums[i] > 3 (like upper_bound)\nprint(bisect_right(nums, 3))  # 4\n# how many 3s: right minus left\nprint(bisect_right(nums, 3) - bisect_left(nums, 3))  # 3\n",
+      "points": [
+        "**Binary search** halves the search range at each step, so it takes O(log N). The list must be sorted first.",
+        "`bisect_left(nums, x)` is C++ `lower_bound`: the first index where `nums[i] >= x`. You get an index, not an iterator.",
+        "`bisect_right(nums, x)` is `upper_bound`: the first index where `nums[i] > x`. Right minus left = how many x."
+      ],
+      "points_simple": [
+        "Binary search cuts the list in half at each step. The list must be sorted.",
+        "`bisect_left` gives the leftmost spot to put x and keep the order. That is the first item >= x.",
+        "`bisect_right` gives the place just after the last x."
+      ],
+      "summary": "On a sorted list, `bisect_left` = `lower_bound` and `bisect_right` = `upper_bound`. Both return an index in O(log N).",
+      "summary_simple": "bisect finds a place in a sorted list, fast. It gives back an index.",
+      "analogy": "Finding a word in a paper dictionary: open the middle, see if your word is before or after, and ignore the other half. Repeat until one page is left.",
+      "analogy_simple": "Think of a paper dictionary. Open the middle. Is your word before or after? Ignore half. Repeat.",
+      "bridge": [
+        {
+          "cpp": "lower_bound(v.begin(), v.end(), x) - v.begin()",
+          "python": "bisect_left(v, x)",
+          "note": "returns an index"
+        },
+        {
+          "cpp": "upper_bound(v.begin(), v.end(), x) - v.begin()",
+          "python": "bisect_right(v, x)"
+        },
+        {
+          "cpp": "if (it == v.end())",
+          "python": "if i == len(v):",
+          "note": "x is bigger than every item"
+        }
+      ],
+      "gotcha": "Mistake: reading `nums[i]` right after `i = bisect_left(nums, x)`. If x is bigger than every item, `i` is `len(nums)`: IndexError. Fix: check `i < len(nums)`.",
+      "gotcha_simple": "Mistake: using `nums[i]` without a check. i can be `len(nums)`. Fix: first check `i < len(nums)`."
+    },
+    {
+      "id": "d2-s10",
+      "optional": false,
+      "title": "Recursion and remembering answers",
+      "title_simple": "A function that calls itself",
+      "new_words": [
+        "recursion",
+        "base_case",
+        "memoization"
+      ],
+      "python": "from functools import lru_cache\n\n@lru_cache(None)\ndef fib(n):\n    # base case: we know the answer, so stop here\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\n\nprint(fib(50))  # 12586269025\n",
+      "points": [
+        "**Recursion**: a function calls itself on a smaller input. The **base case** (an input with a known answer) stops it.",
+        "**Memoization** means remembering answers. `@lru_cache(None)` saves every result (`None` = no size limit), so `fib(50)` is fast.",
+        "An `@` line above `def` is a decorator (it adds a feature to the function). `@cache` does the same. Arguments must be hashable."
+      ],
+      "points_simple": [
+        "Recursion: a function calls itself with a smaller problem. A base case stops it.",
+        "`@lru_cache(None)` remembers every answer. `None` means: no limit. Each answer is worked out once.",
+        "The `@` line adds a power to the function. `@cache` does the same job."
+      ],
+      "summary": "Write the base case first, then the recursive call. Add `@lru_cache(None)` (or `@cache`) to remember answers.",
+      "summary_simple": "Write the stop rule first. Then add `@lru_cache(None)` to remember answers.",
+      "analogy": "In a line, you want your place number. You ask the person in front for theirs and add 1. They do the same. The first person just knows: 1. That is the base case.",
+      "analogy_simple": "Each person in a line asks the one in front. Then they add 1. The first person just knows: 1. That is the stop rule.",
+      "bridge": [
+        {
+          "cpp": "unordered_map<int, long long> memo;",
+          "python": "@lru_cache(None)",
+          "note": "Python keeps the memo for you"
+        },
+        {
+          "cpp": "if (memo.count(n)) return memo[n];",
+          "python": "# nothing to write: the cache checks",
+          "note": "done inside lru_cache"
+        },
+        {
+          "cpp": "long long fib(int n) { ... }",
+          "python": "def fib(n):",
+          "note": "no long long: Python ints never overflow"
+        }
+      ],
+      "gotcha": "Mistake: no base case, or one that is never reached. The calls never stop and Python raises RecursionError. Fix: write the stop rule first.",
+      "gotcha_simple": "Mistake: no base case. The calls never stop, and Python gives RecursionError. Fix: write the stop rule first."
+    }
+  ],
+  "exercises": [
+    {
+      "id": "d2-e1",
+      "section": "d2-s1",
+      "topic": "list as a stack",
+      "prompt": "What does this print?",
+      "code": "stack = [5, 7]\nstack.append(9)\nstack.pop()\nprint(stack[-1])\n",
+      "options": [
+        "9",
+        "7",
+        "5"
+      ],
+      "answer": 1,
+      "explanation": "`append(9)` puts 9 on top; `pop()` removes the top (9). The new top, `stack[-1]`, is 7. If `pop()` took the front, you would get 9.",
+      "explanation_simple": "9 goes on top. Then `pop()` takes 9 away. The last item is now 7."
+    },
+    {
+      "id": "d2-e2",
+      "section": "d2-s2",
+      "topic": "deque ends",
+      "prompt": "What does this print?",
+      "code": "from collections import deque\nqueue = deque([1, 2, 3])\nqueue.append(4)\nprint(queue.popleft(), queue.pop())\n",
+      "options": [
+        "1 2",
+        "4 1",
+        "1 4"
+      ],
+      "answer": 2,
+      "explanation": "`popleft()` takes the front (1). `pop()` takes the back (4), not the front as C++ `q.pop()` does. That C++ habit gives `1 2`.",
+      "explanation_simple": "`popleft()` takes 1 from the front. `pop()` takes 4 from the back."
+    },
+    {
+      "id": "d2-e3",
+      "section": "d2-s3",
+      "topic": "heap of tuples",
+      "prompt": "What does this print?",
+      "code": "import heapq\ntasks = []\nheapq.heappush(tasks, (2, \"email\"))\nheapq.heappush(tasks, (1, \"code\"))\nheapq.heappush(tasks, (3, \"lunch\"))\nprint(heapq.heappop(tasks)[1])\n",
+      "options": [
+        "code",
+        "lunch",
+        "email"
+      ],
+      "answer": 0,
+      "explanation": "Tuples compare by the first number, and `heapq` pops the smallest: `(1, \"code\")`. `[1]` picks the name. C++ `priority_queue` would give the biggest: lunch.",
+      "explanation_simple": "heapq gives the smallest first number. That is 1, so the task is code."
+    },
+    {
+      "id": "d2-e4",
+      "section": "d2-s4",
+      "topic": "dict.get counting",
+      "prompt": "What does this print?",
+      "code": "count = {}\nfor w in [\"a\", \"b\", \"a\"]:\n    count[w] = count.get(w, 0) + 1\nprint(count)\n",
+      "options": [
+        "{'a': 1, 'b': 1}",
+        "{'a': 2, 'b': 1}",
+        "KeyError"
+      ],
+      "answer": 1,
+      "explanation": "`count.get(w, 0)` returns 0 for a new key, so there is no KeyError. \"a\" appears twice, so its count ends at 2.",
+      "explanation_simple": "`get(w, 0)` gives 0 for a new word, so there is no error. \"a\" comes twice, so it is 2."
+    },
+    {
+      "id": "d2-e5",
+      "section": "d2-s5",
+      "topic": "defaultdict groups",
+      "prompt": "What does this print?",
+      "code": "from collections import defaultdict\ngroups = defaultdict(list)\nfor word in [\"ant\", \"bee\", \"ape\"]:\n    groups[word[0]].append(word)\nprint(groups[\"a\"])\n",
+      "options": [
+        "KeyError",
+        "['ape']",
+        "['ant', 'ape']"
+      ],
+      "answer": 2,
+      "explanation": "A new key starts as `[]`, so there is no KeyError. Each word is added to the list of its first letter: \"ant\" and \"ape\" both go under \"a\".",
+      "explanation_simple": "A new key starts as an empty list. \"ant\" and \"ape\" both start with a, so both go there."
+    },
+    {
+      "id": "d2-e6",
+      "section": "d2-s6",
+      "topic": "set removes repeats",
+      "prompt": "What does this print?",
+      "code": "nums = [2, 7, 2, 7, 2]\nprint(len(set(nums)), len(nums))\n",
+      "options": [
+        "2 5",
+        "5 5",
+        "2 2"
+      ],
+      "answer": 0,
+      "explanation": "`set(nums)` keeps one copy of each value, {2, 7}, so its length is 2. It builds a new set: `nums` itself does not change and still has 5 items.",
+      "explanation_simple": "The set keeps 2 and 7 once each. The list `nums` does not change. It still has 5 items."
+    },
+    {
+      "id": "d2-e7",
+      "section": "d2-s7",
+      "topic": "nodes and None",
+      "prompt": "What does this print?",
+      "code": "class ListNode:\n    def __init__(self, val, next=None):\n        self.val = val\n        self.next = next\nhead = ListNode(7, ListNode(8))\nprint(head.next.val, head.next.next)\n",
+      "options": [
+        "7 None",
+        "8 0",
+        "8 None"
+      ],
+      "answer": 2,
+      "explanation": "`head.next` is the node holding 8. Its own `next` was never given, so it keeps the default `None`, Python's `nullptr`.",
+      "explanation_simple": "The second node holds 8. Nothing comes after it, so its `next` is None."
+    },
+    {
+      "id": "d2-e8",
+      "section": "d2-s8",
+      "topic": "sort() returns None",
+      "prompt": "What does this print?",
+      "code": "nums = [3, 1, 2]\nresult = nums.sort()\nprint(result, nums)\n",
+      "options": [
+        "[1, 2, 3] [1, 2, 3]",
+        "None [1, 2, 3]",
+        "[1, 2, 3] [3, 1, 2]"
+      ],
+      "answer": 1,
+      "explanation": "`sort()` works in place: it changes `nums` and returns `None`. Use `sorted(nums)` when you want a new sorted list back.",
+      "explanation_simple": "`sort()` changes nums itself. It gives back None, so result is None."
+    },
+    {
+      "id": "d2-e9",
+      "section": "d2-s9",
+      "topic": "bisect indexes",
+      "prompt": "What does this print?",
+      "code": "from bisect import bisect_left, bisect_right\nnums = [2, 4, 4, 9]\nprint(bisect_left(nums, 4), bisect_right(nums, 4))\n",
+      "options": [
+        "1 3",
+        "1 2",
+        "4 4"
+      ],
+      "answer": 0,
+      "explanation": "Both return indexes. The first 4 is at index 1 (`bisect_left`). `bisect_right` is one past the last 4: index 3. Neither returns the value 4.",
+      "explanation_simple": "The first 4 is at index 1. The place just after the last 4 is index 3."
+    },
+    {
+      "id": "d2-e10",
+      "section": "d2-s10",
+      "topic": "recursion result",
+      "prompt": "What does this print?",
+      "code": "def total(n):\n    if n == 0:\n        return 0\n    return n + total(n - 1)\nprint(total(4))\n",
+      "options": [
+        "4",
+        "0",
+        "10"
+      ],
+      "answer": 2,
+      "explanation": "`total(4)` = 4 + `total(3)` = 4 + 3 + 2 + 1 + 0 = 10. The base case gives 0 only to the call above it, not as the final answer.",
+      "explanation_simple": "It adds 4 + 3 + 2 + 1 + 0. That is 10. The 0 is only the last step."
+    }
+  ]
+}
