@@ -438,15 +438,16 @@ function startUpdateIndicator() {
 }
 
 async function openUpdates() {
-  const updates = updaterSettings();
+  const updates = updaterSettings({showHeading:false});
   try {await openModal('App updates', updates.node, [{label:'Close', value:null, primary:true}]);}
   finally {updates.cleanup();}
 }
 
-function updaterSettings() {
+function updaterSettings({showHeading = true} = {}) {
   let disposed = false, last = null, changing = false;
   const message = h('p', {class:'muted small', role:'status', 'aria-live':'polite', 'data-test':'update-status'}, 'Loading update status…');
   const version = h('p', {class:'muted small'});
+  const availability = h('p', {class:'muted small', hidden:true});
   const automatic = h('input', {type:'checkbox', disabled:true, 'data-test':'auto-updates', onchange:async () => {
     if (!last || changing) return;
     changing = true;automatic.disabled = true;
@@ -469,20 +470,22 @@ function updaterSettings() {
     last = status;
     if(!changing) automatic.checked = status.supported && status.enabled;
     automatic.disabled = changing || !status.supported;
+    availability.hidden = !!status.supported;
+    availability.textContent = 'Automatic updates are unavailable in this copy. Open the installed Windows app; if this is the installed app, repair it with the latest installer.';
     version.textContent = `Version ${status.version}${status.build_number ? ` · build ${status.build_number}` : ''}`;
     message.textContent = status.message || 'No update status available.';
     check.disabled = ['checking','downloading'].includes(status.state);
-    release.hidden = !status.release_url;
+    release.hidden = !status.release_url || (status.supported && status.enabled && status.state !== 'failed');
   }
   async function refresh() {
     if(disposed) return;
     try {const status = await api('update_status', {}, {timeoutMs:4000});if(!changing) paint(status);}
     catch(error) {if(!disposed) message.textContent = error.message;}
   }
-  const node = h('section', {class:'update-settings'}, h('h3', null, 'App updates'), version,
+  const node = h('section', {class:'update-settings'}, showHeading ? h('h3', null, 'App updates') : null, version,
     h('label', {class:'row'}, automatic, ' Automatic updates'),
     h('p', {class:'muted small'}, 'Verified updates install after the app closes. This preference saves immediately.'),
-    message, h('div', {class:'row'}, check, release));
+    availability, message, h('div', {class:'row'}, check, release));
   refresh();
   const timer = setInterval(refresh, 5000);
   return {node, refresh, cleanup:() => {disposed = true;clearInterval(timer);}};

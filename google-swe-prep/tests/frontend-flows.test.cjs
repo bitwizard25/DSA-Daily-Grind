@@ -115,7 +115,7 @@ test('update settings preserve preference after a failed save and stop polling o
     api:async(name,payload)=>{requests.push(name);
       if(name==='update_preferences') throw Error('Could not save update preference.');
       return {supported:true,enabled:true,state:'idle',version:'1.6.0',build_number:100,message:'Up to date.'};}});
-  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
   const ui=state.updaterSettings();await ui.refresh();
   const checkbox=find(ui.node,n=>n.attrs['data-test']==='auto-updates');
   checkbox.checked=false;await checkbox.attrs.onchange();
@@ -128,7 +128,7 @@ test('update check stays disabled while downloading and disposed settings make n
   let requests=0;
   const state=env({setInterval:()=>7,clearInterval:()=>{},
     api:async()=>{requests++;return {supported:true,enabled:true,state:'downloading',version:'1.6.0',build_number:100,message:'Downloading'};}});
-  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
   const ui=state.updaterSettings();await ui.refresh();
   const button=find(ui.node,n=>n.attrs['data-test']==='update-check');
   await button.attrs.onclick();assert.equal(button.disabled,true);
@@ -149,6 +149,30 @@ test('sidebar update indicator uses real download progress and handles unavailab
   assert.equal(show({state:'unsupported'}).detail,'Manual download');
   assert.equal(show({state:'offline'}).available,false);
   assert.equal(show({state:'failed'}).detail,'Needs attention');
+});
+
+test('installed updates remain clickable and do not send automatic downloads to GitHub',async()=>{
+  const state=env({setInterval:()=>1,clearInterval:()=>{},api:async()=>({supported:true,enabled:true,
+    state:'ready',version:'1.6.0',build_number:100,release_url:'https://github.com/release',message:'Ready'})});
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings({showHeading:false});await ui.refresh();
+  const checkbox=find(ui.node,n=>n.attrs['data-test']==='auto-updates');
+  assert.equal(checkbox.disabled,false);assert.equal(checkbox.checked,true);
+  assert.equal(find(ui.node,n=>n.tag==='button'&&n.textContent==='Open download page').hidden,true);
+  assert.equal(find(ui.node,n=>n.tag==='h3'),null);
+  ui.cleanup();
+});
+
+test('unsupported copies explain the disabled checkbox even after detecting a release',async()=>{
+  const state=env({setInterval:()=>1,clearInterval:()=>{},api:async()=>({supported:false,enabled:true,
+    state:'available',version:'1.6.0',build_number:0,release_url:'https://github.com/release',message:'Available'})});
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings();await ui.refresh();
+  assert.equal(find(ui.node,n=>n.attrs['data-test']==='auto-updates').disabled,true);
+  const reason=find(ui.node,n=>n.tag==='p'&&n.textContent.includes('unavailable in this copy'));
+  assert.equal(reason.hidden,false);
+  assert.equal(find(ui.node,n=>n.tag==='button'&&n.textContent==='Open download page').hidden,false);
+  ui.cleanup();
 });
 
 test('sidebar polling never overlaps and stops after page close',async()=>{

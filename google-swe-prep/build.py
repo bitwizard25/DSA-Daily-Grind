@@ -122,8 +122,21 @@ def find_iscc() -> str | None:
     return None
 
 
+def validate_build_identity():
+    """Never let CI ship an installer that silently disables automatic updates."""
+    if platform.system() != 'Windows' or os.environ.get('GITHUB_ACTIONS') != 'true':
+        return
+    from google_prep.updates.manifest import read_build_info
+    info = read_build_info(ROOT)
+    if (not info['build_number'] or info['version'] != version()
+            or str(info['build_number']) != os.environ.get('GITHUB_RUN_NUMBER')
+            or info['commit'] != os.environ.get('GITHUB_SHA')):
+        raise ValueError('Missing or mismatched build identity; stamp data/build_info.json before packaging.')
+
+
 def build_installer() -> Path | None:
     """The installed app: one folder with both programs, then (Windows) the Setup.exe that installs it."""
+    validate_build_identity()
     write_icon(ROOT / "build" / "google-prep.ico")
     print(f"Building the app folder dist/GoogleSWEPrep for {platform.system()}...", flush=True)
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", str(ROOT / "dist"),
