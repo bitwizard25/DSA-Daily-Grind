@@ -1,16 +1,18 @@
 /* Interview training: quiet surfaces, clear task hierarchy, and room to think. */
 :root {
-  --bg: #171c24;
-  --surface: #202731;
-  --surface-2: #2a3340;
-  --surface-3: #343f4e;
-  --sunken: #101720;
-  --border: #394451;
-  --text: #dce5ef;
-  --muted: #a7b7c9;
-  --blue-t: #a4c8ff;
-  --blue-soft: #2b384b;
-  --green-t: #a9d9bd;
+  --font: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --bg: #15191f;
+  --surface: #1d232b;
+  --surface-2: #262e38;
+  --surface-3: #313c49;
+  --sunken: #11161c;
+  --border: #3b4653;
+  --strong: #edf1f6;
+  --text: #d3dae4;
+  --muted: #a4afbe;
+  --blue-t: #a2c4f4;
+  --blue-soft: #24354b;
+  --green-t: #a1d5b2;
   --radius: 12px;
   --shadow: 0 12px 30px rgba(0, 0, 0, .2);
 }
@@ -20,23 +22,24 @@ textarea { caret-color: var(--blue-t); }
 a { text-underline-offset: 4px; }
 .app { grid-template-columns: 220px minmax(0, 1fr); }
 .main, .view, .page, .wb-left, .wb-right { min-width: 0; }
-.sidebar { padding: 25px 15px 18px; gap: 32px; }
-.brand { padding: 0 7px; }
+.sidebar { padding: 20px 12px 16px; gap: 22px; overflow: hidden; }
+.brand { padding: 0 7px; flex-shrink: 0; }
 .brand b { font-size: 15px; }
 .brand span { max-width: 162px; white-space: normal; }
-.nav { gap: 8px; }
-.nav button { min-height: 48px; border-radius: 8px; font-size: 15px; }
-.nav button[aria-current] { background: var(--blue-soft); }
+.nav { gap: 4px; min-height: 0; overflow-y: auto; }
+.nav button { min-height: 40px; border-radius: 8px; font-size: 14px; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 9px; }
+.nav button[aria-current="page"] { background: var(--blue-soft); }
+.nav button { flex-shrink: 0; }
 .side-foot { padding-top: 20px; border-top: 1px solid var(--border); }
 #mini[hidden], [hidden] { display: none !important; }
 .topbar { min-height: 65px; padding: 14px 30px; gap: 18px; }
 .crumbs { flex: 1; min-width: 0; font-size: 13px; }
 .meta { font-size: 12px; }
 .meta .pill { background: transparent; border: 0; padding: 0 5px; }
-.view { padding: 34px 38px 48px; }
-.page { max-width: 1160px; gap: 26px; }
+.view { padding: 24px 28px 36px; }
+.page { max-width: 1160px; gap: 20px; }
 .page-title { align-items: center; }
-.page-title h1 { font-size: 30px; line-height: 1.25; letter-spacing: -.025em; }
+.page-title h1 { font-size: 26px; line-height: 1.3; letter-spacing: -.02em; }
 .page-title p { margin-top: 9px; font-size: 14px; }
 .nav-toggle { display: none; }
 .context-links { display: flex; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
@@ -304,4 +307,40 @@ summary { cursor: pointer; color: var(--blue-t); padding: 6px 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Compact desktop controls, with natural wrapping at high display scaling. */
+body { font-size: 14px; line-height: 1.5; }
+strong, b { font-weight: 600; }
+.today-page .page-title h1 { font-size: clamp(24px, 2.4vw, 30px); }
+.today-workspace .today-next h3, .next-copy h3 { font-size: clamp(21px, 2vw, 25px); }
+.habit-lesson h2, .step-card .step-title { font-size: 24px; }
+.step-card .lead, .step-card ul.bullets, .step-card ol.how, .remember, .learning-item label { font-size: 15px; }
+.field { min-width: 0; }
+.field label { font-size: 12px; font-weight: 600; letter-spacing: 0; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea { min-width: 0; max-width: 100%; width: 100%; font-size: 14px; padding: 9px 11px; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select { min-height: 38px; }
+.settings-form { gap: 13px; }
+.settings-form p { margin: 2px 0 8px; line-height: 1.55; }
+.settings-form code.inline { overflow-wrap: anywhere; }
+.field input:hover, .field select:hover, .field textarea:hover { border-color: #596b80; }
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible { border-color: var(--blue-t); outline: 2px solid var(--blue-t); outline-offset: 1px; }
+.modal-body:focus-visible { outline-offset: -2px; }
+.pair, .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-title, .daily-task, .next-copy, .daily-task > div, .card { min-width: 0; overflow-wrap: anywhere; }
+.sidebar-update { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: transparent; text-align: left; cursor: pointer; color: var(--muted); }
+.sidebar-update:hover { background: var(--surface-2); }
+.sidebar-update.has-update { color: var(--green-t); border-color: var(--green); background: var(--green-soft); }
+.update-copy { min-width: 0; overflow-wrap: anywhere; }
+.update-copy b { display: block; color: inherit; font-size: 13px; line-height: 1.4; }
+.update-copy small { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.update-symbol { position: relative; width: 32px; height: 32px; flex: 0 0 32px; }
+.update-symbol > .ring { width: 32px; height: 32px; }
+.update-arrow { position: absolute; width: 16px; height: 16px; top: 8px; left: 8px; }
+.side-foot { flex-shrink: 0; padding-top: 12px; }
+@media (max-width: 600px) {
+  .pair, .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .modal { padding: 16px; gap: 12px; }
+  .modal h2 { font-size: 18px; }
+  .view { padding: 20px 16px 30px; }
 }

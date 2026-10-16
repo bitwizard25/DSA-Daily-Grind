@@ -281,6 +281,7 @@ function buildNav() {
     type: "button", "data-section": x.name, onclick: () => go(`#/${x.name}`),
   }, icon(x.name), h("span", null, x.label), h("span", { class: "nav-end" }, h("span", { class: "badge", hidden: true }), kbd(x.key)))));
   $("#settings-btn").addEventListener("click", openSettings);
+  $("#updates-btn").addEventListener("click", openUpdates);
   $("#help-btn").addEventListener("click", openHelp);
   $('#nav-toggle').addEventListener('click', () => {
     const open = document.querySelector('.app').classList.toggle('nav-open');
@@ -354,7 +355,8 @@ function openModal(title, body, buttons) {
       onclick: () => close(b.value), "data-test": b.test || null,
     }, b.label, b.key ? kbd(b.key) : null));
     const box = h("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
-      h("h2", null, title), body, h("div", { class: "row" }, h("div", { class: "spacer" }), nodes));
+      h("h2", null, title), h("div", { class: "modal-body", tabindex: "0" }, body),
+      h("div", { class: "row modal-actions" }, h("div", { class: "spacer" }), nodes));
     const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(null); } }, box);
     $("#modal-root").replaceChildren(bg);
     $(".app").inert = true; // focus and clicks cannot reach the page behind the dialog
@@ -390,10 +392,62 @@ function openHelp() {
     [{ label: "Close", value: null, primary: true, key: "Esc" }]);
 }
 
-function updaterSettings() {
+function updateIndicatorState(status) {
+  const state = status.state;
+  const knownTotal = Number.isFinite(status.total) && status.total > 0;
+  const percent = knownTotal ? Math.round(Math.max(0, Math.min(1, (Number(status.downloaded) || 0) / status.total)) * 100) : null;
+  const available = ['available', 'downloading', 'ready'].includes(state);
+  let label = 'App updates', detail = 'Check for updates';
+  if (state === 'checking') detail = 'Checking…';
+  if (state === 'available') { label = 'Update available'; detail = 'Open update options'; }
+  if (state === 'downloading') { label = 'Downloading update'; detail = percent === null ? 'Downloading…' : `${percent}% downloaded`; }
+  if (state === 'ready') { label = 'Update ready'; detail = status.enabled ? 'Installs after closing' : 'Automatic updates off'; }
+  if (state === 'unsupported') detail = 'Manual download';
+  if (state === 'offline') detail = 'Offline · retry later';
+  if (state === 'failed') detail = 'Needs attention';
+  if (state === 'idle' && status.last_check) detail = 'Up to date';
+  return {label, detail, available, progress:state === 'ready' ? 1 : state === 'downloading' && percent !== null ? percent / 100 : 0};
+}
+
+function startUpdateIndicator() {
+  const button = $('#updates-btn');
+  let busy = false, stopped = false;
+  function paint(status) {
+    if (stopped) return;
+    const view = updateIndicatorState(status);
+    button.className = `sidebar-update${view.available ? ' has-update' : ''}`;
+    button.setAttribute('aria-label', `${view.label}. ${view.detail}. Open update options`);
+    const progress = ring(view.progress, {size:32, stroke:3, color:COLORS.blue});
+    progress.setAttribute('aria-hidden', 'true');
+    button.replaceChildren(h('span', {class:'update-symbol', 'aria-hidden':'true'}, progress,
+      svg('svg', {viewBox:'0 0 24 24', class:'update-arrow', fill:'none', stroke:'currentColor', 'stroke-width':'1.8', 'stroke-linecap':'round', 'stroke-linejoin':'round'},
+        svg('path', {d:'M12 4v11m-4-4 4 4 4-4M5 17v3h14v-3'}))),
+      h('span', {class:'update-copy'}, h('b', null, view.label), h('small', null, view.detail)));
+  }
+  async function refresh() {
+    if (busy || stopped || document.visibilityState === 'hidden') return;
+    busy = true;
+    try {paint(await api('update_status', {}, {timeoutMs:4000}));}
+    catch (_) {paint({state:'offline'});}
+    finally {busy = false;}
+  }
+  refresh();
+  const timer = setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', refresh);
+  return () => {stopped = true;clearInterval(timer);document.removeEventListener('visibilitychange', refresh);};
+}
+
+async function openUpdates() {
+  const updates = updaterSettings({showHeading:false});
+  try {await openModal('App updates', updates.node, [{label:'Close', value:null, primary:true}]);}
+  finally {updates.cleanup();}
+}
+
+function updaterSettings({showHeading = true} = {}) {
   let disposed = false, last = null, changing = false;
   const message = h('p', {class:'muted small', role:'status', 'aria-live':'polite', 'data-test':'update-status'}, 'Loading update status…');
   const version = h('p', {class:'muted small'});
+  const availability = h('p', {class:'muted small', hidden:true});
   const automatic = h('input', {type:'checkbox', disabled:true, 'data-test':'auto-updates', onchange:async () => {
     if (!last || changing) return;
     changing = true;automatic.disabled = true;
@@ -416,20 +470,22 @@ function updaterSettings() {
     last = status;
     if(!changing) automatic.checked = status.supported && status.enabled;
     automatic.disabled = changing || !status.supported;
+    availability.hidden = !!status.supported;
+    availability.textContent = 'Automatic updates are unavailable in this copy. Open the installed Windows app; if this is the installed app, repair it with the latest installer.';
     version.textContent = `Version ${status.version}${status.build_number ? ` · build ${status.build_number}` : ''}`;
     message.textContent = status.message || 'No update status available.';
     check.disabled = ['checking','downloading'].includes(status.state);
-    release.hidden = !status.release_url;
+    release.hidden = !status.release_url || (status.supported && status.enabled && status.state !== 'failed');
   }
   async function refresh() {
     if(disposed) return;
     try {const status = await api('update_status', {}, {timeoutMs:4000});if(!changing) paint(status);}
     catch(error) {if(!disposed) message.textContent = error.message;}
   }
-  const node = h('section', {class:'update-settings'}, h('h3', null, 'App updates'), version,
+  const node = h('section', {class:'update-settings'}, showHeading ? h('h3', null, 'App updates') : null, version,
     h('label', {class:'row'}, automatic, ' Automatic updates'),
     h('p', {class:'muted small'}, 'Verified updates install after the app closes. This preference saves immediately.'),
-    message, h('div', {class:'row'}, check, release));
+    availability, message, h('div', {class:'row'}, check, release));
   refresh();
   const timer = setInterval(refresh, 5000);
   return {node, refresh, cleanup:() => {disposed = true;clearInterval(timer);}};
@@ -443,12 +499,13 @@ async function openSettings() {
     field("Your name", "name", st.settings.name), field("Target role", "target", st.settings.target),
     h("div", { class: "field" }, h("label", { for: "set-language" }, "Lesson language"),
       h("select", { id: "set-language", name: "language" },
-        h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard: technical English, every term explained"),
+        h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard English"),
         h("option", { value: "simple", selected: S.lang === "simple" || null }, "Simple English + Hindi hints"))),
     h("div", { class: "field" }, h("label", { for: "set-daily" }, "Daily pace"),
       h("select", { id: "set-daily", name: "daily_problems", "data-test": "set-daily" },
-        h("option", { value: "1", selected: st.settings.daily_problems !== 3 || null }, "Part-time: warmup + 1 problem in the evening"),
-        h("option", { value: "3", selected: st.settings.daily_problems === 3 || null }, "Full-time: warmup + 3 problems a day"))),
+        h("option", { value: "1", selected: st.settings.daily_problems !== 3 || null }, "Part-time · 1 problem a day"),
+        h("option", { value: "3", selected: st.settings.daily_problems === 3 || null }, "Full-time · 3 problems a day")),
+      h("span", {class:"muted small"}, "Both include a warmup. Part-time practice fits an evening.")),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
       field("Interview target date", "interview_date", st.settings.interview_date, "date")),
     h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
@@ -2105,6 +2162,8 @@ async function boot() {
   }
   if (!location.hash) history.replaceState(null, "", `${location.search}#/today`);
   await route(); // an unfinished drill or mock shows as the first thing on Today (auto-recovery)
+  const stopUpdates = startUpdateIndicator();
+  window.addEventListener('pagehide', stopUpdates, {once:true});
   setInterval(() => api("heartbeat").catch(() => {}), 30000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") api("heartbeat").catch(() => {}); });
 }
