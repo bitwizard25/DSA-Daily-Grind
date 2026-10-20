@@ -243,6 +243,7 @@ async function api(name, payload = {}, opts = {}) {
 
 // ---------------------------------------------------------------- frame: nav, crumbs, meta
 const ICONS = {
+  support: "M12 21s-9-5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12z M8 12h3l1-3 2 6 1-3h2",
   today: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   fasttrack: "M13 2L4 14h7l-1 8 9-12h-7z",
   recall: "M4 7h12v13H4z M8 4h12v13",
@@ -264,8 +265,10 @@ const SECTIONS = [
 ];
 const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
 NAV_KEYS.h = 'training';
+NAV_KEYS.c = 'support';
 const MAIN_SECTIONS = [
   { name: 'today', label: 'Today', key: 't' },
+  { name: 'support', label: 'Confidence & consistency', key: 'c' },
   { name: 'mock', label: 'Practice', key: 'w' },
   { name: 'fasttrack', label: 'Learn', key: 'f' },
   { name: 'role', label: 'Interview prep', key: 'j' },
@@ -281,6 +284,7 @@ function buildNav() {
     type: "button", "data-section": x.name, onclick: () => go(`#/${x.name}`),
   }, icon(x.name), h("span", null, x.label), h("span", { class: "nav-end" }, h("span", { class: "badge", hidden: true }), kbd(x.key)))));
   $("#settings-btn").addEventListener("click", openSettings);
+  $("#preparation-mode-btn").addEventListener("click", openPreparationMode);
   $("#updates-btn").addEventListener("click", openUpdates);
   $("#help-btn").addEventListener("click", openHelp);
   $('#nav-toggle').addEventListener('click', () => {
@@ -304,11 +308,19 @@ function setCrumbs(parts, ctx) {
     nodes.push(h("span", { class: cls || null, "aria-current": i === parts.length - 1 ? "location" : null }, p));
   });
   $("#crumbs").replaceChildren(...nodes);
-  document.title = parts && parts.length > 1 ? `${parts[parts.length - 1]} · Google SWE II OS` : "Google SWE II OS";
+  const appTitle = S.state && S.state.settings.preparation_mode === 'general' ? 'Interview Prep' : 'Google SWE II OS';
+  document.title = parts && parts.length > 1 ? `${parts[parts.length - 1]} · ${appTitle}` : appTitle;
 }
 async function refreshState() {
   const st = await api("state");
   S.state = st;
+  const general = st.settings.preparation_mode === 'general';
+  if (!general) delete document.documentElement.dataset.readingSize;
+  const supportNav = $('#nav button[data-section="support"]');
+  if (supportNav) supportNav.hidden = !general;
+  $('#preparation-mode-btn').textContent = general ? 'General mode · switch' : 'Google mode · switch';
+  const brand = $('.brand b');
+  if (brand) brand.textContent = general ? 'Interview Prep' : 'Google SWE II OS';
   S.lang = st.settings.language || "standard";
   const ready = st.readiness / 100;
   $("#mini").replaceChildren(
@@ -317,16 +329,33 @@ async function refreshState() {
       h("b", null, `Day ${st.day} of ${st.plan_days}`), h("br"),
       `Phase ${st.phase.number} · ${st.phase.short}`, h("br"),
       `Readiness ${Math.round(st.readiness)}%`));
-  $("#brand-sub").textContent = st.settings.target || "Interview prep";
+  $("#brand-sub").textContent = general ? 'General skills · your next role' : st.settings.target || "Interview prep";
   const pills = [h("span", { class: "pill", "data-test": "streak" }, `Streak ${plural(st.streak, "day")}`)];
   pills.push(h("span", { class: `pill ${st.days_left <= 14 ? "warn" : ""}`.trim() },
     st.days_left >= 0 ? `${plural(st.days_left, "day")} to target` : "Target date passed"));
-  $("#meta").replaceChildren(...pills);
+  $("#meta").replaceChildren(...(general ? [] : pills),
+    btn(general ? 'General mode' : 'Google mode', openPreparationMode, {cls:'ghost small',test:'preparation-mode'}));
   const ftBadge = $('#nav button[data-section="fasttrack"] .badge');
   const pending = st.fasttrack.pending;
   ftBadge.hidden = !pending;
   ftBadge.textContent = pending ? `Day ${pending}` : "";
   return st;
+}
+async function openPreparationMode() {
+  const choice = await openModal('Choose your preparation mode', h('div', null,
+    h('p', null, 'General mode: build reusable skills, confidence and consistency for your next role.'),
+    h('p', null, 'Google mode: keep your Google plan, problem schedule, target date and mock interview flow.'),
+    h('p', {class:'muted small'}, 'Switching modes preserves saved work and recorded practice.')),
+    [{label:'Cancel',value:null}, {label:'General mode',value:'general',test:'choose-general'},
+      {label:'Google mode',value:'google',test:'choose-google'}]);
+  if (!choice || choice === S.state.settings.preparation_mode) return;
+  if (current && current.beforeLeave && !(await current.beforeLeave())) return;
+  try {
+    await api('preparation_mode', {mode:choice});
+    if (current) current.beforeLeave = null;
+    await refreshState();
+    await go('#/today', {force:true});
+  } catch (err) {toast(err.message, true);}
 }
 
 // ---------------------------------------------------------------- toasts and modals
@@ -655,6 +684,9 @@ function habitPreview(training) {
       () => go('#/training'), {cls:'ghost', test:'open-training'}));
 }
 ROUTES.today = async (ctx) => {
+  if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
+    return Support.today(ctx);
+  }
   const mode = ctx.query.get('mode') || 'normal';
   const [d, st, training] = await Promise.all([api('today', {mode}), refreshState(), optionalTraining()]);
   setCrumbs(['Google SWE II OS', 'Today'], ctx);
@@ -1495,6 +1527,24 @@ ROUTES.board = async (ctx) => {
 
   const boardBody = h('div', {class:'wb-body', 'data-panel':'code'}, left, right);
   const habitCue = h('details', {class:'board-habit', hidden:true});
+  const generalMode = S.state && S.state.settings.preparation_mode === 'general';
+  const supportCue = h('div', {class:'board-habit support-practice-cue', hidden:true});
+  function generalRescue() {
+    return Support.rescue(ctx, {host:$('.page.wb'), mock:!B.practice, park:()=>Support.parkSaved(
+      ()=>save(true), async()=>{
+        if (!B.paused) togglePause();
+        if (current) current.beforeLeave = null;
+        await go('#/today', {force:true});
+      })});
+  }
+  if (generalMode && typeof Support !== 'undefined') {
+    api('support_state', {}, {timeoutMs:4000}).then(supportData=>{
+      if (!ctx.alive() || !supportData.preferences.rescue_prompts) return;
+      supportCue.replaceChildren(h('span', {class:'small'}, 'Want to stop? Make the next step smaller before you decide.'),
+        btn('Find a rescue step', generalRescue, {cls:'ghost small',test:'practice-rescue'}));
+      supportCue.hidden=false;
+    }).catch(()=>{}); // optional support never blocks the code pad
+  }
   optionalTraining().then(trainingData => {
     if (!ctx.alive()) return;
     if (!trainingData) {return;} // optional coaching must never prevent coding
@@ -1508,7 +1558,11 @@ ROUTES.board = async (ctx) => {
       h("div", null, h("div", { class: "muted small" }, B.practice ? `Timed solve · ${B.minutes} min` : "Mock interview · 45 min"), clock),
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
       h("div", { class: "row" }, btn("I'm stuck", stuck, { cls: "ghost", key: "Alt+H", test: "stuck", title: `Hints open after ${Math.round(data.hint_unlock / 60)} minutes of trying` }),
-        pauseBtn, btn('Regroup', () => {
+        pauseBtn, btn(generalMode ? 'Rescue step' : 'Regroup', () => {
+          if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
+            generalRescue();
+            return;
+          }
           const panel = h('div', {class:'regroup'}, h('p', null, 'Name the exact obstacle out loud.'),
             h('ol', null, h('li', null, 'What do I already know?'), h('li', null, 'Can I try a smaller input or brute force?'),
               h('li', null, 'What one question would help?')),
@@ -1516,7 +1570,7 @@ ROUTES.board = async (ctx) => {
           openModal('Take one useful next step', panel, [{label:'Back to the problem', value:true, primary:true}]);
         }, {cls:'ghost', test:'regroup'}), btn("Abandon", abandon, { cls: "ghost small" }),
         btn("Submit & grade", () => submit(), { cls: "primary", key: "Ctrl+Enter", test: "submit" }))),
-    habitCue, banner, boardBody));
+    habitCue, supportCue, banner, boardBody));
   renderBanner();
   renderHints(data.hints || []);
   if (recoveredDraft) toast('Recovered edits from an interrupted save. Review your code and save again.');

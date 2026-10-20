@@ -27,7 +27,7 @@ function source(start, end) {const offset=app.indexOf(start);assert.ok(offset>=0
 function env(extra={}) {
   const state={h:tree, svg:tree, btn:(label, onclick, opts={})=>tree('button', {'data-test':opts.test, onclick}, label),
     rich:x=>x, icon:x=>tree('icon', {}, x), bar:()=>tree('bar'), setCrumbs:()=>{}, pageTitle:(...x)=>tree('title', {}, ...x),
-    mount:(_, node)=>{state.root=node;}, go:()=>{}, toast:()=>{}, ROUTES:{},
+    mount:(_, node)=>{state.root=node;}, go:()=>{}, toast:()=>{}, ROUTES:{}, S:{state:null},
     Date, JSON, URLSearchParams, ...extra};
   vm.createContext(state);return state;
 }

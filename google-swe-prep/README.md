@@ -5,6 +5,17 @@ Spec: [`google_swe_prep_spec.md`](./google_swe_prep_spec.md).
 
 Two front ends, one database (`~/.google_prep/prep.db`):
 
+### Preparation modes
+
+Use the mode button in the top bar or sidebar to switch:
+
+- **Google mode** keeps the existing Google schedule, interview target, Today flow and timed mocks. Existing profiles start here.
+- **General mode** supports reusable coding, design, AI and communication skills. Choose its own role target, starting cue, small daily minimum and focus duration under **Confidence & consistency**.
+
+General mode offers a small start, pause/resume/park, optional learning notes, seven-day activity and practical rescue steps when stuck. Focus time, outside practice and helpful rescues are labeled self-reports; they never create a graded solve. Changing company or mode preserves recorded work. Switching back to Google pauses an active General focus block.
+
+The coding catalogue is the existing shared bank, originally curated for Google. Native reminders, the broader weekly planner and the separately planned code runner are not part of this support increment.
+
 | | Launch | For |
 |---|---|---|
 | **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | Today, Python lessons, drills, whiteboard, progress, interview habits, design learning checklists, STAR stories and the concept vault |

@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import select
 
 from google_prep import __version__, db
-from google_prep.core import clock, readiness, rubric, scheduler, session_store, training
+from google_prep.core import clock, readiness, rubric, scheduler, session_store, support, training
 from google_prep.db import get_session
 from google_prep.models import LessonProgress, Problem, RecallDrill, StarStory, UserProgress
 from google_prep.modules import fasttrack, mock, recall, star, today
@@ -95,6 +95,7 @@ class Api:
                 "session": self._session_summary(s),
                 "data_dir": str(db.home_dir()),
                 "settings": {
+                    "preparation_mode": scheduler.get_setting(s, "preparation_mode", "google"),
                     "name": scheduler.get_setting(s, "name", ""),
                     "target": scheduler.get_setting(s, "target", "Google SWE II"),
                     "start_date": scheduler.start_date(s, t.date()).isoformat(),
@@ -114,6 +115,61 @@ class Api:
         return {"ok": True}
 
     # ---- interview habits ----------------------------------------------------------
+    def preparation_mode(self, mode: str) -> dict:
+        if not isinstance(mode, str) or mode not in ('general', 'google'):
+            raise ApiError('Choose General mode or Google mode.')
+        with get_session() as s:
+            if mode == 'google':
+                active = support.state(s, self.now())['active']
+                if active and active['status'] == 'active':
+                    support.transition(s, self.now(), active['id'], 'pause', active['note'])
+            scheduler.set_setting(s, 'preparation_mode', mode)
+        return self.state()
+
+    def support_state(self) -> dict:
+        with get_session() as s:
+            return support.state(s, self.now())
+
+    def support_preferences(self, changes: dict) -> dict:
+        with get_session() as s:
+            try:
+                support.preferences(s, changes)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return self.support_state()
+
+    def support_start(self, date: str, minutes: int, task: str) -> dict:
+        with get_session() as s:
+            try:
+                support.start(s, self.now(), date, minutes, task)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return self.support_state()
+
+    def support_transition(self, block_id: str, action: str, note: str = '') -> dict:
+        with get_session() as s:
+            try:
+                support.transition(s, self.now(), block_id, action, note)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return self.support_state()
+
+    def support_rescue(self, date: str, blocker: str, outcome: str, request_id: str) -> dict:
+        with get_session() as s:
+            try:
+                support.rescue(s, self.now(), date, blocker, outcome, request_id)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return self.support_state()
+
+    def support_outside(self, date: str, minutes: int, task: str, request_id: str) -> dict:
+        with get_session() as s:
+            try:
+                support.outside(s, self.now(), date, minutes, task, request_id)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return self.support_state()
+
     def training_state(self) -> dict:
         with get_session() as s:
             return training.state(s, self.now())
