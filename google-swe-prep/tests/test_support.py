@@ -225,3 +225,16 @@ def test_drafts_survive_modes_without_becoming_practice_evidence():
     assert restored['confidence']['notes']==[]
     api.support_draft('task',None)
     assert 'task' not in api.support_state()['drafts']
+
+
+def test_acknowledging_one_window_draft_cannot_delete_another_window_draft():
+    from google_prep.gui.api import Api
+    api=Api(now=lambda:NOW)
+    first={'text':'First window next action'}
+    second={'text':'Second window next action'}
+    api.support_draft('task',first)
+    api.support_draft('task',second)
+    api.support_draft('task',None,expected=first)
+    assert api.support_state()['drafts']['task']==second
+    api.support_draft('task',None,expected=second)
+    assert 'task' not in api.support_state()['drafts']

@@ -187,13 +187,15 @@ def rescue(session: Session, when: datetime, day: str, blocker: str, outcome: st
     session.commit()
 
 
-def draft(session: Session, slot: str, value: dict | None) -> None:
+def draft(session: Session, slot: str, value: dict | None, expected: dict | None = None) -> None:
     if not isinstance(slot, str) or slot not in ('task', 'note', 'routine', 'outside'):
         raise ValueError('Choose a known study draft.')
     key = 'support_draft:' + slot
     if value is None:
         row = session.get(Setting, key)
         if row:
+            if expected is not None and json.loads(row.value) != expected:
+                return  # another window's newer draft is not ours to acknowledge
             session.delete(row)
         session.commit()
         return

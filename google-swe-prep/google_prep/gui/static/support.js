@@ -25,15 +25,16 @@ const Support = (() => {
     const store={get:slot=>values[slot],isDirty:()=>pending.size>0,
       set(slot,value) {
         const copy=value===null?null:JSON.parse(JSON.stringify(value));
+        const expected=copy===null ? values[slot] : undefined;
         if(copy===null)delete values[slot];else values[slot]=copy;
-        pending.set(slot,{value:copy,revision:++revision});
+        pending.set(slot,{value:copy,expected,revision:++revision});
         clearTimeout(timer);timer=setTimeout(()=>store.flush(),350);
       },
       flush() {
         clearTimeout(timer);
         tail=tail.then(async()=>{
           for(const [slot,entry] of [...pending]) {
-            try{await api('support_draft',{slot,value:entry.value});}
+            try{await api('support_draft',{slot,value:entry.value,expected:entry.expected});}
             catch(_){return false;}
             if(pending.get(slot)?.revision===entry.revision)pending.delete(slot);
           }
@@ -41,7 +42,10 @@ const Support = (() => {
         });
         return tail;
       },
-      async clear(slot){store.set(slot,null);return store.flush();},
+      async clear(slot){
+        if(!Object.prototype.hasOwnProperty.call(values,slot))return true;
+        store.set(slot,null);return store.flush();
+      },
       async beforeLeave(){
         if(await store.flush())return true;
         toast('Your study draft could not be saved. Keep this page open, copy the text, or retry navigation.',true);
@@ -90,6 +94,7 @@ const Support = (() => {
           placeholder:'Optional: what can you explain now? If parking, write the next step.',
           oninput:e=>{draftNote=e.target.value;draftStore.set('note',{text:draftNote,block_id:active.id});},'data-test':'support-note'});
         const transition = async action => {
+          draftStore.set('note',{text:note.value,block_id:active.id});
           if(!(await draftStore.flush())) {error.textContent='Your note could not be saved. Keep a copy and retry.';error.hidden=false;return;}
           const ok = await mutate(action, note.value);
           if(ok) {await draftStore.clear('note');if(action==='complete'||action==='park')draftNote='';render();}

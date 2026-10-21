@@ -130,10 +130,10 @@ class Api:
         with get_session() as s:
             return support.state(s, self.now())
 
-    def support_draft(self, slot: str, value: dict | None) -> dict:
+    def support_draft(self, slot: str, value: dict | None, expected: dict | None = None) -> dict:
         with get_session() as s:
             try:
-                support.draft(s, slot, value)
+                support.draft(s, slot, value, expected)
             except ValueError as exc:
                 raise ApiError(str(exc)) from exc
         return {'ok': True}

@@ -49,6 +49,10 @@ test('support drafts persist before leaving and remain recoverable after a faile
   assert.equal(calls[0][1].value.text,'Keep this next step');
   assert.equal(await drafts.clear('task'),true);
   assert.equal(drafts.get('task'),undefined);
+  assert.equal(calls[1][1].expected.text,'Keep this next step');
+  const count=calls.length;
+  assert.equal(await drafts.clear('routine'),true);
+  assert.equal(calls.length,count);
 });
 
 test('General Today keeps practice links usable when support is unavailable',async()=>{
