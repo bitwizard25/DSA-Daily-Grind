@@ -130,6 +130,14 @@ class Api:
         with get_session() as s:
             return support.state(s, self.now())
 
+    def support_draft(self, slot: str, value: dict | None) -> dict:
+        with get_session() as s:
+            try:
+                support.draft(s, slot, value)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+        return {'ok': True}
+
     def support_preferences(self, changes: dict) -> dict:
         with get_session() as s:
             try:

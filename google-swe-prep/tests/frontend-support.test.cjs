@@ -35,3 +35,32 @@ test('parking never navigates away when code could not be saved',async()=>{
   assert.equal(await support.parkSaved(async()=>true,async()=>{left=true}),true);
   assert.equal(left,true);
 });
+
+test('support drafts persist before leaving and remain recoverable after a failed save',async()=>{
+  const calls=[];let online=false;
+  const support=env(async(method,payload)=>{if(!online)throw Error('Offline');calls.push([method,payload]);return {ok:true}});
+  const drafts=support.drafts({});
+  drafts.set('task',{text:'Keep this next step'});
+  assert.equal(await drafts.flush(),false);
+  assert.equal(drafts.get('task').text,'Keep this next step');
+  online=true;
+  assert.equal(await drafts.flush(),true);
+  assert.equal(calls.length,1);assert.equal(calls[0][0],'support_draft');
+  assert.equal(calls[0][1].value.text,'Keep this next step');
+  assert.equal(await drafts.clear('task'),true);
+  assert.equal(drafts.get('task'),undefined);
+});
+
+test('General Today keeps practice links usable when support is unavailable',async()=>{
+  function tree(tag,attrs,...children){return {tag,attrs:attrs||{},children:children.flat(Infinity).filter(x=>x!=null),
+    get textContent(){return this.children.map(x=>typeof x==='object'?x.textContent:String(x)).join(' ');}}}
+  let root;
+  const ctx={api:async()=>{throw Error('Support offline')},ROUTES:{},Date,Math,setInterval,clearInterval,setTimeout,clearTimeout,
+    h:tree,btn:(label)=>tree('button',null,label),pageTitle:(...text)=>tree('header',null,...text),setCrumbs:()=>{},
+    mount:(_,node)=>{root=node},S:{state:{session:null}}};
+  vm.createContext(ctx);vm.runInContext(source,ctx);
+  const handle=await vm.runInContext('Support.today({alive:()=>true})',ctx);
+  assert.match(root.textContent,/Coding practice/);
+  assert.match(root.textContent,/Retry/);
+  handle.cleanup?.();
+});

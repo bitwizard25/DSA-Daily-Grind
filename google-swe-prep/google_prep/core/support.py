@@ -44,7 +44,7 @@ def _minutes(value):
     return value
 
 
-def preferences(session: Session, changes: dict | None = None) -> dict:
+def preferences(session: Session, changes: dict | None = None, *, persist: bool = True) -> dict:
     row = session.get(Setting, 'support_preferences')
     try:
         stored = json.loads(row.value) if row else {}
@@ -67,7 +67,7 @@ def preferences(session: Session, changes: dict | None = None) -> dict:
         raise ValueError('Choose a known core skill.')
     if result['reading_size'] not in ('standard', 'comfortable') or type(result['rescue_prompts']) is not bool:
         raise ValueError('Choose a known reading size and turn rescue prompts on or off.')
-    if changes is not None:
+    if changes is not None and persist:
         session.merge(Setting(key='support_preferences', value=json.dumps(result)))
         session.commit()
     return result
@@ -120,7 +120,10 @@ def transition(session: Session, when: datetime, block_id: str, action: str, not
                 raise ValueError('Another focus block is already open.')
             block.status, block.active_slot, block.running_since = 'active', 'focus', when
         elif action in ('complete', 'park'):
-            return _block(block, when)  # retries cannot duplicate or rewrite evidence
+            expected = 'completed' if action == 'complete' else 'parked'
+            if block.status != expected or block.note != note:
+                raise ValueError('This block changed in another window. Your new note has not been saved. Keep a copy and refresh.')
+            return _block(block, when)
         else:
             raise ValueError('This block is already closed. Start a new small step.')
     else:
@@ -184,6 +187,45 @@ def rescue(session: Session, when: datetime, day: str, blocker: str, outcome: st
     session.commit()
 
 
+def draft(session: Session, slot: str, value: dict | None) -> None:
+    if not isinstance(slot, str) or slot not in ('task', 'note', 'routine', 'outside'):
+        raise ValueError('Choose a known study draft.')
+    key = 'support_draft:' + slot
+    if value is None:
+        row = session.get(Setting, key)
+        if row:
+            session.delete(row)
+        session.commit()
+        return
+    if not isinstance(value, dict):
+        raise ValueError('A study draft must contain named fields.')
+    if slot == 'routine':
+        value = preferences(session, value, persist=False)
+    else:
+        allowed = {'text', 'block_id'} if slot == 'note' else {'text', 'minutes'} if slot == 'outside' else {'text'}
+        if slot == 'outside' and 'request_id' in value:
+            allowed.add('request_id')
+        if set(value) != allowed:
+            raise ValueError('Choose known fields for this study draft.')
+        value = {k: _text(v, 'Draft ' + k, 240 if k == 'text' else 80, empty=True) for k, v in value.items()}
+    session.merge(Setting(key=key, value=json.dumps(value)))
+    session.commit()
+
+
+def drafts(session: Session) -> dict:
+    result = {}
+    for slot in ('task', 'note', 'routine', 'outside'):
+        row = session.get(Setting, 'support_draft:' + slot)
+        if row:
+            try:
+                value = json.loads(row.value)
+                if isinstance(value, dict):
+                    result[slot] = value
+            except ValueError:
+                pass
+    return result
+
+
 def state(session: Session, when: datetime) -> dict:
     prefs = preferences(session)
     day = when.date()
@@ -203,7 +245,7 @@ def state(session: Session, when: datetime) -> dict:
                    (date.fromisoformat(d) - date.fromisoformat(activity[i-1])).days > 1}
     notes = sorted([b for b in week if b.note], key=lambda b: b.updated_at, reverse=True)[:5]
     solos = {a.problem_id for a in attempts if a.solved and a.help == 'none' and a.day >= first.isoformat()}
-    return {'date': day.isoformat(), 'now': when.isoformat(), 'preferences': prefs,
+    return {'date': day.isoformat(), 'now': when.isoformat(), 'preferences': prefs, 'drafts': drafts(session),
             'active': _block(active, when) if active else None,
             'parked': [_block(b, when) for b in sorted(rows, key=lambda b: b.updated_at, reverse=True)
                        if b.status == 'parked'][:5],

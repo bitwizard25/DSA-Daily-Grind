@@ -194,3 +194,34 @@ def test_paused_note_survives_restart_without_becoming_completed_evidence(sessio
     state=support.state(session,NOW+timedelta(minutes=10))
     assert state['active']['note']=='Trace the second value next.'
     assert state['confidence']['notes']==[]
+
+
+def test_closed_block_allows_identical_retry_but_rejects_conflicting_note(session):
+    block=support.start(session,NOW,DAY,5,'One example')
+    later=NOW+timedelta(minutes=5)
+    support.transition(session,later,block['id'],'complete','First window note')
+    support.transition(session,later,block['id'],'complete','First window note')
+    with pytest.raises(ValueError,match='another window'):
+        support.transition(session,later,block['id'],'complete','Second window note')
+    with pytest.raises(ValueError):
+        support.transition(session,later,block['id'],'park','First window note')
+    assert support.state(session,later)['confidence']['notes'][0]['note']=='First window note'
+
+
+def test_drafts_survive_modes_without_becoming_practice_evidence():
+    from google_prep.gui.api import Api
+    api=Api(now=lambda:NOW)
+    api.support_draft('task',{'text':'My unfinished next action'})
+    api.support_draft('routine',{'cue':'My unsaved routine','general_role':'Backend engineer'})
+    api.support_draft('outside',{'text':'My unfinished outside log','minutes':'7'})
+    api.preparation_mode('general')
+    api.preparation_mode('google')
+    restored=Api(now=lambda:NOW).support_state()
+    assert restored['drafts']['task']['text']=='My unfinished next action'
+    assert restored['drafts']['routine']['cue']=='My unsaved routine'
+    assert restored['drafts']['outside']['minutes']=='7'
+    assert restored['preferences']['cue']!='My unsaved routine'
+    assert restored['today']['minimum_done'] is False
+    assert restored['confidence']['notes']==[]
+    api.support_draft('task',None)
+    assert 'task' not in api.support_state()['drafts']

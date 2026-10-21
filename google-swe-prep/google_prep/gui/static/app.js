@@ -323,12 +323,12 @@ async function refreshState() {
   if (brand) brand.textContent = general ? 'Interview Prep' : 'Google SWE II OS';
   S.lang = st.settings.language || "standard";
   const ready = st.readiness / 100;
-  $("#mini").replaceChildren(
+  $("#mini").replaceChildren(...(general ? [] : [
     ring(ready, { size: 54, stroke: 6, label: `${Math.round(st.readiness)}`, color: COLORS.blue }),
     h("div", { class: "mini-lines" },
       h("b", null, `Day ${st.day} of ${st.plan_days}`), h("br"),
       `Phase ${st.phase.number} · ${st.phase.short}`, h("br"),
-      `Readiness ${Math.round(st.readiness)}%`));
+      `Readiness ${Math.round(st.readiness)}%`)]));
   $("#brand-sub").textContent = general ? 'General skills · your next role' : st.settings.target || "Interview prep";
   const pills = [h("span", { class: "pill", "data-test": "streak" }, `Streak ${plural(st.streak, "day")}`)];
   pills.push(h("span", { class: `pill ${st.days_left <= 14 ? "warn" : ""}`.trim() },

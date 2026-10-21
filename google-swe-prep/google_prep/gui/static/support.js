@@ -20,6 +20,37 @@ const Support = (() => {
     await leave();
     return true;
   }
+  function drafts(initial={}) {
+    const values={...initial}, pending=new Map();let revision=0,tail=Promise.resolve(true),timer;
+    const store={get:slot=>values[slot],isDirty:()=>pending.size>0,
+      set(slot,value) {
+        const copy=value===null?null:JSON.parse(JSON.stringify(value));
+        if(copy===null)delete values[slot];else values[slot]=copy;
+        pending.set(slot,{value:copy,revision:++revision});
+        clearTimeout(timer);timer=setTimeout(()=>store.flush(),350);
+      },
+      flush() {
+        clearTimeout(timer);
+        tail=tail.then(async()=>{
+          for(const [slot,entry] of [...pending]) {
+            try{await api('support_draft',{slot,value:entry.value});}
+            catch(_){return false;}
+            if(pending.get(slot)?.revision===entry.revision)pending.delete(slot);
+          }
+          return pending.size===0;
+        });
+        return tail;
+      },
+      async clear(slot){store.set(slot,null);return store.flush();},
+      async beforeLeave(){
+        if(await store.flush())return true;
+        toast('Your study draft could not be saved. Keep this page open, copy the text, or retry navigation.',true);
+        return false;
+      },
+      cleanup(){clearTimeout(timer);store.flush();}
+    };
+    return store;
+  }
   function panelTitle(title, detail) {
     return h('div', {class:'support-heading'}, h('h2', null, title), h('p', {class:'muted small'}, detail));
   }
@@ -33,8 +64,10 @@ const Support = (() => {
     ai_design:'Choose one AI feature. Explain its inputs, evaluation and one failure case.',
     communication:'Explain one project decision in plain words, with evidence from your work.'
   };
-  function startCard(ctx, initial, full = false, onChanged = ()=>{}) {
-    let data = initial, received = Date.now()/1000, draftNote = initial.active ? initial.active.note : '', timer, disposed = false;
+  function startCard(ctx, initial, full = false, onChanged = ()=>{}, draftStore=drafts(initial.drafts)) {
+    const recoveredNote=draftStore.get('note');
+    let data = initial, received = Date.now()/1000, draftNote = initial.active
+      ? recoveredNote?.block_id===initial.active.id ? recoveredNote.text : initial.active.note : '', timer, disposed = false;
     const root = h('section', {class:'support-start', 'data-test':'support-start'});
     const error = h('p', {class:'support-error', role:'alert', hidden:true});
     const act = actions(next => {
@@ -55,10 +88,11 @@ const Support = (() => {
         const limit = h('div', {class:'support-boundary', role:'status', hidden:true});
         const note = h('textarea', {rows:'2',maxlength:'240',value:draftNote,
           placeholder:'Optional: what can you explain now? If parking, write the next step.',
-          oninput:e=>{draftNote=e.target.value;},'data-test':'support-note'});
+          oninput:e=>{draftNote=e.target.value;draftStore.set('note',{text:draftNote,block_id:active.id});},'data-test':'support-note'});
         const transition = async action => {
+          if(!(await draftStore.flush())) {error.textContent='Your note could not be saved. Keep a copy and retry.';error.hidden=false;return;}
           const ok = await mutate(action, note.value);
-          if(ok && (action === 'complete' || action === 'park')) draftNote='';
+          if(ok) {await draftStore.clear('note');if(action==='complete'||action==='park')draftNote='';render();}
         };
         const controls = h('div', {class:'row support-actions'},
           btn(active.status === 'paused' ? 'Resume block' : 'Pause block', ()=>transition(active.status === 'paused' ? 'resume' : 'pause'), {cls:'ghost',test:'support-pause'}),
@@ -82,11 +116,15 @@ const Support = (() => {
             btn('I feel like giving up',()=>rescue(ctx,{host:root,onSaved:onChanged}),{cls:'ghost small',test:'support-rescue'})));
         update(); timer=setInterval(update,1000);
       } else {
-        const task = h('textarea',{rows:'2',maxlength:'240',value:data.today.returning
+        const task = h('textarea',{rows:'2',maxlength:'240',value:draftStore.get('task')?.text ?? (data.today.returning
           ? 'Revisit one familiar example and explain the input and output.'
-          : skillActions[data.preferences.core_focus],
+          : skillActions[data.preferences.core_focus]),
+          oninput:e=>draftStore.set('task',{text:e.target.value}),
           'data-test':'support-task'});
-        const begin = minutes => act.run('support_start',{date:data.date,minutes,task:task.value});
+        const begin = async minutes => {
+          if(!(await draftStore.flush())){error.textContent='Your next-action draft could not be saved. Retry before starting.';error.hidden=false;return;}
+          if(await act.run('support_start',{date:data.date,minutes,task:task.value}))await draftStore.clear('task');
+        };
         root.append(formField('Your next small action',task),
           h('div',{class:'row support-actions'},
             btn('Start '+data.preferences.minimum_minutes+' minutes',()=>begin(data.preferences.minimum_minutes),{cls:'primary',test:'support-start-small'}),
@@ -96,10 +134,17 @@ const Support = (() => {
             data.preferences.cue || 'Choose a cue in your support settings.'));
       }
       root.append(error);
+      const pendingNote=draftStore.get('note');
+      if(!active && pendingNote?.text)root.append(h('section',{class:'support-boundary'},
+        h('h3',null,'Recovered note from a closed block'),
+        h('p',null,pendingNote.text),
+        h('p',{class:'muted small'},'This draft is preserved separately. It has not changed a completed learning record.')));
       if (!full) root.append(btn('Confidence & consistency',()=>go('#/support'),{cls:'ghost small',test:'open-support'}));
     }
     render();
-    return {node:root, update(next){data=next;received=Date.now()/1000;render();}, cleanup(){disposed=true;clearInterval(timer);}};
+    return {node:root, update(next){data=next;received=Date.now()/1000;render();},
+      beforeLeave:()=>draftStore.beforeLeave(),isDirty:()=>draftStore.isDirty(),
+      cleanup(){disposed=true;clearInterval(timer);draftStore.cleanup();}};
   }
   function attachToday(ctx, target) {
     let card = null, closed = false;
@@ -168,8 +213,9 @@ const Support = (() => {
     const data=await api('support_state');
     if(!ctx.alive())return {};
     setCrumbs(['Interview Prep','Confidence & consistency'],ctx);
-    const block=startCard(ctx,data,true,updateEvidence);
-    const prefs=data.preferences;
+    const draftStore=drafts(data.drafts);
+    const block=startCard(ctx,data,true,updateEvidence,draftStore);
+    const prefs={...data.preferences,...draftStore.get('routine')};
     const role=h('input',{type:'text',maxlength:'240',value:prefs.general_role,'data-test':'support-general-role'});
     const cue=h('input',{type:'text',maxlength:'240',value:prefs.cue,'data-test':'support-cue'});
     const minimum=h('select',{'data-test':'support-minimum'},[2,5,10].map(n=>h('option',{value:n,selected:n===prefs.minimum_minutes},n+' minutes')));
@@ -191,9 +237,16 @@ const Support = (() => {
       h('label',{class:'support-checkbox'},prompts,h('span',null,'Show the rescue prompt during practice')),
       btn('Save my routine',savePreferences,{cls:'primary',test:'support-save-preferences'}),saved);
     let saving=false;
+    const routineValues=()=>({cue:cue.value,minimum_minutes:Number(minimum.value),focus_minutes:Number(focus.value),
+      reading_size:reading.value,rescue_prompts:prompts.checked,core_focus:skill.value,general_role:role.value});
+    form.addEventListener('input',()=>draftStore.set('routine',routineValues()));
+    form.addEventListener('change',()=>draftStore.set('routine',routineValues()));
     async function savePreferences(){
       if(saving)return;saving=true;saved.textContent='Saving…';
-        try{const next=await api('support_preferences',{changes:{cue:cue.value,minimum_minutes:Number(minimum.value),focus_minutes:Number(focus.value),reading_size:reading.value,rescue_prompts:prompts.checked,core_focus:skill.value,general_role:role.value}});
+        try{
+          if(!(await draftStore.flush()))throw Error('Your routine draft could not be saved.');
+          const next=await api('support_preferences',{changes:routineValues()});
+          await draftStore.clear('routine');
         if(ctx.alive()){saved.textContent='Routine saved. Your full problem goal stays separate.';document.documentElement.dataset.readingSize=reading.value;block.update(next);updateEvidence(next);}}
       catch(err){if(ctx.alive())saved.textContent='Not saved: '+err.message+' Your settings are still here.';}
       finally{saving=false;}
@@ -215,35 +268,56 @@ const Support = (() => {
       h('p',{class:'small'},data.week.return_days+' return days recorded after a gap. Missed work is not added to today’s quota.'),
       h('p',{class:'muted small'},'Completed focus blocks and outside-practice logs are acknowledgements, not automatic proof of focused work.'),
       btn('Plan a small start today',()=>go('#/today'),{cls:'ghost'})); }
-    const confidence=h('div'), consistency=h('div');
+    const confidence=h('div'), consistency=h('div'), parked=h('section',{class:'support-evidence'});
     function updateEvidence(next) {
       confidence.replaceChildren(confidenceView(next));consistency.replaceChildren(consistencyView(next));
+      parked.hidden=!next.parked.length;
+      parked.replaceChildren(h('h2',null,'Parked next steps'),...next.parked.map(item=>
+        h('div',{class:'support-parked'},h('b',null,item.task),
+          h('p',{class:'small muted'},item.note || 'No next-step note saved.'),
+          btn('Use this next step',async()=>{
+            draftStore.set('task',{text:item.note || item.task});
+            if(await draftStore.flush())go('#/today');
+            else toast('Your next step could not be saved. Keep this page open and retry.',true);
+          },{cls:'ghost small'}))));
     }
     updateEvidence(data);
     const giveup=h('section',{class:'support-evidence'},
       panelTitle('When you want to give up: change the next step.','Name the obstacle, try one smaller action, then choose whether to continue or park.'),
       btn('Find a rescue step',()=>rescue(ctx,{host:giveup,onSaved:updateEvidence}),{cls:'primary',test:'support-open-rescue'}));
-    const outsideId=requestId();
-    const outsideText=h('input',{type:'text',maxlength:'240',placeholder:'For example: traced Two Sum on paper','data-test':'support-outside-task'});
-    const outsideMinutes=h('input',{type:'number',min:'1',max:'120',value:'5','data-test':'support-outside-minutes'});
+    const outsideId=draftStore.get('outside')?.request_id || requestId();
+    const outsideText=h('input',{type:'text',maxlength:'240',value:draftStore.get('outside')?.text || '',placeholder:'For example: traced Two Sum on paper','data-test':'support-outside-task'});
+    const outsideMinutes=h('input',{type:'number',min:'1',max:'120',value:draftStore.get('outside')?.minutes || '5','data-test':'support-outside-minutes'});
+    const saveOutsideDraft=()=>draftStore.set('outside',{text:outsideText.value,minutes:outsideMinutes.value,request_id:outsideId});
+    outsideText.addEventListener('input',saveOutsideDraft);outsideMinutes.addEventListener('input',saveOutsideDraft);
     const outsideStatus=h('p',{class:'small',role:'status'});let outsideBusy=false;
     const elsewhere=h('details',{class:'support-evidence'},h('summary',null,'Practised somewhere else? Record it.'),
       h('p',{class:'muted small'},'This can count toward your small minimum. It does not create a graded solve.'),
       formField('What did you practise?',outsideText),formField('Minutes · your estimate',outsideMinutes),
       btn('Record outside practice',async()=>{
         if(outsideBusy)return;outsideBusy=true;
-        try{const next=await api('support_outside',{date:data.date,minutes:Number(outsideMinutes.value),task:outsideText.value,request_id:outsideId});
+        try{
+          saveOutsideDraft();if(!(await draftStore.flush()))throw Error('Your outside-practice draft could not be saved.');
+          const next=await api('support_outside',{date:data.date,minutes:Number(outsideMinutes.value),task:outsideText.value,request_id:outsideId});
+          await draftStore.clear('outside');
           if(ctx.alive()){outsideStatus.textContent='Saved as outside practice. Your evidence is updated.';block.update(next);updateEvidence(next);$('[data-test="support-outside-save"]',elsewhere).disabled=true;}}
         catch(err){if(ctx.alive())outsideStatus.textContent='Not saved: '+err.message;}finally{outsideBusy=false;}
       },{cls:'ghost',test:'support-outside-save'}),outsideStatus);
-    const parked=data.parked.length ? h('section',{class:'support-evidence'},h('h2',null,'Parked next steps'),
-      data.parked.map(item=>h('div',{class:'support-parked'},h('b',null,item.task),h('p',{class:'small muted'},item.note || 'No next-step note saved.'),
-        btn('Use this next step',()=>{go('#/today');toast('Copy this next step into your small start: '+(item.note || item.task));},{cls:'ghost small'})))) : null;
     mount(ctx,h('div',{class:'page support-page'},pageTitle('Build skills you can rely on.',(prefs.general_role || 'Your next role')+' · General mode. Start small, return after gaps, and build evidence through practice.'),block.node,confidence,form,consistency,giveup,parked,elsewhere));
-    return {cleanup(){block.cleanup();}};
+    return {beforeLeave:()=>draftStore.beforeLeave(),isDirty:()=>draftStore.isDirty(),cleanup(){block.cleanup();}};
   }
   async function today(ctx) {
-    const data=await api('support_state');
+    let data;
+    try{data=await api('support_state',{}, {timeoutMs:4000});}
+    catch(_){
+      if(!ctx.alive())return {};
+      setCrumbs(['Interview Prep','Today'],ctx);
+      mount(ctx,h('div',{class:'page support-page'},pageTitle('Your practice is still available.','Study support could not load.'),
+        h('div',{class:'row support-actions'},btn('Coding practice',()=>go('#/mock'),{cls:'primary'}),
+          btn('Design & communication',()=>go('#/role'),{cls:'ghost'}),
+          btn('Retry support',()=>go('#/today'),{cls:'ghost'}))));
+      return {cleanup(){}};
+    }
     if(!ctx.alive())return {};
     setCrumbs(['Interview Prep','Today'],ctx);
     const summary=h('section',{class:'support-evidence'});
@@ -263,9 +337,22 @@ const Support = (() => {
         btn('Design & communication',()=>go('#/role'),{cls:'ghost'}),
         btn('Python foundations',()=>go('#/fasttrack'),{cls:'ghost'})),
       h('p',{class:'muted small'},'Coding uses the existing shared problem bank, originally curated for Google. Your General routine and role target are separate.'));
+    const savedStudy=h('div');
     mount(ctx,h('div',{class:'page support-page'},pageTitle('One useful step today.',
-      (data.preferences.general_role || 'Your next role')+' · General mode'),block.node,summary,practice));
-    return {cleanup(){block.cleanup();}};
+      (data.preferences.general_role || 'Your next role')+' · General mode'),savedStudy,block.node,summary,practice));
+    api('state',{}, {timeoutMs:4000}).then(st=>{
+      if(!ctx.alive() || !st.session)return;
+      savedStudy.replaceChildren(h('section',{class:'support-evidence'},
+        panelTitle('Your saved study session',st.session.text.replace(/^Session restored: /,'')),
+        h('div',{class:'row support-actions'},
+          btn('Resume saved session',()=>resumeSession(st.session),{cls:'primary',test:'general-resume-session'}),
+          btn('Discard saved session',async()=>{
+            if(!(await confirmBox('Discard this unfinished session?','Saved code files and completed grades are kept.','Discard session','Keep session',true)))return;
+            try{await api('session_discard');savedStudy.replaceChildren();}
+            catch(error){toast(error.message,true);}
+          },{cls:'ghost',test:'general-discard-session'}))));
+    }).catch(()=>{}); // practice entry points remain usable without saved-session details
+    return {beforeLeave:()=>block.beforeLeave(),isDirty:()=>block.isDirty(),cleanup(){block.cleanup();}};
   }
   ROUTES.support=async ctx=>{
     if(S.state && S.state.settings.preparation_mode !== 'general') {
@@ -275,5 +362,5 @@ const Support = (() => {
     }
     return page(ctx);
   };
-  return {actions,seconds,parkSaved,attachToday,today,page,rescue};
+  return {actions,seconds,parkSaved,drafts,attachToday,today,page,rescue};
 })();

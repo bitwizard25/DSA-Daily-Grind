@@ -23,7 +23,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest -q
       - name: Check frontend recovery and learning flows
-        run: node --test tests/frontend-autosave.test.cjs tests/frontend-flows.test.cjs
+        run: node --test tests/frontend-autosave.test.cjs tests/frontend-flows.test.cjs tests/frontend-support.test.cjs
       - name: Stamp the CI build identity (read by the installed app's updater)
         if: runner.os == 'Windows'
         run: python scripts/release_update.py metadata --output data/build_info.json
