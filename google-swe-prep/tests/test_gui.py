@@ -220,14 +220,14 @@ def test_window_handoff_falls_back_to_heartbeat(monkeypatch):
     calls = []
 
     class Quick:
-        def wait(self):
-            calls.append("wait")
+        def poll(self):
+            calls.append("poll")
             return 0
 
     monkeypatch.setattr(launcher, "open_window", lambda url: Quick())
     monkeypatch.setattr(launcher, "HEARTBEAT_TIMEOUT", 0)
     assert launcher.main([]) == 0
-    assert calls == ["wait"]
+    assert calls == ["poll"]
 
 
 # ---- review fixes: sessions are never silently lost ---------------------------------------------
@@ -336,7 +336,7 @@ def test_old_commands_open_the_window_on_their_screen(monkeypatch):
     urls = []
 
     class Quick:
-        def wait(self):
+        def poll(self):
             return 0
 
     monkeypatch.setattr(launcher, "open_window", lambda url: urls.append(url) or Quick())
@@ -448,7 +448,7 @@ def test_ui_word_opens_the_window(monkeypatch):
     urls = []
 
     class Quick:
-        def wait(self):
+        def poll(self):
             return 0
 
     monkeypatch.setattr(launcher, "open_window", lambda url: urls.append(url) or Quick())

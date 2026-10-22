@@ -31,6 +31,26 @@ function env(extra={}) {
     codingLanguageChoice:()=>null, Date, JSON, URLSearchParams, ...extra};
   vm.createContext(state);return state;
 }
+
+test('only an accepted page close reports closure, and restored documents get a new identity',()=>{
+  const handlers={}, calls=[];let identity=0;
+  const state=env({crypto:{randomUUID:()=>`page-${++identity}`},
+    window:{addEventListener:(name,fn)=>{handlers[name]=fn;}},
+    api:(name,payload,opts)=>{calls.push({name,...payload,...opts});return Promise.resolve({ok:true});}});
+  vm.runInContext(source('function startWindowPresence()', '\nasync function boot()'),state);
+  state.startWindowPresence();
+  assert.equal(calls[0].open,true);
+  assert.equal(handlers.beforeunload,undefined); // cancelling the close never signals the server
+  assert.equal(handlers.visibilitychange,undefined); // minimising is not closing
+  handlers.pagehide();
+  assert.equal(calls[1].open,false);
+  assert.equal(calls[1].keepalive,true);
+  assert.equal(calls[1].id,calls[0].id);
+  handlers.pageshow({persisted:false});assert.equal(calls.length,2);
+  handlers.pageshow({persisted:true});
+  assert.equal(calls[2].open,true);
+  assert.notEqual(calls[2].id,calls[0].id);
+});
 const routeSource=source('ROUTES.today = async (ctx) => {', '\n};')+'\n};';
 const context={query:new URLSearchParams(), alive:()=>true};
 
