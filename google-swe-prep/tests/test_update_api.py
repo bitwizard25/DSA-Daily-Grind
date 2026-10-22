@@ -52,3 +52,13 @@ def test_explicit_window_close_schedules_detached_helper(monkeypatch):
     assert callable(close),'The launcher update guard is missing'
     close(fake,'window_closed')
     assert fake.stopped and len(calls) == 1
+
+
+def test_legacy_updater_uses_registered_version(home, monkeypatch):
+    from google_prep.updates import manifest
+    installed = windows.Installation(home/'app', '1.5.0', 0)
+    monkeypatch.setattr(windows, 'detect_installation', lambda:installed)
+    monkeypatch.setattr(manifest, 'read_build_info', lambda root:{'version':'1.6.0', 'build_number':0})
+    updater = launcher._make_updater()
+    assert updater.status()['supported']
+    assert updater.status()['version'] == '1.5.0'

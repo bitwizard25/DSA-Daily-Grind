@@ -27,8 +27,8 @@ function source(start, end) {const offset=app.indexOf(start);assert.ok(offset>=0
 function env(extra={}) {
   const state={h:tree, svg:tree, btn:(label, onclick, opts={})=>tree('button', {'data-test':opts.test, onclick}, label),
     rich:x=>x, icon:x=>tree('icon', {}, x), bar:()=>tree('bar'), setCrumbs:()=>{}, pageTitle:(...x)=>tree('title', {}, ...x),
-    mount:(_, node)=>{state.root=node;}, go:()=>{}, toast:()=>{}, ROUTES:{},
-    Date, JSON, URLSearchParams, ...extra};
+    mount:(_, node)=>{state.root=node;}, go:()=>{}, toast:()=>{}, ROUTES:{}, S:{state:null},
+    codingLanguageChoice:()=>null, Date, JSON, URLSearchParams, ...extra};
   vm.createContext(state);return state;
 }
 const routeSource=source('ROUTES.today = async (ctx) => {', '\n};')+'\n};';
@@ -115,7 +115,7 @@ test('update settings preserve preference after a failed save and stop polling o
     api:async(name,payload)=>{requests.push(name);
       if(name==='update_preferences') throw Error('Could not save update preference.');
       return {supported:true,enabled:true,state:'idle',version:'1.6.0',build_number:100,message:'Up to date.'};}});
-  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
   const ui=state.updaterSettings();await ui.refresh();
   const checkbox=find(ui.node,n=>n.attrs['data-test']==='auto-updates');
   checkbox.checked=false;await checkbox.attrs.onchange();
@@ -128,9 +128,79 @@ test('update check stays disabled while downloading and disposed settings make n
   let requests=0;
   const state=env({setInterval:()=>7,clearInterval:()=>{},
     api:async()=>{requests++;return {supported:true,enabled:true,state:'downloading',version:'1.6.0',build_number:100,message:'Downloading'};}});
-  vm.runInContext(source('function updaterSettings()', '\nasync function openSettings'),state);
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
   const ui=state.updaterSettings();await ui.refresh();
   const button=find(ui.node,n=>n.attrs['data-test']==='update-check');
   await button.attrs.onclick();assert.equal(button.disabled,true);
   ui.cleanup();const before=requests;await ui.refresh();assert.equal(requests,before);
+});
+
+test('sidebar update indicator uses real download progress and handles unavailable states',()=>{
+  const state=env();
+  vm.runInContext(source('function updateIndicatorState(', '\nfunction startUpdateIndicator'),state);
+  const show=status=>state.updateIndicatorState(status);
+  assert.equal(show({state:'available'}).available,true);
+  const download=show({state:'downloading',downloaded:25,total:100});
+  assert.equal(download.progress,.25);assert.equal(download.detail,'25% downloaded');
+  assert.equal(show({state:'downloading',downloaded:150,total:100}).progress,1);
+  assert.equal(show({state:'downloading',downloaded:10,total:0}).detail,'Downloading…');
+  assert.equal(show({state:'ready',enabled:true}).detail,'Installs after closing');
+  assert.equal(show({state:'ready',enabled:false}).detail,'Automatic updates off');
+  assert.equal(show({state:'unsupported'}).detail,'Manual download');
+  assert.equal(show({state:'offline'}).available,false);
+  assert.equal(show({state:'failed'}).detail,'Needs attention');
+});
+
+test('installed updates remain clickable and do not send automatic downloads to GitHub',async()=>{
+  const state=env({setInterval:()=>1,clearInterval:()=>{},api:async()=>({supported:true,enabled:true,
+    state:'ready',version:'1.6.0',build_number:100,release_url:'https://github.com/release',message:'Ready'})});
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings({showHeading:false});await ui.refresh();
+  const checkbox=find(ui.node,n=>n.attrs['data-test']==='auto-updates');
+  assert.equal(checkbox.disabled,false);assert.equal(checkbox.checked,true);
+  assert.equal(find(ui.node,n=>n.tag==='button'&&n.textContent==='Open download page').hidden,true);
+  assert.equal(find(ui.node,n=>n.tag==='h3'),null);
+  ui.cleanup();
+});
+
+test('unsupported copies explain the disabled checkbox even after detecting a release',async()=>{
+  const state=env({setInterval:()=>1,clearInterval:()=>{},api:async()=>({supported:false,enabled:true,
+    state:'available',version:'1.6.0',build_number:0,release_url:'https://github.com/release',message:'Available'})});
+  vm.runInContext(source('function updaterSettings(', '\nasync function openSettings'),state);
+  const ui=state.updaterSettings();await ui.refresh();
+  assert.equal(find(ui.node,n=>n.attrs['data-test']==='auto-updates').disabled,true);
+  const reason=find(ui.node,n=>n.tag==='p'&&n.textContent.includes('unavailable in this copy'));
+  assert.equal(reason.hidden,false);
+  assert.equal(find(ui.node,n=>n.tag==='button'&&n.textContent==='Open download page').hidden,false);
+  ui.cleanup();
+});
+
+test('sidebar polling never overlaps and stops after page close',async()=>{
+  let tick, resolve, calls=0, removed=false, cleared=false;
+  const button=tree('button');
+  const state=env({$:()=>button, COLORS:{blue:'#4285F4'},ring:()=>tree('svg'),
+    document:{visibilityState:'visible',addEventListener:()=>{},removeEventListener:()=>{removed=true;}},
+    setInterval:fn=>{tick=fn;return 1;},clearInterval:()=>{cleared=true;},
+    api:()=>{calls++;return new Promise(r=>{resolve=r;});}});
+  vm.runInContext(source('function updateIndicatorState(', '\nasync function openUpdates'),state);
+  const stop=state.startUpdateIndicator();
+  await tick();assert.equal(calls,1);
+  stop();resolve({state:'available'});await Promise.resolve();
+  await tick();assert.equal(calls,1);assert.ok(removed && cleared);
+  assert.equal(button.textContent,'');
+});
+
+test('language chooser saves the choice only after pending work is safe',async()=>{
+  let safe=false, saved=[],refreshed=0;
+  const state=env({current:{beforeLeave:async()=>safe},
+    api:async(name,payload)=>{saved.push([name,payload.language]);},
+    refreshState:async()=>{refreshed++;},route:async()=>{}});
+  vm.runInContext(source('function codingLanguageChoice(', '\nasync function openSettings'),state);
+  const root=state.codingLanguageChoice({settings:{coding_language:'python',preparation_mode:'general'}});
+  assert.match(root.textContent,/General mode/);
+  assert.equal(find(root,n=>n.tag==='button'&&n.textContent==='Python').attrs['aria-pressed'],'true');
+  const cpp=find(root,n=>n.tag==='button'&&n.textContent==='C++');
+  await cpp.attrs.onclick();assert.equal(saved.length,0);
+  safe=true;await cpp.attrs.onclick();
+  assert.deepEqual(saved,[['set_coding_language','cpp']]);assert.equal(refreshed,1);
 });

@@ -53,8 +53,12 @@ def detect_installation(executable=None):
     if os.name != 'nt' or not getattr(sys, 'frozen', False) or ctypes.sizeof(ctypes.c_void_p) != 8:
         return None
     installed = registered_installation()
-    if installed and installed.build_number and Path(executable or sys.executable).resolve() == installed.path/'google-prep.exe':
-        return installed
+    if installed and Path(executable or sys.executable).resolve() == installed.path/'google-prep.exe':
+        helper = installed.path/'google-prep-update.exe'
+        # Older installers omitted build_info.json. The registered location and
+        # updater helper still identify an installed app that can repair itself.
+        if helper.is_file() and not cache.is_link(helper):
+            return installed
     return None
 
 

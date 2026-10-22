@@ -243,6 +243,7 @@ async function api(name, payload = {}, opts = {}) {
 
 // ---------------------------------------------------------------- frame: nav, crumbs, meta
 const ICONS = {
+  support: "M12 21s-9-5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12z M8 12h3l1-3 2 6 1-3h2",
   today: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   fasttrack: "M13 2L4 14h7l-1 8 9-12h-7z",
   recall: "M4 7h12v13H4z M8 4h12v13",
@@ -264,8 +265,10 @@ const SECTIONS = [
 ];
 const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
 NAV_KEYS.h = 'training';
+NAV_KEYS.c = 'support';
 const MAIN_SECTIONS = [
   { name: 'today', label: 'Today', key: 't' },
+  { name: 'support', label: 'Confidence & consistency', key: 'c' },
   { name: 'mock', label: 'Practice', key: 'w' },
   { name: 'fasttrack', label: 'Learn', key: 'f' },
   { name: 'role', label: 'Interview prep', key: 'j' },
@@ -281,6 +284,8 @@ function buildNav() {
     type: "button", "data-section": x.name, onclick: () => go(`#/${x.name}`),
   }, icon(x.name), h("span", null, x.label), h("span", { class: "nav-end" }, h("span", { class: "badge", hidden: true }), kbd(x.key)))));
   $("#settings-btn").addEventListener("click", openSettings);
+  $("#preparation-mode-btn").addEventListener("click", openPreparationMode);
+  $("#updates-btn").addEventListener("click", openUpdates);
   $("#help-btn").addEventListener("click", openHelp);
   $('#nav-toggle').addEventListener('click', () => {
     const open = document.querySelector('.app').classList.toggle('nav-open');
@@ -303,29 +308,54 @@ function setCrumbs(parts, ctx) {
     nodes.push(h("span", { class: cls || null, "aria-current": i === parts.length - 1 ? "location" : null }, p));
   });
   $("#crumbs").replaceChildren(...nodes);
-  document.title = parts && parts.length > 1 ? `${parts[parts.length - 1]} · Google SWE II OS` : "Google SWE II OS";
+  const appTitle = S.state && S.state.settings.preparation_mode === 'general' ? 'Interview Prep' : 'Google SWE II OS';
+  document.title = parts && parts.length > 1 ? `${parts[parts.length - 1]} · ${appTitle}` : appTitle;
 }
 async function refreshState() {
   const st = await api("state");
   S.state = st;
+  const general = st.settings.preparation_mode === 'general';
+  if (!general) delete document.documentElement.dataset.readingSize;
+  const supportNav = $('#nav button[data-section="support"]');
+  if (supportNav) supportNav.hidden = !general;
+  $('#preparation-mode-btn').textContent = general ? 'General mode · switch' : 'Google mode · switch';
+  const brand = $('.brand b');
+  if (brand) brand.textContent = general ? 'Interview Prep' : 'Google SWE II OS';
   S.lang = st.settings.language || "standard";
   const ready = st.readiness / 100;
-  $("#mini").replaceChildren(
+  $("#mini").replaceChildren(...(general ? [] : [
     ring(ready, { size: 54, stroke: 6, label: `${Math.round(st.readiness)}`, color: COLORS.blue }),
     h("div", { class: "mini-lines" },
       h("b", null, `Day ${st.day} of ${st.plan_days}`), h("br"),
       `Phase ${st.phase.number} · ${st.phase.short}`, h("br"),
-      `Readiness ${Math.round(st.readiness)}%`));
-  $("#brand-sub").textContent = st.settings.target || "Interview prep";
+      `Readiness ${Math.round(st.readiness)}%`)]));
+  $("#brand-sub").textContent = general ? 'General skills · your next role' : st.settings.target || "Interview prep";
   const pills = [h("span", { class: "pill", "data-test": "streak" }, `Streak ${plural(st.streak, "day")}`)];
   pills.push(h("span", { class: `pill ${st.days_left <= 14 ? "warn" : ""}`.trim() },
     st.days_left >= 0 ? `${plural(st.days_left, "day")} to target` : "Target date passed"));
-  $("#meta").replaceChildren(...pills);
+  $("#meta").replaceChildren(...(general ? [] : pills),
+    btn(general ? 'General mode' : 'Google mode', openPreparationMode, {cls:'ghost small',test:'preparation-mode'}));
   const ftBadge = $('#nav button[data-section="fasttrack"] .badge');
   const pending = st.fasttrack.pending;
   ftBadge.hidden = !pending;
   ftBadge.textContent = pending ? `Day ${pending}` : "";
   return st;
+}
+async function openPreparationMode() {
+  const choice = await openModal('Choose your preparation mode', h('div', null,
+    h('p', null, 'General mode: build reusable skills, confidence and consistency for your next role.'),
+    h('p', null, 'Google mode: keep your Google plan, problem schedule, target date and mock interview flow.'),
+    h('p', {class:'muted small'}, 'Switching modes preserves saved work and recorded practice.')),
+    [{label:'Cancel',value:null}, {label:'General mode',value:'general',test:'choose-general'},
+      {label:'Google mode',value:'google',test:'choose-google'}]);
+  if (!choice || choice === S.state.settings.preparation_mode) return;
+  if (current && current.beforeLeave && !(await current.beforeLeave())) return;
+  try {
+    await api('preparation_mode', {mode:choice});
+    if (current) current.beforeLeave = null;
+    await refreshState();
+    await go('#/today', {force:true});
+  } catch (err) {toast(err.message, true);}
 }
 
 // ---------------------------------------------------------------- toasts and modals
@@ -354,7 +384,8 @@ function openModal(title, body, buttons) {
       onclick: () => close(b.value), "data-test": b.test || null,
     }, b.label, b.key ? kbd(b.key) : null));
     const box = h("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
-      h("h2", null, title), body, h("div", { class: "row" }, h("div", { class: "spacer" }), nodes));
+      h("h2", null, title), h("div", { class: "modal-body", tabindex: "0" }, body),
+      h("div", { class: "row modal-actions" }, h("div", { class: "spacer" }), nodes));
     const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(null); } }, box);
     $("#modal-root").replaceChildren(bg);
     $(".app").inert = true; // focus and clicks cannot reach the page behind the dialog
@@ -390,10 +421,62 @@ function openHelp() {
     [{ label: "Close", value: null, primary: true, key: "Esc" }]);
 }
 
-function updaterSettings() {
+function updateIndicatorState(status) {
+  const state = status.state;
+  const knownTotal = Number.isFinite(status.total) && status.total > 0;
+  const percent = knownTotal ? Math.round(Math.max(0, Math.min(1, (Number(status.downloaded) || 0) / status.total)) * 100) : null;
+  const available = ['available', 'downloading', 'ready'].includes(state);
+  let label = 'App updates', detail = 'Check for updates';
+  if (state === 'checking') detail = 'Checking…';
+  if (state === 'available') { label = 'Update available'; detail = 'Open update options'; }
+  if (state === 'downloading') { label = 'Downloading update'; detail = percent === null ? 'Downloading…' : `${percent}% downloaded`; }
+  if (state === 'ready') { label = 'Update ready'; detail = status.enabled ? 'Installs after closing' : 'Automatic updates off'; }
+  if (state === 'unsupported') detail = 'Manual download';
+  if (state === 'offline') detail = 'Offline · retry later';
+  if (state === 'failed') detail = 'Needs attention';
+  if (state === 'idle' && status.last_check) detail = 'Up to date';
+  return {label, detail, available, progress:state === 'ready' ? 1 : state === 'downloading' && percent !== null ? percent / 100 : 0};
+}
+
+function startUpdateIndicator() {
+  const button = $('#updates-btn');
+  let busy = false, stopped = false;
+  function paint(status) {
+    if (stopped) return;
+    const view = updateIndicatorState(status);
+    button.className = `sidebar-update${view.available ? ' has-update' : ''}`;
+    button.setAttribute('aria-label', `${view.label}. ${view.detail}. Open update options`);
+    const progress = ring(view.progress, {size:32, stroke:3, color:COLORS.blue});
+    progress.setAttribute('aria-hidden', 'true');
+    button.replaceChildren(h('span', {class:'update-symbol', 'aria-hidden':'true'}, progress,
+      svg('svg', {viewBox:'0 0 24 24', class:'update-arrow', fill:'none', stroke:'currentColor', 'stroke-width':'1.8', 'stroke-linecap':'round', 'stroke-linejoin':'round'},
+        svg('path', {d:'M12 4v11m-4-4 4 4 4-4M5 17v3h14v-3'}))),
+      h('span', {class:'update-copy'}, h('b', null, view.label), h('small', null, view.detail)));
+  }
+  async function refresh() {
+    if (busy || stopped || document.visibilityState === 'hidden') return;
+    busy = true;
+    try {paint(await api('update_status', {}, {timeoutMs:4000}));}
+    catch (_) {paint({state:'offline'});}
+    finally {busy = false;}
+  }
+  refresh();
+  const timer = setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', refresh);
+  return () => {stopped = true;clearInterval(timer);document.removeEventListener('visibilitychange', refresh);};
+}
+
+async function openUpdates() {
+  const updates = updaterSettings({showHeading:false});
+  try {await openModal('App updates', updates.node, [{label:'Close', value:null, primary:true}]);}
+  finally {updates.cleanup();}
+}
+
+function updaterSettings({showHeading = true} = {}) {
   let disposed = false, last = null, changing = false;
   const message = h('p', {class:'muted small', role:'status', 'aria-live':'polite', 'data-test':'update-status'}, 'Loading update status…');
   const version = h('p', {class:'muted small'});
+  const availability = h('p', {class:'muted small', hidden:true});
   const automatic = h('input', {type:'checkbox', disabled:true, 'data-test':'auto-updates', onchange:async () => {
     if (!last || changing) return;
     changing = true;automatic.disabled = true;
@@ -416,23 +499,52 @@ function updaterSettings() {
     last = status;
     if(!changing) automatic.checked = status.supported && status.enabled;
     automatic.disabled = changing || !status.supported;
+    availability.hidden = !!status.supported;
+    availability.textContent = 'Automatic updates are unavailable in this copy. Open the installed Windows app; if this is the installed app, repair it with the latest installer.';
     version.textContent = `Version ${status.version}${status.build_number ? ` · build ${status.build_number}` : ''}`;
     message.textContent = status.message || 'No update status available.';
     check.disabled = ['checking','downloading'].includes(status.state);
-    release.hidden = !status.release_url;
+    release.hidden = !status.release_url || (status.supported && status.enabled && status.state !== 'failed');
   }
   async function refresh() {
     if(disposed) return;
     try {const status = await api('update_status', {}, {timeoutMs:4000});if(!changing) paint(status);}
     catch(error) {if(!disposed) message.textContent = error.message;}
   }
-  const node = h('section', {class:'update-settings'}, h('h3', null, 'App updates'), version,
+  const node = h('section', {class:'update-settings'}, showHeading ? h('h3', null, 'App updates') : null, version,
     h('label', {class:'row'}, automatic, ' Automatic updates'),
     h('p', {class:'muted small'}, 'Verified updates install after the app closes. This preference saves immediately.'),
-    message, h('div', {class:'row'}, check, release));
+    availability, message, h('div', {class:'row'}, check, release));
   refresh();
   const timer = setInterval(refresh, 5000);
   return {node, refresh, cleanup:() => {disposed = true;clearInterval(timer);}};
+}
+
+function codingLanguageChoice(st = S.state) {
+  if (!st || !st.settings) return null;
+  const selected = st.settings.coding_language || 'python';
+  let busy = false;
+  const feedback = h('p', {class:'muted small', role:'status'},
+    'Your choice sets the starting lessons and new code pads. Each language keeps its progress.');
+  const buttons = ['python', 'cpp'].map(language => h('button', {
+    type:'button', class:'btn ghost small', 'aria-pressed':String(language === selected),
+    onclick:async()=>{
+      if (busy || language === selected) return;
+      busy = true;
+      try {
+        if (current && current.beforeLeave && !(await current.beforeLeave())) return;
+        buttons.forEach(button=>button.disabled=true);
+        await api('set_coding_language', {language});
+        await refreshState();
+        await route();
+      } catch(error) {feedback.textContent='Choice not saved: '+error.message;}
+      finally {busy=false;buttons.forEach(button=>button.disabled=false);}
+    },
+  }, language === 'cpp' ? 'C++' : 'Python'));
+  return h('fieldset', {class:'language-choice', 'data-test':'coding-language-choice'},
+    h('legend', null, 'Practice language'),
+    h('div', {class:'row'}, h('span', {class:'muted small'},
+      st.settings.preparation_mode === 'general' ? 'General mode' : 'Google mode'), ...buttons), feedback);
 }
 
 async function openSettings() {
@@ -441,17 +553,22 @@ async function openSettings() {
     h("label", { for: `set-${name}` }, label), h("input", { id: `set-${name}`, name, type, value: value || "" }));
   const form = h("form", { class: "settings-form", onsubmit: (e) => e.preventDefault() },
     field("Your name", "name", st.settings.name), field("Target role", "target", st.settings.target),
+    h('div', {class:'field'}, h('label', {for:'set-coding-language'}, 'Practice language · current mode'),
+      h('select', {id:'set-coding-language', name:'coding_language'},
+        h('option', {value:'python', selected:st.settings.coding_language !== 'cpp' || null}, 'Python'),
+        h('option', {value:'cpp', selected:st.settings.coding_language === 'cpp' || null}, 'C++'))),
     h("div", { class: "field" }, h("label", { for: "set-language" }, "Lesson language"),
       h("select", { id: "set-language", name: "language" },
-        h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard: technical English, every term explained"),
+        h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard English"),
         h("option", { value: "simple", selected: S.lang === "simple" || null }, "Simple English + Hindi hints"))),
     h("div", { class: "field" }, h("label", { for: "set-daily" }, "Daily pace"),
       h("select", { id: "set-daily", name: "daily_problems", "data-test": "set-daily" },
-        h("option", { value: "1", selected: st.settings.daily_problems !== 3 || null }, "Part-time: warmup + 1 problem in the evening"),
-        h("option", { value: "3", selected: st.settings.daily_problems === 3 || null }, "Full-time: warmup + 3 problems a day"))),
+        h("option", { value: "1", selected: st.settings.daily_problems !== 3 || null }, "Part-time · 1 problem a day"),
+        h("option", { value: "3", selected: st.settings.daily_problems === 3 || null }, "Full-time · 3 problems a day")),
+      h("span", {class:"muted small"}, "Both include a warmup. Part-time practice fits an evening.")),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
       field("Interview target date", "interview_date", st.settings.interview_date, "date")),
-    h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
+    h("p", { class: "muted small" }, "Day 1–2 cover your chosen programming language. The Google problem bank starts on Day 3. Open sessions keep their original language."),
     h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
       ". Updating or uninstalling the app never deletes it."));
   const updates = updaterSettings();
@@ -598,11 +715,14 @@ function habitPreview(training) {
       () => go('#/training'), {cls:'ghost', test:'open-training'}));
 }
 ROUTES.today = async (ctx) => {
+  if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
+    return Support.today(ctx);
+  }
   const mode = ctx.query.get('mode') || 'normal';
   const [d, st, training] = await Promise.all([api('today', {mode}), refreshState(), optionalTraining()]);
   setCrumbs(['Google SWE II OS', 'Today'], ctx);
   const unfinished = Boolean(st.session);
-  const actionLabel = {fasttrack:'Continue Python lesson', warmup:'Start warmup', deep:'Start this problem',
+  const actionLabel = {fasttrack:'Continue language lesson', warmup:'Start warmup', deep:'Start this problem',
     review:'Start re-solve', micro:'Start 10-minute practice'}[d.kind] || d.cta;
   const bullets = unfinished ? st.session.kind === 'recall'
     ? ['Resume the remaining drills from where you stopped.', 'Drills you already graded still count.']
@@ -639,7 +759,7 @@ ROUTES.today = async (ctx) => {
     btn('View progress', () => go('#/roadmap'), {cls:'ghost small'}));
   mount(ctx, h('div', {class:'page today-page'}, pageTitle(mode === 'micro' ? 'A small session still counts.' : 'Build the habit. Do the work.',
     `${new Date(st.now).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'})} · Day ${st.day} · ${st.phase.short}`),
-    h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
+    codingLanguageChoice(st), h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
   return {onKey(e, typing) {
     if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'm' && mode !== 'micro' && d.kind !== 'fasttrack') {
       go('#/today?mode=micro'); return true;
@@ -744,6 +864,7 @@ function resumeSession(sess) {
 // ---------------------------------------------------------------- Phase 0: Python fast-track
 ROUTES.fasttrack = async (ctx) => {
   const data = await api("fasttrack");
+  const codingLanguage = data.coding_language || 'python';
   const dayNo = Number(ctx.parts[1]) || data.current;
   const lesson = data.days.find((x) => x.day === dayNo) || data.days[0];
   setCrumbs([...data.crumbs, `Day ${lesson.day}`], ctx);
@@ -754,7 +875,7 @@ ROUTES.fasttrack = async (ctx) => {
   const results = Object.fromEntries(lesson.exercises.map((e) => [e.id, e.result]));
   const answers = {}; // exercise id -> the server's answer, this visit
   const unclear = new Set(data.unclear || []);
-  const stepKey = `ft-step-${lesson.day}`;
+  const stepKey = codingLanguage === 'python' ? `ft-step-${lesson.day}` : `ft-step-cpp-${lesson.day}`;
   const last = sections.length + 1; // 0 = how today works, 1..N = steps, N+1 = finish
   let step = Math.max(0, Math.min(last, Number(ctx.query.get("step")) || Number(store.get(stepKey)) || 0));
   let showOther = false; // "Explain another way" is open
@@ -854,7 +975,7 @@ ROUTES.fasttrack = async (ctx) => {
       (s.new_words || []).length ? h("div", { class: "new-words" }, h("span", { class: "label" }, "New words"),
         (s.new_words || []).filter((w) => glossary[w]).map((w) => wordChip(w))) : null,
       h("h3", { class: "sub" }, "Try it"),
-      codeBlock(s.python, "python"),
+      codeBlock(s.code || s.python, codingLanguage),
       h("h3", { class: "sub" }, "What happened"),
       h("ul", { class: "bullets" }, (L(s, "points") || []).map((pt) => h("li", null, rich(pt)))),
       h("div", { class: "remember" }, h("b", null, "Remember: "), rich(L(s, "summary"))),
@@ -885,10 +1006,10 @@ ROUTES.fasttrack = async (ctx) => {
     const feedback = res ? h("div", { class: `feedback ${res.correct ? "right" : "wrong"}`, "data-test": "feedback" },
       h("p", null, h("b", { class: res.correct ? "ok-t" : "bad-t" }, res.correct ? "Correct." : `Not quite. The answer is ${ex.options[res.answer]}.`)),
       h("p", null, rich(S.lang === "simple" ? res.explanation_simple : res.explanation)),
-      res.output ? [h("div", { class: "muted small" }, "Python really prints:"), h("pre", { class: "code out" }, res.output)] : null) : null;
+      res.output ? [h("div", { class: "muted small" }, codingLanguage === 'cpp' ? 'Expected C++ output (not compiled here):' : 'Python really prints:'), h("pre", { class: "code out" }, res.output)] : null) : null;
     return h("div", { class: "quick", "data-test": "exercise" },
       h("h3", { class: "sub" }, "Quick check"),
-      h("p", { class: "ex-prompt" }, rich(ex.prompt)), codeBlock(ex.code, "python"), before,
+      h("p", { class: "ex-prompt" }, rich(ex.prompt)), codeBlock(ex.code, codingLanguage), before,
       h("div", { class: "options" }, opts), feedback);
   }
 
@@ -935,7 +1056,7 @@ ROUTES.fasttrack = async (ctx) => {
   async function finish() {
     const minutes = Math.max(1, Math.round((performance.now() - started) / 60000));
     try {
-      const res = await api("fasttrack_complete", { day: lesson.day, minutes });
+      const res = await api("fasttrack_complete", { day: lesson.day, minutes, coding_language:codingLanguage });
       finished = true;
       lesson.progress.done = true;
       await refreshState();
@@ -957,7 +1078,7 @@ ROUTES.fasttrack = async (ctx) => {
   render();
   mount(ctx, h("div", { class: "page wide" },
     pageTitle(`Day ${lesson.day} · ${L(lesson, "title")}`, null, languageToggle()),
-    daytabs,
+    codingLanguageChoice(), daytabs,
     h("div", { class: "ft" }, tocSlot, cardSlot)));
   return {
     rerender: render,
@@ -1213,6 +1334,7 @@ ROUTES.board = async (ctx) => {
   const p = data.problem;
   const B = {
     problem_id: p.id, practice: data.practice, minutes: data.minutes, elapsed: data.elapsed,
+    coding_language:data.coding_language || 'python',
     ticks: data.ticks.slice(), shown: data.shown, paused: false, done: false, hints: (data.hints || []).length,
   };
   const total = B.minutes * 60;
@@ -1222,7 +1344,7 @@ ROUTES.board = async (ctx) => {
   let lastSaved = 0;
   let editRevision = 0;
   let saveTail = Promise.resolve();
-  const draftKey = `prep-draft:${data.session_started || 'legacy'}:${p.id}`;
+  const draftKey = `prep-draft:${data.session_started || 'legacy'}:${p.id}${B.coding_language === 'cpp' ? ':cpp' : ''}`;
   function localDraft() {
     try {localStorage.setItem(draftKey, JSON.stringify({code:code.value, trace:trace.value})); return true;}
     catch (_) {return false;}
@@ -1241,7 +1363,7 @@ ROUTES.board = async (ctx) => {
   });
   const savedTag = h("span", { class: "saved", "data-test": "saved" }, "Autosave on");
   const banner = h("div", { class: "banner", hidden: true, "data-test": "follow-up" });
-  const code = h("textarea", { class: "code", spellcheck: "false", "aria-label": "Code pad (Python)", "data-test": "code" });
+  const code = h("textarea", { class: "code", spellcheck: "false", "aria-label": `Code pad (${data.coding_language === 'cpp' ? 'C++' : 'Python'})`, "data-test": "code" });
   code.value = data.code;
   const trace = h("textarea", { class: "code", spellcheck: "false", hidden: true, "aria-label": "Dry-run trace", "data-test": "trace" });
   trace.value = data.trace;
@@ -1254,7 +1376,7 @@ ROUTES.board = async (ctx) => {
     }
   } catch (_) { /* a damaged local draft does not replace saved work */ }
   const tabProblem = h('button', {type:'button', role:'tab', class:'problem-tab', 'aria-selected':'false', onclick:() => showTab('problem')}, 'Problem');
-  const tabCode = h("button", { type: "button", role: "tab", "aria-selected": "true", onclick: () => showTab("code") }, "Code");
+  const tabCode = h("button", { type: "button", role: "tab", "aria-selected": "true", onclick: () => showTab("code") }, data.coding_language === 'cpp' ? 'Code · C++' : 'Code · Python');
   const tabTrace = h("button", { type: "button", role: "tab", "aria-selected": "false", onclick: () => showTab("trace") }, "Dry-run trace");
   const checks = data.checklist.map((item, i) => {
     const box = h("input", { type: "checkbox", checked: B.ticks[i], onchange: (e) => { B.ticks[i] = e.target.checked; save(false); } });
@@ -1349,6 +1471,7 @@ ROUTES.board = async (ctx) => {
     const payload = {
       problem_id:B.problem_id, practice:B.practice, minutes:B.minutes, elapsed:B.elapsed,
       ticks:[...B.ticks], shown:B.shown, hints:B.hints,
+      coding_language:B.coding_language,
     };
     if (includeText) {payload.code = code.value; payload.trace = trace.value; localDraft();}
     const operation = async () => {
@@ -1438,6 +1561,24 @@ ROUTES.board = async (ctx) => {
 
   const boardBody = h('div', {class:'wb-body', 'data-panel':'code'}, left, right);
   const habitCue = h('details', {class:'board-habit', hidden:true});
+  const generalMode = S.state && S.state.settings.preparation_mode === 'general';
+  const supportCue = h('div', {class:'board-habit support-practice-cue', hidden:true});
+  function generalRescue() {
+    return Support.rescue(ctx, {host:$('.page.wb'), mock:!B.practice, park:()=>Support.parkSaved(
+      ()=>save(true), async()=>{
+        if (!B.paused) togglePause();
+        if (current) current.beforeLeave = null;
+        await go('#/today', {force:true});
+      })});
+  }
+  if (generalMode && typeof Support !== 'undefined') {
+    api('support_state', {}, {timeoutMs:4000}).then(supportData=>{
+      if (!ctx.alive() || !supportData.preferences.rescue_prompts) return;
+      supportCue.replaceChildren(h('span', {class:'small'}, 'Want to stop? Make the next step smaller before you decide.'),
+        btn('Find a rescue step', generalRescue, {cls:'ghost small',test:'practice-rescue'}));
+      supportCue.hidden=false;
+    }).catch(()=>{}); // optional support never blocks the code pad
+  }
   optionalTraining().then(trainingData => {
     if (!ctx.alive()) return;
     if (!trainingData) {return;} // optional coaching must never prevent coding
@@ -1451,7 +1592,11 @@ ROUTES.board = async (ctx) => {
       h("div", null, h("div", { class: "muted small" }, B.practice ? `Timed solve · ${B.minutes} min` : "Mock interview · 45 min"), clock),
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
       h("div", { class: "row" }, btn("I'm stuck", stuck, { cls: "ghost", key: "Alt+H", test: "stuck", title: `Hints open after ${Math.round(data.hint_unlock / 60)} minutes of trying` }),
-        pauseBtn, btn('Regroup', () => {
+        pauseBtn, btn(generalMode ? 'Rescue step' : 'Regroup', () => {
+          if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
+            generalRescue();
+            return;
+          }
           const panel = h('div', {class:'regroup'}, h('p', null, 'Name the exact obstacle out loud.'),
             h('ol', null, h('li', null, 'What do I already know?'), h('li', null, 'Can I try a smaller input or brute force?'),
               h('li', null, 'What one question would help?')),
@@ -1459,7 +1604,7 @@ ROUTES.board = async (ctx) => {
           openModal('Take one useful next step', panel, [{label:'Back to the problem', value:true, primary:true}]);
         }, {cls:'ghost', test:'regroup'}), btn("Abandon", abandon, { cls: "ghost small" }),
         btn("Submit & grade", () => submit(), { cls: "primary", key: "Ctrl+Enter", test: "submit" }))),
-    habitCue, banner, boardBody));
+    habitCue, supportCue, banner, boardBody));
   renderBanner();
   renderHints(data.hints || []);
   if (recoveredDraft) toast('Recovered edits from an interrupted save. Review your code and save again.');
@@ -1526,6 +1671,7 @@ function editorKeys(e, pad, changed) {
 async function scorecard(ctx, B, data) {
   const sc = await api("mock_scorecard", {
     problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, ticks: B.ticks, shown: B.shown,
+    coding_language:B.coding_language,
   });
   if (!ctx.alive()) return {};
   setCrumbs(sc.crumbs, ctx);
@@ -1636,6 +1782,7 @@ async function scorecard(ctx, B, data) {
       res = await api("mock_grade", {
         problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, outcome: answers.outcome,
         checks: answers.checks, mistake: answers.mistake, shown: B.shown, help: answers.help,
+        coding_language:B.coding_language,
       });
     } catch (err) { toast(err.message, true); finishing = false; step -= 1; render(); return; }
     await refreshState();
@@ -2119,6 +2266,8 @@ async function boot() {
   if (!location.hash) history.replaceState(null, "", `${location.search}#/today`);
   await route(); // an unfinished drill or mock shows as the first thing on Today (auto-recovery)
   showBuildTag();
+  const stopUpdates = startUpdateIndicator();
+  window.addEventListener('pagehide', stopUpdates, {once:true});
   setInterval(() => api("heartbeat").catch(() => {}), 30000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") api("heartbeat").catch(() => {}); });
 }

@@ -132,3 +132,28 @@ def test_helper_after_pending_was_confirmed_is_a_noop(prepared, monkeypatch):
     monkeypatch.setattr(helper.subprocess, 'run', lambda *a, **k: pytest.fail('installer launched'))
     assert helper.install_pending(home, 0) == 0
     assert not (folder/'result.json').exists()
+
+
+def test_registered_legacy_install_can_recover_without_build_metadata(home, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from google_prep.updates import windows
+    installed = windows.Installation(home/'registered app', '1.6.0', 0)
+    installed.path.mkdir()
+    (installed.path/'google-prep-update.exe').write_bytes(b'helper')
+    monkeypatch.setattr(windows, 'os', SimpleNamespace(name='nt'))
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(windows, 'registered_installation', lambda: installed)
+    assert windows.detect_installation(installed.path/'google-prep.exe') == installed
+    assert windows.detect_installation(home/'portable/google-prep.exe') is None
+
+
+def test_missing_helper_is_not_an_automatic_installation(home, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from google_prep.updates import windows
+    installed = windows.Installation(home/'registered app', '1.6.0', 0)
+    monkeypatch.setattr(windows, 'os', SimpleNamespace(name='nt'))
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(windows, 'registered_installation', lambda: installed)
+    assert windows.detect_installation(installed.path/'google-prep.exe') is None

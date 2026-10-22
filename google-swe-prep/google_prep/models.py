@@ -159,3 +159,27 @@ class TrainingCheckin(SQLModel, table=True):
     confidence_after: Optional[int] = None
     created_at: NaiveDatetime = Field(default_factory=now)
     updated_at: NaiveDatetime = Field(default_factory=now)
+
+
+class SupportBlock(SQLModel, table=True):
+    """User-acknowledged focus time, never a coding grade."""
+    id: str = Field(primary_key=True)
+    day: str = Field(index=True)
+    task: str
+    target_minutes: int
+    status: str = 'active'
+    active_slot: Optional[str] = Field(default='focus', unique=True)
+    elapsed_seconds: float = 0
+    running_since: Optional[NaiveDatetime] = None
+    created_at: NaiveDatetime = Field(default_factory=now)
+    updated_at: NaiveDatetime = Field(default_factory=now)
+    note: str = ''
+    source: str = 'timer'
+
+
+class SupportRescue(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    day: str = Field(index=True)
+    blocker: str
+    helpful: bool = False
+    created_at: NaiveDatetime = Field(default_factory=now)

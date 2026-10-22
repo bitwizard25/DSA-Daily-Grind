@@ -76,30 +76,48 @@ def _pad_name(problem: Problem) -> str:
     return f"{problem.id}_{slug}"
 
 
-def scratchpad(problem: Problem) -> Path:
+def pad_language(problem: Problem, language: str | None = None) -> str:
+    from google_prep.modules import fasttrack
+
+    if language is not None:
+        if language not in fasttrack.CODING_LANGUAGES:
+            raise ValueError("Choose Python or C++.")
+        return language
+    active = session_store.load() or {}
+    if active.get("kind") == "mock" and active.get("problem_id") == problem.id:
+        return active.get("coding_language", "python")
+    with db.get_session() as s:
+        return fasttrack.coding_language(s)
+
+
+def scratchpad(problem: Problem, language: str | None = None) -> Path:
     """Plain .txt on purpose: a .py file can open in an IDE with autocomplete and linting.
     Saved under ~/.google_prep/sessions/ with the rest of the auto-saved session."""
     folder = db.home_dir() / "sessions"
     folder.mkdir(exist_ok=True)
-    path = folder / f"{_pad_name(problem)}.txt"
+    language = pad_language(problem, language)
+    suffix = ".cpp" if language == "cpp" else ""
+    path = folder / f"{_pad_name(problem)}{suffix}.txt"
     legacy = db.home_dir() / "scratchpads" / path.name
     if not path.exists() and legacy.exists():  # v1.0 kept scratchpads in their own folder
         legacy.replace(path)
     if not path.exists():
-        path.write_text(
+        template = (
             f"# {problem.id} {problem.title} ({problem.difficulty})\n# {problem.statement}\n#\n"
             "# 1) Clarifying questions and constraints:\n\n"
             "# 2) Brute force + complexity:\n\n"
             "# 3) Optimal approach + complexity:\n\n"
             "# 4) Code:\n\n\n"
-            "# 5) Dry-run one test case line by line:\n\n",
-            encoding="utf-8",
-        )
+            "# 5) Dry-run one test case line by line:\n\n")
+        if language == "cpp":
+            template = re.sub(r"^#", "//", template, flags=re.MULTILINE)
+        path.write_text(template, encoding="utf-8")
     return path
 
 
-def trace_pad(problem: Problem) -> Path:
-    path = scratchpad(problem).with_name(f"{_pad_name(problem)}.trace.txt")
+def trace_pad(problem: Problem, language: str | None = None) -> Path:
+    pad = scratchpad(problem, language)
+    path = pad.with_name(f"{pad.stem}.trace.txt")
     if not path.exists():
         path.write_text(TRACE_TEMPLATE, encoding="utf-8")
     return path
@@ -172,6 +190,7 @@ def _ask(question: str, options: list[tuple[str, str]]) -> str:
 def _state(problem: Problem, minutes: int, practice: bool, timer: Countdown, ticks: list[bool],
            shown: int, submitted: bool = False) -> dict:
     return {"kind": "mock", "problem_id": problem.id, "minutes": minutes, "practice": practice,
+            "coding_language": pad_language(problem),
             "elapsed": timer.elapsed(), "ticks": ticks, "shown": shown, "submitted": submitted}
 
 

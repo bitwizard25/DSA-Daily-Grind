@@ -76,6 +76,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        if self.close_connection:
+            self.send_header("Connection", "close")
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -102,11 +104,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         if not self._host_ok() or not secrets.compare_digest(self.headers.get("X-Prep-Token", ""), self.server.token):
+            self.close_connection = True  # unread POST data must not become the next HTTP method
             return self._send(403, b'{"error": "forbidden"}')
         if not self.path.startswith("/api/"):
+            self.close_connection = True
             return self._send(404, b'{"error": "not found"}')
-        length = int(self.headers.get("Content-Length") or 0)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length < 0:
+                raise ValueError
+        except ValueError:
+            self.close_connection = True
+            return self._send(400, b'{"error": "bad content length"}')
         if length > MAX_BODY:
+            self.close_connection = True
             return self._send(413, b'{"error": "too large"}')
         try:
             payload = json.loads(self.rfile.read(length) or b"{}")

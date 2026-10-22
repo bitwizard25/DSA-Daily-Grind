@@ -177,7 +177,11 @@ def _make_updater():
     from google_prep.updates.manifest import read_build_info
     from google_prep.updates.windows import detect_installation
     try:
-        return UpdateManager(db.home_dir(), read_build_info(db.resource_dir()), detect_installation())
+        build = read_build_info(db.resource_dir())
+        installation = detect_installation()
+        if installation is not None and not build['build_number']:
+            build = {**build, 'version':installation.version, 'build_number':installation.build_number}
+        return UpdateManager(db.home_dir(), build, installation)
     except (OSError, ValueError, KeyError, TypeError):
         _log('updater unavailable; study features remain available')
         return None

@@ -99,7 +99,8 @@ def practice_progress(session: Session, when: datetime) -> dict:
     checkin = session.get(TrainingCheckin, key)
     if day_number <= 2:
         lesson = fasttrack.pending_day(session, day_number) or max(1, min(day_number, 2))
-        items = [{"id": "lesson", "title": f"Python lesson · Day {lesson}",
+        lang_label = fasttrack.CODING_LANGUAGES[fasttrack.coding_language(session)]
+        items = [{"id": "lesson", "title": f"{lang_label} lesson · Day {lesson}",
                   "done": fasttrack.is_done(session, lesson), "route": f"#/fasttrack/{lesson}",
                   "detail": "One small step at a time.", "optional": False}]
     else:
