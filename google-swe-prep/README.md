@@ -14,11 +14,13 @@ Use the mode button in the top bar or sidebar to switch:
 
 General mode offers a small start, pause/resume/park, optional learning notes, seven-day activity and practical rescue steps when stuck. Focus time, outside practice and helpful rescues are labeled self-reports; they never create a graded solve. Changing company or mode preserves recorded work. Switching back to Google pauses an active General focus block.
 
+**Choose Python or C++ from Day 1** on Today or Learn. General and Google mode each remember their own choice; it is also editable in Settings. Each language keeps separate lesson progress, code pads and dry-run traces. Existing profiles retain their Python work, and an unfinished session keeps the language it started with. C++ has two foundation days covering syntax, vectors, functions, containers and sorted search, plus a short reference checklist. Its quick checks show expected output from bundled C++17 examples. Running learner-written code remains a separate planned editor feature. Existing pattern-vault templates and bug-hunt examples are still primarily Python references.
+
 The coding catalogue is the existing shared bank, originally curated for Google. Native reminders, the broader weekly planner and the separately planned code runner are not part of this support increment.
 
 | | Launch | For |
 |---|---|---|
-| **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | Today, Python lessons, drills, whiteboard, progress, interview habits, design learning checklists, STAR stories and the concept vault |
+| **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | Today, Python/C++ foundations, drills, whiteboard, progress, interview habits, design learning checklists, STAR stories and the concept vault |
 | **Terminal** | `google-prep-cli.exe` (or `google-prep` from source) | Every command, scripting, `remind`, `sync`; `google-prep-cli tui` is the full-screen terminal version |
 
 ## Get the app
@@ -124,7 +126,7 @@ option. A recovery draft belongs to that window's address; download it before re
 | Weekly | **Roadmap** (`r`) | Readiness gauge with the formula, 14-day trend, 8-week plan, topic mastery, mistake profile. |
 | STAR | **STAR Stories** (`s`) | Write and edit stories for Ambiguity, Ownership, Disagreement, Humility; 2-minute practice prompts. |
 | Role | **Role Prep** (`j`) | 11-item checklist beyond coding: recruiter questions, resume deep-dive stories, defending your numbers, timeline answers, responsible AI, human mocks. Notes stay on your computer. |
-| Reference | **Concept Vault** (`v`) | 12 notes: C++ vs Python, complexity tables, templates and traps per pattern. |
+| Reference | **Concept Vault** (`v`) | 13 notes: C++ foundations checklist, C++ vs Python, complexity tables, templates and traps per pattern. |
 
 Every screen shows the same frame: the section list on the left, a breadcrumb on top
 (`Google SWE II OS › Phase 1 › Week 2 › Day 10 › Mock › Graphs › Course Schedule II`, current step in

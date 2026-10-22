@@ -53,3 +53,14 @@ Files: app.js; support.js; tests/frontend-support.test.cjs; tests/frontend-flows
 - [x] Run full Python and Node suites, source GUI selftest and isolated browser workflows.
 - [x] Dispatch one fresh whole-change review and fix important findings with regression tests.
 - [x] Report actual code, test results and remaining native notification/day-roadmap scope; no installed upgrade claim.
+
+### Task 5: Python / C++ choice in both modes (user added scope, October 21)
+Day 1 and Learn must offer Python or C++; each preparation mode remembers its choice. Existing profiles retain Python and historical progress. Switching language keeps separate lesson progress, review flags, code pads and trace files. Unfinished coding sessions retain their original language. C++ foundations are bundled C++17 lessons with expected-output checks; a compiler for user submissions remains deferred.
+
+Files: fasttrack.py; mock.py; gui/api.py; app.js; support.js/css; cpp_phase0_day1/2.json; C++ vault reference; test_coding_language.py; frontend-flows.test.cjs.
+- [x] Observe failing regressions for mode choices, independent progress, old sessions and stale-language saves.
+- [x] Add two C++ foundation days, mode preferences, Today/Learn/Settings choices and language-specific saved pads.
+- [ ] Run full suites, compile every bundled C++ example and check actual UI in both modes.
+- [ ] Review the added language scope, commit and push to the existing draft PR.
+
+Review focus for Task 5: existing Python progress/file compatibility; stale open lessons or code windows after language changes; distinction between expected C++ output and executing learner code; real Day 1 entry points in both modes; package-data inclusion of new lessons and vault note.

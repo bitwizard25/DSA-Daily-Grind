@@ -340,11 +340,11 @@ const Support = (() => {
       h('div',{class:'row support-actions'},
         btn('Coding practice',()=>go('#/mock'),{cls:'ghost'}),
         btn('Design & communication',()=>go('#/role'),{cls:'ghost'}),
-        btn('Python foundations',()=>go('#/fasttrack'),{cls:'ghost'})),
+        btn('Language foundations',()=>go('#/fasttrack'),{cls:'ghost'})),
       h('p',{class:'muted small'},'Coding uses the existing shared problem bank, originally curated for Google. Your General routine and role target are separate.'));
     const savedStudy=h('div');
     mount(ctx,h('div',{class:'page support-page'},pageTitle('One useful step today.',
-      (data.preferences.general_role || 'Your next role')+' · General mode'),savedStudy,block.node,summary,practice));
+      (data.preferences.general_role || 'Your next role')+' · General mode'),codingLanguageChoice(),savedStudy,block.node,summary,practice));
     api('state',{}, {timeoutMs:4000}).then(st=>{
       if(!ctx.alive() || !st.session)return;
       savedStudy.replaceChildren(h('section',{class:'support-evidence'},

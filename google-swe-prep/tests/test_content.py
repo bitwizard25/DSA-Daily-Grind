@@ -38,7 +38,8 @@ def run_all(checks) -> list[str]:
 
 # ---- the 12 vault notes ---------------------------------------------------------------------------
 def test_vault_has_the_spec_notes():
-    assert sorted(p.name for p in VAULT.glob("*.md")) == sorted(SPEC_NOTES)
+    # The C++ foundations reference is a short learning checklist, not a pattern template.
+    assert sorted(p.name for p in VAULT.glob("*.md")) == sorted([*SPEC_NOTES, "00_cpp_interview_basics.md"])
 
 
 @pytest.mark.parametrize("name", SPEC_NOTES)

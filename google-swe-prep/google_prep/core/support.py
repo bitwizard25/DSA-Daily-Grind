@@ -19,7 +19,7 @@ DEFAULTS = {'minimum_minutes': 5, 'focus_minutes': 25,
 BLOCKERS = {
     'worry': ('I feel worried or overwhelmed', 'Pause briefly. Name only the input and expected output. Try that for two minutes.'),
     'approach': ('I cannot find an approach', 'Use one tiny example. Describe the simplest brute-force approach before improving it.'),
-    'syntax': ('I am stuck on Python syntax', 'Write the operation you need in plain words. Check its syntax in Concept Vault, then try one line.'),
+    'syntax': ('I am stuck on language syntax', 'Write the operation you need in plain words. Check its syntax in Concept Vault, then try one line.'),
     'logic': ('I am stuck on index or pointer logic', 'Trace just one iteration. Write the index, its value, and what should change next.'),
     'bug': ('A bug keeps stopping me', 'Write expected versus actual for the smallest failing example. Check one changed value at a time.'),
     'polishing': ('I keep doing the same task', 'Write the next unfinished step. Save it, then choose to continue deliberately or switch.'),

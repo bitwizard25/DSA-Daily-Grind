@@ -84,7 +84,8 @@ class Api:
                 "app": scheduler.APP_NAME,
                 "now": t.isoformat(),
                 "day": day, "week": week, "dow": dow, "plan_days": scheduler.PLAN_DAYS,
-                "phase": {"number": phase, "name": scheduler.PHASES[phase][0], "short": PHASE_SHORT[phase],
+                "phase": {"number": phase, "name": scheduler.PHASES[phase][0],
+                          "short": f"{fasttrack.CODING_LANGUAGES[fasttrack.coding_language(s)]} Fast-Track" if phase == 0 else PHASE_SHORT[phase],
                           "last_day": scheduler.PHASES[phase][2]},
                 "streak": scheduler.streak(s, t.date()),
                 "readiness": round(r.index, 1), "readiness_evidence": r.evidence,
@@ -101,6 +102,7 @@ class Api:
                     "start_date": scheduler.start_date(s, t.date()).isoformat(),
                     "interview_date": scheduler.interview_date(s).isoformat(),
                     "language": fasttrack.language(s),
+                    "coding_language": fasttrack.coding_language(s),
                     "daily_problems": scheduler.daily_problems(s),
                 },
                 "fasttrack": {"unfinished": fasttrack.unfinished(s),
@@ -399,18 +401,21 @@ class Api:
             submitted = bool(state.get("submitted")) if state else False
             started = (state or {}).get("started") or t.isoformat()
             used_hints = int((state or {}).get("hints", 0))
+            coding_language = state.get("coding_language", "python") if state else fasttrack.coding_language(s)
             session_store.save({"kind": "mock", "problem_id": p.id, "minutes": minutes, "practice": bool(practice),
+                                "coding_language": coding_language,
                                 "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                                 "started": started, "submitted_at": (state or {}).get("submitted_at"),
                                 "hints": used_hints})
             return {"problem": self._problem_card(p, full=True), "minutes": minutes, "practice": bool(practice),
+                    "coding_language": coding_language,
                     "session_started": started,
                     "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,
                     "hints": self._hints(s, p)[:used_hints], "hint_unlock": mock.hint_unlock_seconds(bool(practice)),
                     "hint_total": len(mock.hints(p)), "stuck_tips": mock.STUCK_TIPS,
                     "follow_ups": self._follow_ups(s, p), "checklist": mock.CHECKLIST,
-                    "code": mock.scratchpad(p).read_text(encoding="utf-8"),
-                    "trace": mock.trace_pad(p).read_text(encoding="utf-8"),
+                    "code": mock.scratchpad(p, coding_language).read_text(encoding="utf-8"),
+                    "trace": mock.trace_pad(p, coding_language).read_text(encoding="utf-8"),
                     "phases": [{"label": label, "start": a, "end": b} for label, a, b in (
                         ("Scoping", 0, 5), ("Code", 5, 35), ("Follow-up", 35, 40), ("Scorecard", 40, 45))],
                     "crumbs": _crumbs(s, t.date(), "Solve" if practice else "Mock",
@@ -418,8 +423,9 @@ class Api:
 
     def mock_save(self, problem_id: str, practice: bool, minutes: int, elapsed: float, ticks: list,
                   shown: int, code: str | None = None, trace: str | None = None, submitted: bool = False,
-                  hints: int = 0) -> dict:
+                  hints: int = 0, coding_language: str | None = None) -> dict:
         """Called on every keystroke (debounced) and every timer tick: nothing is ever lost."""
+        self._check_coding_session(problem_id, coding_language)
         with get_session() as s:
             p = s.get(Problem, problem_id)
             if p is None:
@@ -433,6 +439,7 @@ class Api:
         submitted = bool(submitted) or bool(same and prev.get("submitted"))  # a late autosave never un-submits
         submitted_at = (prev.get("submitted_at") if same else None) or (self.now().isoformat() if submitted else None)
         session_store.save({"kind": "mock", "problem_id": problem_id, "minutes": int(minutes),
+                            "coding_language": mock.pad_language(p),
                             "practice": bool(practice), "elapsed": max(0.0, float(elapsed)), "ticks": list(ticks),
                             "shown": int(shown), "submitted": submitted,
                             "started": (prev.get("started") if same else None) or self.now().isoformat(),
@@ -463,9 +470,9 @@ class Api:
         return {"ok": True}
 
     def mock_scorecard(self, problem_id: str, practice: bool, minutes: int, elapsed: float, ticks: list,
-                       shown: int) -> dict:
+                       shown: int, coding_language: str | None = None) -> dict:
         """40:00: the questions for the 4-pillar scorecard (or the short self-grade after a solve)."""
-        self.mock_save(problem_id, practice, minutes, elapsed, ticks, shown, submitted=True)
+        self.mock_save(problem_id, practice, minutes, elapsed, ticks, shown, submitted=True, coding_language=coding_language)
         with get_session() as s:
             p = s.get(Problem, problem_id)
             fups = self._follow_ups(s, p)
@@ -502,7 +509,9 @@ class Api:
         return {"needs": mock.needs_mistake(outcome != "1", bool(dry_run_passed), int(elapsed), int(minutes))}
 
     def mock_grade(self, problem_id: str, practice: bool, minutes: int, elapsed: float, outcome: str,
-                   checks: dict, mistake: str | None = None, shown: int = -1, help: str = "none") -> dict:  # noqa: A002
+                   checks: dict, mistake: str | None = None, shown: int = -1, help: str = "none",
+                   coding_language: str | None = None) -> dict:  # noqa: A002
+        self._check_coding_session(problem_id, coding_language)
         if help not in rubric.HELP:
             raise ApiError("Say whether you used help: none, a hint, or the answer.")
         if help == "answer":
@@ -730,7 +739,8 @@ class Api:
             day_no = scheduler.day_number(s, t.date())
             answered = {r.item_id: r.correct for r in s.exec(select(LessonProgress)).all() if r.kind == "exercise"}
             days = []
-            for lesson in fasttrack.load_days():
+            coding_language = fasttrack.coding_language(s)
+            for lesson in fasttrack.load_days(coding_language):
                 days.append({
                     **{k: lesson.get(k) for k in ("day", "title", "title_simple", "subtitle", "subtitle_simple",
                                                   "minutes", "vault")},
@@ -744,16 +754,19 @@ class Api:
             pending = fasttrack.pending_day(s, day_no)
             return {"days": days, "current": pending or (fasttrack.unfinished(s) or [1])[0], "plan_day": day_no,
                     "unclear": fasttrack.unclear_steps(s), "language": fasttrack.language(s),
+                    "coding_language": coding_language,
                     "crumbs": _crumbs(s, t.date(), "Fast-Track")}
 
     def lesson_unclear(self, section_id: str, unclear: bool = True) -> dict:
         """'I did not get this step yet': listed again at the end of the day and on Today."""
-        known = {sec["id"] for lesson in fasttrack.load_days() for sec in lesson["sections"]}
+        known = {sec["id"] for lang in fasttrack.CODING_LANGUAGES
+                 for lesson in fasttrack.load_days(lang) for sec in lesson["sections"]}
         if section_id not in known:
             raise ApiError(f"Unknown step {section_id}")
         with get_session() as s:
             fasttrack.mark_unclear(s, section_id, bool(unclear), self.now())
-            return {"unclear": fasttrack.unclear_steps(s)}
+            lang = "cpp" if section_id.startswith("cpp-") else "python"
+            return {"unclear": fasttrack.unclear_steps(s, lang)}
 
     def set_language(self, mode: str) -> dict:
         """Standard (technical English, every term explained) or simple (plain English + Hindi hints)."""
@@ -762,6 +775,15 @@ class Api:
         with get_session() as s:
             scheduler.set_setting(s, "language", mode)
         return {"language": mode}
+
+    def set_coding_language(self, language: str) -> dict:
+        """Each preparation mode remembers its own programming language."""
+        if language not in fasttrack.CODING_LANGUAGES:
+            raise ApiError("Choose Python or C++.")
+        with get_session() as s:
+            mode = scheduler.get_setting(s, "preparation_mode", "google")
+            scheduler.set_setting(s, f"coding_language:{mode}", language)
+        return {"coding_language": language}
 
     def hints(self) -> dict:
         return {"hints": fasttrack.load_hints(), "code_hints": fasttrack.load_hints("code_hints")}
@@ -773,9 +795,12 @@ class Api:
             except KeyError as exc:
                 raise ApiError(f"Unknown exercise {exc.args[0]}") from exc
 
-    def fasttrack_complete(self, day: int, minutes: int = 0) -> dict:
+    def fasttrack_complete(self, day: int, minutes: int = 0, coding_language: str | None = None) -> dict:
         with get_session() as s:
-            fasttrack.complete(s, int(day), self.now(), int(minutes))
+            try:
+                fasttrack.complete(s, int(day), self.now(), int(minutes), coding_language)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
             return {"ok": True, "streak": scheduler.streak(s, self.now().date())}
 
     # ---- concept vault --------------------------------------------------------------------
@@ -814,7 +839,7 @@ class Api:
 
     # ---- settings -------------------------------------------------------------------------
     def settings_save(self, name: str = "", target: str = "", interview_date: str = "", start_date: str = "",
-                      language: str = "", daily_problems: str = "") -> dict:
+                      language: str = "", daily_problems: str = "", coding_language: str = "") -> dict:
         if daily_problems and str(daily_problems) not in scheduler.DAILY_PROBLEMS:
             raise ApiError("Daily problems must be 1 or 3.")
         if language:
@@ -825,6 +850,8 @@ class Api:
                     datetime.fromisoformat(value)
                 except ValueError as exc:
                     raise ApiError(f"{label} must be YYYY-MM-DD") from exc
+        if coding_language:
+            self.set_coding_language(coding_language)
         with get_session() as s:
             for key, value in (("name", name), ("target", target), ("interview_date", interview_date),
                                ("start_date", start_date), ("daily_problems", str(daily_problems))):
@@ -833,6 +860,15 @@ class Api:
         return self.state()
 
     # ---- helpers -------------------------------------------------------------------------
+    @staticmethod
+    def _check_coding_session(problem_id: str, language: str | None) -> None:
+        if language is None:  # legacy clients did not send a programming language
+            return
+        active = session_store.load() or {}
+        if (language not in fasttrack.CODING_LANGUAGES or active.get('kind') != 'mock'
+                or active.get('problem_id') != problem_id or active.get('coding_language', 'python') != language):
+            raise ApiError('A different coding session is open. Keep this draft and resume the active session.')
+
     @staticmethod
     def _foundations_total() -> int:
         return len(db.load_json("foundations.json")["problems"])

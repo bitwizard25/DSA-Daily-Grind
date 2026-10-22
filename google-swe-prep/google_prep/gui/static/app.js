@@ -520,12 +520,43 @@ function updaterSettings({showHeading = true} = {}) {
   return {node, refresh, cleanup:() => {disposed = true;clearInterval(timer);}};
 }
 
+function codingLanguageChoice(st = S.state) {
+  if (!st || !st.settings) return null;
+  const selected = st.settings.coding_language || 'python';
+  let busy = false;
+  const feedback = h('p', {class:'muted small', role:'status'},
+    'Your choice sets the starting lessons and new code pads. Each language keeps its progress.');
+  const buttons = ['python', 'cpp'].map(language => h('button', {
+    type:'button', class:'btn ghost small', 'aria-pressed':String(language === selected),
+    onclick:async()=>{
+      if (busy || language === selected) return;
+      busy = true;
+      try {
+        if (current && current.beforeLeave && !(await current.beforeLeave())) return;
+        buttons.forEach(button=>button.disabled=true);
+        await api('set_coding_language', {language});
+        await refreshState();
+        await route();
+      } catch(error) {feedback.textContent='Choice not saved: '+error.message;}
+      finally {busy=false;buttons.forEach(button=>button.disabled=false);}
+    },
+  }, language === 'cpp' ? 'C++' : 'Python'));
+  return h('fieldset', {class:'language-choice', 'data-test':'coding-language-choice'},
+    h('legend', null, 'Practice language'),
+    h('div', {class:'row'}, h('span', {class:'muted small'},
+      st.settings.preparation_mode === 'general' ? 'General mode' : 'Google mode'), ...buttons), feedback);
+}
+
 async function openSettings() {
   const st = S.state || await refreshState();
   const field = (label, name, value, type = "text") => h("div", { class: "field" },
     h("label", { for: `set-${name}` }, label), h("input", { id: `set-${name}`, name, type, value: value || "" }));
   const form = h("form", { class: "settings-form", onsubmit: (e) => e.preventDefault() },
     field("Your name", "name", st.settings.name), field("Target role", "target", st.settings.target),
+    h('div', {class:'field'}, h('label', {for:'set-coding-language'}, 'Practice language · current mode'),
+      h('select', {id:'set-coding-language', name:'coding_language'},
+        h('option', {value:'python', selected:st.settings.coding_language !== 'cpp' || null}, 'Python'),
+        h('option', {value:'cpp', selected:st.settings.coding_language === 'cpp' || null}, 'C++'))),
     h("div", { class: "field" }, h("label", { for: "set-language" }, "Lesson language"),
       h("select", { id: "set-language", name: "language" },
         h("option", { value: "standard", selected: S.lang !== "simple" || null }, "Standard English"),
@@ -537,7 +568,7 @@ async function openSettings() {
       h("span", {class:"muted small"}, "Both include a warmup. Part-time practice fits an evening.")),
     h("div", { class: "grid-2" }, field("Plan start (Day 1)", "start_date", st.settings.start_date, "date"),
       field("Interview target date", "interview_date", st.settings.interview_date, "date")),
-    h("p", { class: "muted small" }, "Day 1–2 are the Python fast-track; the Google problem bank starts on Day 3."),
+    h("p", { class: "muted small" }, "Day 1–2 cover your chosen programming language. The Google problem bank starts on Day 3. Open sessions keep their original language."),
     h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
       ". Updating or uninstalling the app never deletes it."));
   const updates = updaterSettings();
@@ -691,7 +722,7 @@ ROUTES.today = async (ctx) => {
   const [d, st, training] = await Promise.all([api('today', {mode}), refreshState(), optionalTraining()]);
   setCrumbs(['Google SWE II OS', 'Today'], ctx);
   const unfinished = Boolean(st.session);
-  const actionLabel = {fasttrack:'Continue Python lesson', warmup:'Start warmup', deep:'Start this problem',
+  const actionLabel = {fasttrack:'Continue language lesson', warmup:'Start warmup', deep:'Start this problem',
     review:'Start re-solve', micro:'Start 10-minute practice'}[d.kind] || d.cta;
   const bullets = unfinished ? st.session.kind === 'recall'
     ? ['Resume the remaining drills from where you stopped.', 'Drills you already graded still count.']
@@ -728,7 +759,7 @@ ROUTES.today = async (ctx) => {
     btn('View progress', () => go('#/roadmap'), {cls:'ghost small'}));
   mount(ctx, h('div', {class:'page today-page'}, pageTitle(mode === 'micro' ? 'A small session still counts.' : 'Build the habit. Do the work.',
     `${new Date(st.now).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'})} · Day ${st.day} · ${st.phase.short}`),
-    h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
+    codingLanguageChoice(st), h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
   return {onKey(e, typing) {
     if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'm' && mode !== 'micro' && d.kind !== 'fasttrack') {
       go('#/today?mode=micro'); return true;
@@ -833,6 +864,7 @@ function resumeSession(sess) {
 // ---------------------------------------------------------------- Phase 0: Python fast-track
 ROUTES.fasttrack = async (ctx) => {
   const data = await api("fasttrack");
+  const codingLanguage = data.coding_language || 'python';
   const dayNo = Number(ctx.parts[1]) || data.current;
   const lesson = data.days.find((x) => x.day === dayNo) || data.days[0];
   setCrumbs([...data.crumbs, `Day ${lesson.day}`], ctx);
@@ -843,7 +875,7 @@ ROUTES.fasttrack = async (ctx) => {
   const results = Object.fromEntries(lesson.exercises.map((e) => [e.id, e.result]));
   const answers = {}; // exercise id -> the server's answer, this visit
   const unclear = new Set(data.unclear || []);
-  const stepKey = `ft-step-${lesson.day}`;
+  const stepKey = codingLanguage === 'python' ? `ft-step-${lesson.day}` : `ft-step-cpp-${lesson.day}`;
   const last = sections.length + 1; // 0 = how today works, 1..N = steps, N+1 = finish
   let step = Math.max(0, Math.min(last, Number(ctx.query.get("step")) || Number(store.get(stepKey)) || 0));
   let showOther = false; // "Explain another way" is open
@@ -943,7 +975,7 @@ ROUTES.fasttrack = async (ctx) => {
       (s.new_words || []).length ? h("div", { class: "new-words" }, h("span", { class: "label" }, "New words"),
         (s.new_words || []).filter((w) => glossary[w]).map((w) => wordChip(w))) : null,
       h("h3", { class: "sub" }, "Try it"),
-      codeBlock(s.python, "python"),
+      codeBlock(s.code || s.python, codingLanguage),
       h("h3", { class: "sub" }, "What happened"),
       h("ul", { class: "bullets" }, (L(s, "points") || []).map((pt) => h("li", null, rich(pt)))),
       h("div", { class: "remember" }, h("b", null, "Remember: "), rich(L(s, "summary"))),
@@ -974,10 +1006,10 @@ ROUTES.fasttrack = async (ctx) => {
     const feedback = res ? h("div", { class: `feedback ${res.correct ? "right" : "wrong"}`, "data-test": "feedback" },
       h("p", null, h("b", { class: res.correct ? "ok-t" : "bad-t" }, res.correct ? "Correct." : `Not quite. The answer is ${ex.options[res.answer]}.`)),
       h("p", null, rich(S.lang === "simple" ? res.explanation_simple : res.explanation)),
-      res.output ? [h("div", { class: "muted small" }, "Python really prints:"), h("pre", { class: "code out" }, res.output)] : null) : null;
+      res.output ? [h("div", { class: "muted small" }, codingLanguage === 'cpp' ? 'Expected C++ output (not compiled here):' : 'Python really prints:'), h("pre", { class: "code out" }, res.output)] : null) : null;
     return h("div", { class: "quick", "data-test": "exercise" },
       h("h3", { class: "sub" }, "Quick check"),
-      h("p", { class: "ex-prompt" }, rich(ex.prompt)), codeBlock(ex.code, "python"), before,
+      h("p", { class: "ex-prompt" }, rich(ex.prompt)), codeBlock(ex.code, codingLanguage), before,
       h("div", { class: "options" }, opts), feedback);
   }
 
@@ -1024,7 +1056,7 @@ ROUTES.fasttrack = async (ctx) => {
   async function finish() {
     const minutes = Math.max(1, Math.round((performance.now() - started) / 60000));
     try {
-      const res = await api("fasttrack_complete", { day: lesson.day, minutes });
+      const res = await api("fasttrack_complete", { day: lesson.day, minutes, coding_language:codingLanguage });
       finished = true;
       lesson.progress.done = true;
       await refreshState();
@@ -1046,7 +1078,7 @@ ROUTES.fasttrack = async (ctx) => {
   render();
   mount(ctx, h("div", { class: "page wide" },
     pageTitle(`Day ${lesson.day} · ${L(lesson, "title")}`, null, languageToggle()),
-    daytabs,
+    codingLanguageChoice(), daytabs,
     h("div", { class: "ft" }, tocSlot, cardSlot)));
   return {
     rerender: render,
@@ -1302,6 +1334,7 @@ ROUTES.board = async (ctx) => {
   const p = data.problem;
   const B = {
     problem_id: p.id, practice: data.practice, minutes: data.minutes, elapsed: data.elapsed,
+    coding_language:data.coding_language || 'python',
     ticks: data.ticks.slice(), shown: data.shown, paused: false, done: false, hints: (data.hints || []).length,
   };
   const total = B.minutes * 60;
@@ -1311,7 +1344,7 @@ ROUTES.board = async (ctx) => {
   let lastSaved = 0;
   let editRevision = 0;
   let saveTail = Promise.resolve();
-  const draftKey = `prep-draft:${data.session_started || 'legacy'}:${p.id}`;
+  const draftKey = `prep-draft:${data.session_started || 'legacy'}:${p.id}${B.coding_language === 'cpp' ? ':cpp' : ''}`;
   function localDraft() {
     try {localStorage.setItem(draftKey, JSON.stringify({code:code.value, trace:trace.value})); return true;}
     catch (_) {return false;}
@@ -1330,7 +1363,7 @@ ROUTES.board = async (ctx) => {
   });
   const savedTag = h("span", { class: "saved", "data-test": "saved" }, "Autosave on");
   const banner = h("div", { class: "banner", hidden: true, "data-test": "follow-up" });
-  const code = h("textarea", { class: "code", spellcheck: "false", "aria-label": "Code pad (Python)", "data-test": "code" });
+  const code = h("textarea", { class: "code", spellcheck: "false", "aria-label": `Code pad (${data.coding_language === 'cpp' ? 'C++' : 'Python'})`, "data-test": "code" });
   code.value = data.code;
   const trace = h("textarea", { class: "code", spellcheck: "false", hidden: true, "aria-label": "Dry-run trace", "data-test": "trace" });
   trace.value = data.trace;
@@ -1343,7 +1376,7 @@ ROUTES.board = async (ctx) => {
     }
   } catch (_) { /* a damaged local draft does not replace saved work */ }
   const tabProblem = h('button', {type:'button', role:'tab', class:'problem-tab', 'aria-selected':'false', onclick:() => showTab('problem')}, 'Problem');
-  const tabCode = h("button", { type: "button", role: "tab", "aria-selected": "true", onclick: () => showTab("code") }, "Code");
+  const tabCode = h("button", { type: "button", role: "tab", "aria-selected": "true", onclick: () => showTab("code") }, data.coding_language === 'cpp' ? 'Code · C++' : 'Code · Python');
   const tabTrace = h("button", { type: "button", role: "tab", "aria-selected": "false", onclick: () => showTab("trace") }, "Dry-run trace");
   const checks = data.checklist.map((item, i) => {
     const box = h("input", { type: "checkbox", checked: B.ticks[i], onchange: (e) => { B.ticks[i] = e.target.checked; save(false); } });
@@ -1438,6 +1471,7 @@ ROUTES.board = async (ctx) => {
     const payload = {
       problem_id:B.problem_id, practice:B.practice, minutes:B.minutes, elapsed:B.elapsed,
       ticks:[...B.ticks], shown:B.shown, hints:B.hints,
+      coding_language:B.coding_language,
     };
     if (includeText) {payload.code = code.value; payload.trace = trace.value; localDraft();}
     const operation = async () => {
@@ -1637,6 +1671,7 @@ function editorKeys(e, pad, changed) {
 async function scorecard(ctx, B, data) {
   const sc = await api("mock_scorecard", {
     problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, ticks: B.ticks, shown: B.shown,
+    coding_language:B.coding_language,
   });
   if (!ctx.alive()) return {};
   setCrumbs(sc.crumbs, ctx);
@@ -1747,6 +1782,7 @@ async function scorecard(ctx, B, data) {
       res = await api("mock_grade", {
         problem_id: B.problem_id, practice: B.practice, minutes: B.minutes, elapsed: B.elapsed, outcome: answers.outcome,
         checks: answers.checks, mistake: answers.mistake, shown: B.shown, help: answers.help,
+        coding_language:B.coding_language,
       });
     } catch (err) { toast(err.message, true); finishing = false; step -= 1; render(); return; }
     await refreshState();

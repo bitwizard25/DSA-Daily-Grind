@@ -36,3 +36,9 @@
 @media(max-width:500px){.support-week{grid-template-columns:repeat(4,minmax(0,1fr))}.support-start .row{align-items:stretch}.support-start .btn{white-space:normal}.support-rescue-panel{padding:16px}.support-clock{font-size:20px}}
 @media(prefers-reduced-motion:reduce){.support-start *,.support-page *{animation:none!important;transition:none!important}}
 .wb>.support-rescue-panel{max-height:260px;overflow:auto;flex-shrink:0}
+/* One compact language choice shared by Today and Learn in either preparation mode. */
+.language-choice {min-width:0; margin:0 0 18px; padding:10px 14px; border:1px solid var(--border); border-radius:12px;}
+.language-choice legend {padding:0 5px; font-size:13px; font-weight:600;}
+.language-choice .row {flex-wrap:wrap; gap:8px;}
+.language-choice p {margin:7px 0 0; max-width:65ch; line-height:1.5;}
+.language-choice button[aria-pressed="true"] {border-color:var(--blue); background:var(--surface-2); color:var(--text);}

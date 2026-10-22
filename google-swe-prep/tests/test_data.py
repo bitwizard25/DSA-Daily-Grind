@@ -90,7 +90,7 @@ def test_patterns_and_vault():
     patterns = db.load_json("patterns.json")
     assert len(patterns) == 15
     vault = db.resource_dir() / "patterns_vault"
-    assert len(list(vault.glob("*.md"))) == 12  # spec_4 section 4
+    assert len(list(vault.glob("*.md"))) == 13  # original 12 references + C++ foundations checklist
     for p in patterns:
         assert p["vault_file"] is None or (vault / p["vault_file"]).exists()
 

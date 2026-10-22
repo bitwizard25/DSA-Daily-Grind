@@ -28,7 +28,7 @@ function env(extra={}) {
   const state={h:tree, svg:tree, btn:(label, onclick, opts={})=>tree('button', {'data-test':opts.test, onclick}, label),
     rich:x=>x, icon:x=>tree('icon', {}, x), bar:()=>tree('bar'), setCrumbs:()=>{}, pageTitle:(...x)=>tree('title', {}, ...x),
     mount:(_, node)=>{state.root=node;}, go:()=>{}, toast:()=>{}, ROUTES:{}, S:{state:null},
-    Date, JSON, URLSearchParams, ...extra};
+    codingLanguageChoice:()=>null, Date, JSON, URLSearchParams, ...extra};
   vm.createContext(state);return state;
 }
 const routeSource=source('ROUTES.today = async (ctx) => {', '\n};')+'\n};';
@@ -188,4 +188,19 @@ test('sidebar polling never overlaps and stops after page close',async()=>{
   stop();resolve({state:'available'});await Promise.resolve();
   await tick();assert.equal(calls,1);assert.ok(removed && cleared);
   assert.equal(button.textContent,'');
+});
+
+test('language chooser saves the choice only after pending work is safe',async()=>{
+  let safe=false, saved=[],refreshed=0;
+  const state=env({current:{beforeLeave:async()=>safe},
+    api:async(name,payload)=>{saved.push([name,payload.language]);},
+    refreshState:async()=>{refreshed++;},route:async()=>{}});
+  vm.runInContext(source('function codingLanguageChoice(', '\nasync function openSettings'),state);
+  const root=state.codingLanguageChoice({settings:{coding_language:'python',preparation_mode:'general'}});
+  assert.match(root.textContent,/General mode/);
+  assert.equal(find(root,n=>n.tag==='button'&&n.textContent==='Python').attrs['aria-pressed'],'true');
+  const cpp=find(root,n=>n.tag==='button'&&n.textContent==='C++');
+  await cpp.attrs.onclick();assert.equal(saved.length,0);
+  safe=true;await cpp.attrs.onclick();
+  assert.deepEqual(saved,[['set_coding_language','cpp']]);assert.equal(refreshed,1);
 });
