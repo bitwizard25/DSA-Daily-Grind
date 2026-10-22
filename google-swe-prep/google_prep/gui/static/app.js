@@ -2236,12 +2236,24 @@ window.addEventListener("beforeunload", (e) => {
   if (current && current.isDirty && current.isDirty()) e.preventDefault(); // closing with an unsaved STAR story
 });
 
+function startWindowPresence() {
+  let identity = crypto.randomUUID();
+  const report = (open) => api('window_presence', {id:identity, open}, {keepalive:!open, timeoutMs:2000}).catch(() => {});
+  report(true);
+  // pagehide follows an accepted close; beforeunload may be cancelled for unsaved work.
+  window.addEventListener('pagehide', () => report(false));
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) { identity = crypto.randomUUID(); report(true); }
+  });
+}
+
 async function boot() {
   buildNav();
   if (!TOKEN) {
     $("#view").replaceChildren(h("div", { class: "page" }, h("div", { class: "empty" }, "Open this window from the Google SWE II OS app.")));
     return;
   }
+  startWindowPresence();
   try {
     await refreshState();
     const hintData = await api("hints");

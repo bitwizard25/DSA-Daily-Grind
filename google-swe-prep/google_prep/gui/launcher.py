@@ -23,6 +23,7 @@ HEARTBEAT_TIMEOUT = 600  # seconds without a page heartbeat (sent every 30 s) be
 SLEEP_GAP = 30  # a 2-second wait that took longer than this means the computer slept: not the page's fault
 HANDOFF_SECONDS = 5  # a window process that exits faster than this handed off to an already-open browser
 CLOSE_GRACE = 40  # after the window process ends, listen this long for the page (it pings every 30 s)
+NATIVE_CLOSE_GRACE = 40  # when unload is lost, allow a heartbeat to prove a replacement window is alive
 APP_MUTEX = "GoogleSWEIIOS.Running"  # must match AppMutex in installer/google-prep.iss
 
 
@@ -252,7 +253,10 @@ def main(argv: list[str] | None = None) -> int:
         if proc is not None:
             started = time.monotonic()
             _log(f"started on {url.split('?')[0]} with its own window")
-            proc.wait()  # the window closed: we are done ...
+            if _wait_for_browser(proc, server):
+                _log('all app pages closed: stopping the hidden server')
+                exit_reason = 'window_closed'
+                return 0
             if time.monotonic() - started >= HANDOFF_SECONDS:
                 if not _page_still_open(server):
                     _log("window closed: stopping")
@@ -260,17 +264,12 @@ def main(argv: list[str] | None = None) -> int:
                     return 0
                 # Edge can swap its process (an update, a relaunch) while the window stays open
                 _log("window process ended but the page is still open: serving on heartbeats")
-                _wait_for_page(server)
-                exit_reason = 'heartbeat_timeout'
+                exit_reason = _wait_for_page(server)
                 return 0
-            # ... unless the browser handed the page to a copy that was already running and exited.
-            # That first copy marks the app as running; this window-less helper must not keep the
-            # installer waiting after every window is closed.
-            _release(mutex)
-            mutex = None
+            # The browser handed this page to an existing process. Keep this page's app lock
+            # until it closes too: another server's window can close before this one.
         _log("window handed off to a running browser: serving while the page sends heartbeats")
-        _wait_for_page(server, forever=args.no_browser)
-        exit_reason = 'heartbeat_timeout'
+        exit_reason = _wait_for_page(server, forever=args.no_browser)
     except KeyboardInterrupt:
         exit_reason = 'keyboard_interrupt'
     finally:
@@ -284,17 +283,79 @@ def _page_still_open(server) -> bool:
     """True if the page sends a heartbeat (or any request) after its window process ended."""
     ended = time.monotonic()
     while time.monotonic() - ended < CLOSE_GRACE:
+        if _reported_closed(server):
+            return False
         if server.last_seen > ended:
             return True
         time.sleep(1)
     return server.last_seen > ended
 
 
-def _wait_for_page(server, forever: bool = False) -> None:
+def _reported_closed(server) -> bool:
+    return getattr(server, 'windows_closed', lambda:False)()
+
+
+def _browser_has_window(pid) -> bool | None:
+    """Check only this browser's top-level windows. Minimized/covered windows remain visible to Win32."""
+    if os.name != 'nt':
+        return None
+    import ctypes
+    from ctypes import wintypes
+    try:
+        library = ctypes.WinDLL('user32', use_last_error=True)
+        callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        library.EnumWindows.argtypes = [callback_type, wintypes.LPARAM]
+        library.EnumWindows.restype = wintypes.BOOL
+        library.IsWindowVisible.argtypes = [wintypes.HWND]
+        library.IsWindowVisible.restype = wintypes.BOOL
+        library.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        library.GetWindowThreadProcessId.restype = wintypes.DWORD
+        found = False
+        def visit(handle, _):
+            nonlocal found
+            owner = wintypes.DWORD()
+            library.GetWindowThreadProcessId(handle, ctypes.byref(owner))
+            if owner.value == pid and library.IsWindowVisible(handle):
+                found = True
+                return False
+            return True
+        callback = callback_type(visit)
+        succeeded = library.EnumWindows(callback, 0)
+        return True if found else False if succeeded else None
+    except (OSError, AttributeError):
+        return None  # unavailable is not evidence that a window was closed
+
+
+def _wait_for_browser(proc, server) -> bool:
+    """A browser process may outlive its last window; keep observing the window and the page."""
+    seen_window, missing_since = False, None
+    while proc.poll() is None:
+        if _reported_closed(server):
+            return True
+        pid = getattr(proc, 'pid', None)
+        visible = _browser_has_window(pid) if pid else None
+        now = time.monotonic()
+        if visible is True:
+            seen_window, missing_since = True, None
+        elif visible is False and seen_window:
+            if missing_since is None or getattr(server, 'last_seen', 0) > missing_since:
+                missing_since = now
+            elif now - missing_since >= NATIVE_CLOSE_GRACE:
+                return True
+        else:
+            missing_since = None
+        time.sleep(.5)
+    return False
+
+
+def _wait_for_page(server, forever: bool = False) -> str:
     """Serve until the page has been silent for HEARTBEAT_TIMEOUT. Time the computer spends asleep
     does not count: after a nap the open window must still work."""
     last = time.monotonic()
     while True:
+        if not forever and _reported_closed(server):
+            _log('all app pages closed: stopping the hidden server')
+            return 'window_closed'
         now = time.monotonic()
         if now - last > SLEEP_GAP:
             _log(f"woke up after {round(now - last)} s asleep: keeping the app running")
@@ -302,7 +363,7 @@ def _wait_for_page(server, forever: bool = False) -> None:
         last = now
         if not forever and now - server.last_seen >= HEARTBEAT_TIMEOUT:
             _log(f"no heartbeat for {round(now - server.last_seen)} s: the page is closed, stopping")
-            return
+            return 'heartbeat_timeout'
         time.sleep(2)
 
 

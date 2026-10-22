@@ -13,6 +13,7 @@ from google_prep.gui.api import Api, ApiError, call, dumps
 
 STATIC = Path(__file__).resolve().parent / "static"
 MAX_BODY = 2_000_000  # code + trace autosaves are small; anything bigger is a mistake
+WINDOW_CLOSE_GRACE = 5  # allow a reload/new document to register before ending the server
 # Fixed types for the bundled files. Not `mimetypes`: on Windows it reads the registry, where other
 # software often maps .js to text/plain, and with nosniff the window would then refuse to run app.js.
 CONTENT_TYPES = {
@@ -42,7 +43,36 @@ class PrepServer(ThreadingHTTPServer):
         self.token = token or secrets.token_urlsafe(24)
         self.lock = threading.Lock()  # one API call at a time: SQLite + simple state
         self.last_seen = time.monotonic()
+        self._window_lock = threading.Lock()
+        self._windows = {}
+        self._windows_closed_at = None
+        self._window_tracking_failed = False
         super().__init__(("127.0.0.1", port), Handler)
+
+    def window_presence(self, payload):
+        if not isinstance(payload, dict):
+            raise ApiError('Invalid window presence')
+        identity, is_open = payload.get('id'), payload.get('open')
+        if not isinstance(identity, str) or not 1 <= len(identity) <= 100 or type(is_open) is not bool:
+            raise ApiError('Invalid window presence')
+        with self._window_lock:
+            if identity not in self._windows and len(self._windows) >= 1024:
+                self._window_tracking_failed = True  # fail safely: retain the server, never guess closed
+                raise ApiError('Window tracking limit reached')
+            # A delayed open message from an unloaded document must not resurrect it.
+            if self._windows.get(identity) is False:
+                return {'ok':True}
+            self._windows[identity] = is_open
+            if any(self._windows.values()):
+                self._windows_closed_at = None
+            elif self._windows_closed_at is None:
+                self._windows_closed_at = time.monotonic()
+        return {'ok':True}
+
+    def windows_closed(self):
+        with self._window_lock:
+            return (not self._window_tracking_failed and self._windows_closed_at is not None
+                    and time.monotonic() - self._windows_closed_at >= WINDOW_CLOSE_GRACE)
 
     def handle_error(self, request, client_address):
         import sys
@@ -102,13 +132,27 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, b'{"error": "not found"}')
         self._send(200, file.read_bytes(), ctype)
 
+    def _reject_post(self, code, body):
+        # Closing a Windows socket with an unread POST body can reset it before the error arrives.
+        # Drain only small, complete requests; never wait indefinitely for an unauthenticated peer.
+        self.close_connection = True
+        previous_timeout = self.connection.gettimeout()
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+            if 0 < length <= 4096:
+                self.connection.settimeout(1)
+                self.rfile.read(length)
+        except (OSError, ValueError):
+            pass
+        finally:
+            self.connection.settimeout(previous_timeout)
+        return self._send(code, body)
+
     def do_POST(self):  # noqa: N802
         if not self._host_ok() or not secrets.compare_digest(self.headers.get("X-Prep-Token", ""), self.server.token):
-            self.close_connection = True  # unread POST data must not become the next HTTP method
-            return self._send(403, b'{"error": "forbidden"}')
+            return self._reject_post(403, b'{"error": "forbidden"}')
         if not self.path.startswith("/api/"):
-            self.close_connection = True
-            return self._send(404, b'{"error": "not found"}')
+            return self._reject_post(404, b'{"error": "not found"}')
         try:
             length = int(self.headers.get("Content-Length") or 0)
             if length < 0:
@@ -126,7 +170,8 @@ class Handler(BaseHTTPRequestHandler):
         self.server.last_seen = time.monotonic()
         try:
             with self.server.lock:
-                result = call(self.server.api, self.path[len("/api/"):], payload)
+                name = self.path[len("/api/"):]
+                result = self.server.window_presence(payload) if name == 'window_presence' else call(self.server.api, name, payload)
             self._send(200, dumps(result))
         except ApiError as exc:
             self._send(400, dumps({"error": str(exc)}))
