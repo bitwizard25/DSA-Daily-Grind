@@ -10,7 +10,7 @@ from google_prep.core import readiness, scheduler
 from google_prep.ui.formatters import banner, bar, crumbs, keys as key_bar, nav
 from google_prep.ui.theme import BLUE, GREEN, YELLOW
 
-SHORT_PHASE = {0: "Python Fast-Track", 1: "Foundation", 2: "Core Patterns", 3: "Onsite Loop"}
+SHORT_PHASE = {0: "Programming foundations", 1: "Foundation", 2: "Core Patterns", 3: "Onsite Loop"}
 WARMUP_DRILLS = 5
 
 
@@ -105,9 +105,10 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
     day_no = scheduler.day_number(session, now.date())
     fast_day = fasttrack.pending_day(session, day_no)
     if fast_day is not None:
-        lesson = fasttrack.load_day(fast_day)
+        lang = fasttrack.coding_language(session)
+        lesson = fasttrack.load_day(fast_day, lang)
         return {**out, "kind": "fasttrack", "day": fast_day, "minutes": lesson["minutes"],
-                "title": f"Python fast-track · Day {fast_day} of 2 · {lesson['minutes']} min",
+                "title": f"{fasttrack.CODING_LANGUAGES[lang]} fast-track · Day {fast_day} of 2 · {lesson['minutes']} min",
                 "bullets": [f"{sum(not s.get('optional') for s in lesson['sections'])} short steps: "
                             "a tiny example, what happened, one line to remember",
                             "One quick check after each step · new words come a few at a time",
@@ -153,7 +154,7 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
                    bullets=[done_line, "Extra rep? Re-solve queue, a mock, or drills."])
 
     for d in fasttrack.unfinished(session):
-        out["status"].append(("Open", f"Python fast-track Day {d} not finished"))
+        out["status"].append(("Open", f"{fasttrack.CODING_LANGUAGES[fasttrack.coding_language(session)]} fast-track Day {d} not finished"))
     if not morning_next:
         out["status"].append(("Done" if sched.morning_completed else "Not done", "Morning warmup"))
     if full_time and not evening_next:

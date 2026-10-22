@@ -9,6 +9,23 @@ from google_prep.gui.api import RPC, Api, ApiError, call
 from google_prep.gui.server import serve
 
 
+def test_rejected_post_does_not_poison_next_stylesheet_request():
+    server=serve()
+    conn=http.client.HTTPConnection('127.0.0.1',server.server_address[1],timeout=5)
+    try:
+        conn.request('POST','/api/update_status',body='{}',headers={'X-Prep-Token':'old-preview-token','Content-Type':'application/json'})
+        response=conn.getresponse()
+        assert response.status==403
+        response.read()
+        conn.request('GET','/training.css')
+        response=conn.getresponse()
+        assert response.status==200
+        assert response.getheader('Content-Type').startswith('text/css')
+        assert b'.sidebar-update' in response.read()
+    finally:
+        conn.close();server.shutdown();server.server_close()
+
+
 @pytest.fixture
 def api():
     return Api()

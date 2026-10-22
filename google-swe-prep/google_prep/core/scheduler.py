@@ -17,7 +17,7 @@ from google_prep.models import (
 
 PLAN_DAYS = 56
 PHASES = {  # phase: (name, first day, last day)
-    0: ("C++ to Python Fast-Track", 1, 2),
+    0: ("Programming foundations", 1, 2),
     1: ("Foundation & Recall Sprint", 3, 21),
     2: ("Google Core Patterns & Hard Follow-ups", 22, 42),
     3: ("Final Onsite Loop & Googlyness", 43, 56),
@@ -46,7 +46,7 @@ MISTAKES = {
     "bug_edge": "Bug or missed edge case",
     "slow": "Too slow",
     "follow_up": "Stuck on the follow-up",
-    "python_syntax": "Knew the pattern, stuck on Python syntax or library use",
+    "python_syntax": "Knew the pattern, stuck on language syntax or library use",
     "implementation_logic": "Knew the pattern, stuck on implementation logic",
 }
 # Keep the legacy aggregate in history. Every new scorecard uses the same six

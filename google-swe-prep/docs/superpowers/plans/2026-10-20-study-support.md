@@ -1,0 +1,66 @@
+# Personal study support Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
+
+**Goal:** Put confidence evidence, a daily starting commitment, gap recovery and practical give-up rescue into real study flows first, following the user's latest priority.
+
+**Architecture:** A small support module persists focus blocks and rescue events alongside existing SQLModel history. A separate frontend module adds a Today panel and a focused support page; the whiteboard receives a rescue panel without changing mock timing, grading or saved code.
+
+**Tech Stack:** Existing Python/SQLModel/SQLite and plain JavaScript/CSS, no new dependencies.
+
+**Spec:** Private workspace outputs/Personalized-Study-Support-Design.md sections 1–3, 5–6, 8, plus the user's 20 October request to address confidence, discipline, inconsistency and giving up first.
+
+**Accepted follow-up:** Preserve Google mode and add a separate General mode for transferable skills and a changing role/company target. Existing profiles default to Google. A mode switch preserves the Google schedule, active coding session and shared practice evidence. General routines and role targets have separate preferences.
+
+## Global Constraints
+- Preserve code, trace, timer, hints, grading and active session identity.
+- Five-minute starts are distinct from ten-minute Micro-Mode and independently solved problems.
+- Show self-reports as self-reports; no diagnosis or hiring prediction.
+- Daily commitment and reading size are user-controlled; no silent goal changes.
+- Reflections optional, at most 240 characters for a useful-learning note.
+- This prioritized increment does not install notifications, publish a release or implement the separately deferred Python runner. Native reminders and the broader day/week roadmap remain the next work after support is usable.
+
+## Review Focus
+- Restarted/parallel windows must not create overlapping focus blocks or duplicate completion evidence.
+- Midnight and stale pages must not overwrite a different local day.
+- A failed save must retain text and must not show success.
+- Timer starts, paused time and rescue clicks must not fabricate completion/solves.
+- Unavailable coaching must not block the existing Today or whiteboard route.
+
+### Task 1: Persist focus support and truthful evidence
+Files: google_prep/models.py; google_prep/core/support.py; tests/test_support.py.
+Interfaces: state(session, when); preferences(session, changes=None); start(session, when, day, minutes, task); transition(session, when, block_id, action, note=''); rescue(session, when, day, blocker, outcome).
+- [x] Write behavioral tests for start/restart, pause/resume elapsed, completed vs attempted evidence, useful notes, stale day, concurrent active blocks, invalid input and rescue outcomes.
+- [x] Run tests and observe missing-feature failures.
+- [x] Implement models, validation, state aggregation and idempotent transitions.
+- [x] Run focused tests and existing training tests; commit.
+
+### Task 2: API and real Today/support UI
+Files: google_prep/gui/api.py; google_prep/gui/static/support.js; support.css; index.html; app.js; tests/test_support.py; tests/frontend-support.test.cjs.
+Interfaces: support_state, support_preferences, support_start, support_transition, support_rescue RPCs; Support.today(ctx), Support.page(ctx), Support.rescue(ctx, options).
+- [x] Add failing API/JS tests for persistence, action payloads and failed-save recovery.
+- [x] Implement a Today next-step panel, focus timer with pause/extend/park/complete, short optional learning note, weekly evidence, editable cue/preferences and five-minute return flow.
+- [x] Mount optional Today support without making existing route depend on it; add labeled navigation and responsive styling.
+- [x] Verify failures, refresh persistence and all existing frontend tests; commit.
+
+### Task 3: Give-up rescue in actual practice
+Files: app.js; support.js; tests/frontend-support.test.cjs; tests/frontend-flows.test.cjs.
+- [x] Add failing tests for tailored blocker actions and save-before-park behavior.
+- [x] Add a non-blocking rescue panel with specific next steps, optional two-minute retry, helpful outcome acknowledgement and safe save-and-return. Keep existing hint unlock and mock clock unchanged.
+- [x] Run Python and Node suites, inspect desktop/small-window behavior using a separate test profile and preview port; commit.
+
+### Task 4: Verify and review
+- [x] Run full Python and Node suites, source GUI selftest and isolated browser workflows.
+- [x] Dispatch one fresh whole-change review and fix important findings with regression tests.
+- [x] Report actual code, test results and remaining native notification/day-roadmap scope; no installed upgrade claim.
+
+### Task 5: Python / C++ choice in both modes (user added scope, October 21)
+Day 1 and Learn must offer Python or C++; each preparation mode remembers its choice. Existing profiles retain Python and historical progress. Switching language keeps separate lesson progress, review flags, code pads and trace files. Unfinished coding sessions retain their original language. C++ foundations are bundled C++17 lessons with expected-output checks; a compiler for user submissions remains deferred.
+
+Files: fasttrack.py; mock.py; gui/api.py; app.js; support.js/css; cpp_phase0_day1/2.json; C++ vault reference; test_coding_language.py; frontend-flows.test.cjs.
+- [x] Observe failing regressions for mode choices, independent progress, old sessions and stale-language saves.
+- [x] Add two C++ foundation days, mode preferences, Today/Learn/Settings choices and language-specific saved pads.
+- [ ] Run full suites, compile every bundled C++ example and check actual UI in both modes.
+- [ ] Review the added language scope, commit and push to the existing draft PR.
+
+Review focus for Task 5: existing Python progress/file compatibility; stale open lessons or code windows after language changes; distinction between expected C++ output and executing learner code; real Day 1 entry points in both modes; package-data inclusion of new lessons and vault note.

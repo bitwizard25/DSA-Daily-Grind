@@ -1,5 +1,5 @@
-"""Phase 0: the 2-day C++ -> Python fast-track (spec section 3). Days 1-2 serve these modules
-instead of the problem bank. Content lives in data/phase0_day1.json and data/phase0_day2.json."""
+"""Two-day Python or C++ foundations, with independent language progress.
+The original Python item IDs remain stable for existing profiles."""
 import contextlib
 import io
 from datetime import datetime
@@ -12,14 +12,28 @@ from google_prep.models import LessonProgress
 
 DAYS = (1, 2)
 LANGUAGES = ("standard", "simple")  # standard: technical English, explained; simple: plain English + Hindi hints
+CODING_LANGUAGES = {"python": "Python", "cpp": "C++"}
 
 
-def load_day(day: int) -> dict:
-    return db.load_json(f"phase0_day{day}.json")
+def coding_language(session: Session) -> str:
+    mode = scheduler.get_setting(session, "preparation_mode", "google")
+    value = scheduler.get_setting(session, f"coding_language:{mode}", "python")
+    return value if value in CODING_LANGUAGES else "python"
 
 
-def load_days() -> list[dict]:
-    return [load_day(d) for d in DAYS]
+def load_day(day: int, coding_language: str = "python") -> dict:
+    if day not in DAYS or coding_language not in CODING_LANGUAGES:
+        raise ValueError("Choose Day 1 or 2, and Python or C++.")
+    prefix = "cpp_" if coding_language == "cpp" else ""
+    return {**db.load_json(f"{prefix}phase0_day{day}.json"), "coding_language": coding_language}
+
+
+def load_days(coding_language: str = "python") -> list[dict]:
+    return [load_day(d, coding_language) for d in DAYS]
+
+
+def _day_id(day: int, lang: str) -> str:
+    return f"cpp-day-{day}" if lang == "cpp" else f"day-{day}"
 
 
 def load_hints(kind: str = "hints") -> dict[str, str]:
@@ -55,9 +69,10 @@ def mark_unclear(session: Session, section_id: str, unclear: bool, now: datetime
     session.commit()
 
 
-def unclear_steps(session: Session) -> list[str]:
+def unclear_steps(session: Session, lang: str | None = None) -> list[str]:
     rows = session.exec(select(LessonProgress).where(LessonProgress.kind == "unclear")).all()
-    return sorted(r.item_id.removesuffix("-unclear") for r in rows)
+    cpp = (lang or coding_language(session)) == "cpp"
+    return sorted(r.item_id.removesuffix("-unclear") for r in rows if r.item_id.startswith("cpp-") == cpp)
 
 
 def exercise(day: dict, exercise_id: str) -> dict:
@@ -76,14 +91,18 @@ def run_snippet(code: str) -> str:
 
 
 def answer(session: Session, exercise_id: str, choice: int, now: datetime) -> dict:
-    day = load_day(int(exercise_id.split("-")[0][1:]))
-    ex = exercise(day, exercise_id)
+    # The exercise ID pins its language even if another window changes the preference.
+    lang = "cpp" if exercise_id.startswith("cpp-") else "python"
+    ex = next((e for day in load_days(lang) for e in day["exercises"] if e["id"] == exercise_id), None)
+    if ex is None:
+        raise KeyError(exercise_id)
     correct = choice == ex["answer"]
     session.merge(LessonProgress(item_id=exercise_id, kind="exercise", correct=correct, updated_at=now))
     session.commit()
     return {"correct": correct, "answer": ex["answer"], "explanation": ex["explanation"],
             "explanation_simple": ex.get("explanation_simple") or ex["explanation"],
-            "output": run_snippet(ex["code"])}
+            "output": ex["output"] if lang == "cpp" else run_snippet(ex["code"]),
+            "output_kind": "expected" if lang == "cpp" else "executed"}
 
 
 def progress(session: Session, day: dict) -> dict:
@@ -91,16 +110,18 @@ def progress(session: Session, day: dict) -> dict:
     ids = [e["id"] for e in day["exercises"]]
     answered = [rows[i] for i in ids if i in rows]
     return {"answered": len(answered), "correct": sum(1 for r in answered if r.correct), "total": len(ids),
-            "done": f"day-{day['day']}" in rows}
+            "done": _day_id(day['day'], day.get('coding_language', 'python')) in rows}
 
 
 def is_done(session: Session, day: int) -> bool:
-    return session.get(LessonProgress, f"day-{day}") is not None
+    return session.get(LessonProgress, _day_id(day, coding_language(session))) is not None
 
 
-def complete(session: Session, day: int, now: datetime, minutes: int = 0) -> None:
+def complete(session: Session, day: int, now: datetime, minutes: int = 0, lang: str | None = None) -> None:
     """Finishing a fast-track day counts as a full study day for the streak."""
-    session.merge(LessonProgress(item_id=f"day-{day}", kind="day", correct=True, updated_at=now))
+    lang = lang or coding_language(session)
+    load_day(day, lang)  # validate before recording anything
+    session.merge(LessonProgress(item_id=_day_id(day, lang), kind="day", correct=True, updated_at=now))
     session.commit()
     scheduler.mark_done(session, now.date(), "morning", minutes)
     scheduler.mark_done(session, now.date(), "evening")
@@ -148,7 +169,8 @@ def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
     from google_prep.ui import keys
     from google_prep.ui.formatters import banner, card, crumbs, keys as key_bar, nav, show
 
-    lesson = load_day(day_no)
+    lang = coding_language(session)
+    lesson = load_day(day_no, lang)
     mode = language(session)
     glossary = {g["key"]: g for g in lesson.get("glossary", [])}
     ex_for = {e.get("section"): e for e in lesson["exercises"]}
@@ -161,12 +183,12 @@ def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
         words = [f"[accent]{glossary[w]['term']}[/accent] = {inline_markup(text(glossary[w], 'meaning', mode))}"
                  for w in s.get("new_words", []) if w in glossary]
         parts = [Text(""), crumbs(f"{base} > {text(s, 'title', mode)}"), nav("Fast-Track", with_keys=False),
-                 banner(f"PYTHON FAST-TRACK · DAY {day_no}", f"{label} · {text(s, 'title', mode)}",
+                 banner(f"{CODING_LANGUAGES[lang].upper()} FAST-TRACK · DAY {day_no}", f"{label} · {text(s, 'title', mode)}",
                         text(lesson, "title", mode))]
         if words:
             parts.append(Text.from_markup("  New words: " + "   ".join(words)))
         parts += [Text.from_markup("\n  [header]Try it[/header]"),
-                  Syntax(s["python"], "python", theme="ansi_dark", word_wrap=True),
+                  Syntax(s.get("code", s.get("python", "")), lang, theme="ansi_dark", word_wrap=True),
                   Text.from_markup("  [header]What happened[/header]\n"
                                    + "\n".join(f"  • {inline_markup(p)}" for p in text(s, "points", mode))),
                   card("REMEMBER", [inline_markup(text(s, "summary", mode))])]
@@ -189,7 +211,7 @@ def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
         if e is None:
             continue
         show(Text.from_markup(f"\n  [header]Quick check · {inline_markup(e['prompt'])}[/header]"),
-             Syntax(e["code"], "python", theme="ansi_dark", line_numbers=False, word_wrap=True),
+             Syntax(e["code"], lang, theme="ansi_dark", line_numbers=False, word_wrap=True),
              key_bar(*[(str(k + 1), opt) for k, opt in enumerate(e["options"])], ("q", "Stop")))
         pick = keys.choose({"1", "2", "3", "q"})
         if pick == "q":
@@ -199,13 +221,14 @@ def run_terminal(session: Session, day_no: int, now: datetime) -> dict:
         verdict = "[ok]✓ Correct[/ok]" if result["correct"] else \
             f"[danger]✗ Not quite[/danger] · answer: [header]{e['options'][result['answer']]}[/header]"
         explanation = result["explanation_simple"] if mode == "simple" else result["explanation"]
-        show(Text.from_markup(f"  {verdict}   [muted]Python prints:[/muted] {inline_markup(result['output'])}"),
+        output_label = "Expected C++ output" if lang == "cpp" else "Python prints"
+        show(Text.from_markup(f"  {verdict}   [muted]{output_label}:[/muted] {inline_markup(result['output'])}"),
              Text.from_markup(f"  {inline_markup(explanation)}"), key_bar(("Enter", "Next step")))
         if keys.choose({"enter", "space", "q"}) == "q":
             return {"done": False}
     exercises = lesson["exercises"]
     minutes = max(1, round((time.monotonic() - started) / 60))
-    complete(session, day_no, now, minutes)
+    complete(session, day_no, now, minutes, lang)
     show(card(f"DAY {day_no} COMPLETE", [f"{right}/{len(exercises)} correct · {minutes} min · counted for the streak",
                                          "Day 3: the Google problem bank starts." if day_no == 2 else
                                          "Tomorrow: Day 2, data structures."], style="#34A853"))
