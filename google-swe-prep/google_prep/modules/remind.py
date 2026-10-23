@@ -1,6 +1,7 @@
 """Print OS scheduler commands that open today's plan at your anchor times.
 Nothing is installed automatically: copy the commands you want."""
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -24,14 +25,16 @@ def commands(morning: str, evening: str, platform: str | None = None) -> list[st
     if platform == "windows":
         gui = window_app()  # open the app window on Today; otherwise a terminal running `today`
         action = f'\\"{gui}\\"' if gui else f'cmd /k \\"{exe}\\" today'
+        action = action + ' --reminder' if gui else action.replace(' today', ' reminder').replace('cmd /k', 'cmd /c')
         return [f'schtasks /Create /F /SC DAILY /TN "GooglePrep {label}" /ST {t} /TR "{action}"'
                 for label, t in (("Morning", morning), ("Evening", evening))]
     lines = []
     for t in (morning, evening):
         hh, mm = t.split(":")
-        if platform == "mac":
-            action = f"osascript -e 'tell application \"Terminal\" to do script \"{exe} today\"'"
+        command = f'{shlex.quote(exe)} reminder'
+        if platform == 'mac':
+            action = command  # check the break before opening any terminal or app window
         else:
-            action = f"DISPLAY=:0 notify-send 'Google prep' 'Time for your session: run {exe} today'"
+            action = 'DISPLAY=:0 '+command
         lines.append(f"{int(mm)} {int(hh)} * * * {action}")
     return lines

@@ -3,6 +3,12 @@
 Offline interview simulator and accountability coach for an 8-week Google SWE II plan.
 Spec: [`google_swe_prep_spec.md`](./google_swe_prep_spec.md).
 
+Use **Planned break** in the sidebar (or Settings) to choose a start and a **Resume on** date.
+Breaks apply to both modes, pause study-day advancement, and preserve the streak without adding completed days.
+Your interview date stays fixed. Resume automatically on the chosen date, or return early from the same control.
+Saved sessions and practice history remain available. New `google-prep remind` commands respect breaks;
+recreate older external OS reminders once to use the break-aware entrypoint.
+
 Two front ends, one database (`~/.google_prep/prep.db`):
 
 ### Preparation modes

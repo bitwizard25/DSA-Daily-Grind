@@ -85,6 +85,13 @@ def decide(session, now: datetime, mode: str = "normal") -> dict:
     Bullets use **bold** / `code` inline markup. `action` is what Enter / the main button does."""
     from google_prep.modules import fasttrack  # Phase 0: Days 1-2 serve the C++ -> Python modules
 
+    rest = scheduler.breaks.state(session, now.date())
+    if rest['active']:
+        return {'mode':mode, 'kind':'break', 'title':'Planned break', 'tone':'blue',
+                'bullets':[f"Resume on {rest['scheduled']['resume']}. Your saved work is waiting.",
+                           'No catch-up quota. Your interview date stays fixed.'],
+                'cta':None, 'action':None, 'status':[]}
+
     p = plan(session, now, mode)
     out = {"mode": mode, "kind": "done", "title": "", "bullets": [], "cta": None, "action": None, "tone": "blue",
            "status": []}

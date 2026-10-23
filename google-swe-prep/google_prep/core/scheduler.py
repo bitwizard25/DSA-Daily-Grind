@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, col, func, select
 
-from google_prep.core import clock, sm2
+from google_prep.core import breaks, clock, sm2
 from google_prep.models import (
     Attempt,
     DailySchedule,
@@ -91,7 +91,8 @@ def interview_date(session: Session) -> date:
 # ---- calendar -------------------------------------------------------------
 
 def day_number(session: Session, today: date) -> int:
-    return max(1, (today - start_date(session, today)).days + 1)
+    first = start_date(session, today)
+    return max(1, (today - first).days + 1 - breaks.days_through(session, first, today))
 
 
 def week_and_day(session: Session, today: date) -> tuple[int, int]:
@@ -154,10 +155,12 @@ def streak(session: Session, today: date) -> int:
         for r in session.exec(select(DailySchedule)).all()
         if r.morning_completed or r.evening_completed
     }
-    day = today if today.isoformat() in done else today - timedelta(days=1)
+    day = today
     count = 0
-    while day.isoformat() in done:
-        count += 1
+    if day.isoformat() not in done and not breaks.is_break(session, day):
+        day -= timedelta(days=1)
+    while day.isoformat() in done or breaks.is_break(session, day):
+        if day.isoformat() in done: count += 1
         day -= timedelta(days=1)
     return count
 

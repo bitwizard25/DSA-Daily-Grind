@@ -284,6 +284,8 @@ function buildNav() {
     type: "button", "data-section": x.name, onclick: () => go(`#/${x.name}`),
   }, icon(x.name), h("span", null, x.label), h("span", { class: "nav-end" }, h("span", { class: "badge", hidden: true }), kbd(x.key)))));
   $("#settings-btn").addEventListener("click", openSettings);
+  $("#nav").append(h('button', {type:'button', onclick:openStudyBreak, 'data-test':'plan-break'},
+    icon('today'), h('span', null, 'Planned break')));
   $("#preparation-mode-btn").addEventListener("click", openPreparationMode);
   $("#updates-btn").addEventListener("click", openUpdates);
   $("#help-btn").addEventListener("click", openHelp);
@@ -318,6 +320,9 @@ async function refreshState() {
   if (!general) delete document.documentElement.dataset.readingSize;
   const supportNav = $('#nav button[data-section="support"]');
   if (supportNav) supportNav.hidden = !general;
+  const breakNav = $('#nav [data-test="plan-break"] span');
+  if (breakNav) breakNav.textContent = st.study_break && st.study_break.active ? 'On break' :
+    st.study_break && st.study_break.scheduled ? 'Break planned' : 'Planned break';
   $('#preparation-mode-btn').textContent = general ? 'General mode · switch' : 'Google mode · switch';
   const brand = $('.brand b');
   if (brand) brand.textContent = general ? 'Interview Prep' : 'Google SWE II OS';
@@ -547,6 +552,39 @@ function codingLanguageChoice(st = S.state) {
       st.settings.preparation_mode === 'general' ? 'General mode' : 'Google mode'), ...buttons), feedback);
 }
 
+async function openStudyBreak() {
+  if (current && current.beforeLeave && !(await current.beforeLeave())) return;
+  const st = await refreshState();
+  const rest = st.study_break || {};
+  const today = st.now.slice(0,10);
+  const tomorrow = new Date(today+'T12:00:00Z');
+  tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
+  const start = h('input', {type:'date', id:'break-start', value:today, min:today});
+  const resume = h('input', {type:'date', id:'break-resume', value:tomorrow.toISOString().slice(0,10), min:today});
+  const error = h('p', {role:'alert', class:'bad-t'});
+  const scheduled = rest.scheduled;
+  const body = h('div', {class:'settings-form'},
+    h('p', null, 'Pause the study calendar in both modes. Your saved work stays here. Break days preserve your streak without adding study days. Your interview date stays fixed.'),
+    scheduled ? h('p', null, `Break: ${scheduled.start} · Resume on ${scheduled.resume}`) : h('div', {class:'grid-2'},
+      h('div', {class:'field'}, h('label', {for:'break-start'}, 'Break starts'), start),
+      h('div', {class:'field'}, h('label', {for:'break-resume'}, 'Resume on'), resume)),
+    h('p', {class:'muted small'}, 'Break-aware reminders stay quiet. Older OS reminders must be recreated once using the new reminder commands.'), error,
+    btn(scheduled ? (rest.active ? 'Resume now' : 'Cancel planned break') : 'Save break', async (event) => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        if (scheduled) await api('break_resume');
+        else await api('break_schedule', {start:start.value, resume_on:resume.value});
+        await refreshState();
+        if (modalState) modalState.close(true);
+        await go('#/today');
+      } catch (err) { error.textContent = 'Break not saved: '+err.message; }
+      finally {button.disabled = false;}
+    }, {cls:'primary', test:'save-break'}));
+  await openModal('Planned break', body, [{label:'Close', value:false, key:'Esc'}]);
+}
+
 async function openSettings() {
   const st = S.state || await refreshState();
   const field = (label, name, value, type = "text") => h("div", { class: "field" },
@@ -572,6 +610,7 @@ async function openSettings() {
     h("p", { class: "muted small", "data-test": "data-dir" }, "Your progress is saved automatically in ", h("code", { class: "inline" }, st.data_dir),
       ". Updating or uninstalling the app never deletes it."));
   const updates = updaterSettings();
+  form.append(btn('Plan a break', openStudyBreak, {cls:'ghost'}));
   form.append(updates.node);
   let ok;
   try {ok = await openModal("Settings", form, [{ label: "Cancel", value: false, key: "Esc" }, { label: "Save", value: true, primary: true, test: "settings-save" }]);}
@@ -715,11 +754,20 @@ function habitPreview(training) {
       () => go('#/training'), {cls:'ghost', test:'open-training'}));
 }
 ROUTES.today = async (ctx) => {
+  const restState = await refreshState();
+  if (restState.study_break && restState.study_break.active) {
+    setCrumbs(['Interview Prep', 'Planned break'], ctx);
+    return mount(ctx, h('div', {class:'page'}, h('section', {class:'card', 'data-test':'break-card'},
+      h('h1', null, 'You’re on a planned break.'),
+      h('p', null, `Resume on ${restState.study_break.scheduled.resume}. Your saved work will be waiting.`),
+      h('p', {class:'muted'}, 'No catch-up quota. Rest is part of the plan.'),
+      btn('Manage break · resume early', openStudyBreak, {cls:'primary'}))));
+  }
   if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
     return Support.today(ctx);
   }
   const mode = ctx.query.get('mode') || 'normal';
-  const [d, st, training] = await Promise.all([api('today', {mode}), refreshState(), optionalTraining()]);
+  const [d, st, training] = await Promise.all([api('today', {mode}), restState, optionalTraining()]);
   setCrumbs(['Google SWE II OS', 'Today'], ctx);
   const unfinished = Boolean(st.session);
   const actionLabel = {fasttrack:'Continue language lesson', warmup:'Start warmup', deep:'Start this problem',
