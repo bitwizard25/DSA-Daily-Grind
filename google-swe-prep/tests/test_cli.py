@@ -201,7 +201,7 @@ def test_setup_remind_version_hot_add():
     assert "Interview: 2026-11-30" in out
     assert "49 days to interview" in run("today").output
     reminders = run("remind").output  # Windows quotes the exe path: cmd /k "google-prep" today
-    assert "google-prep" in reminders and " today" in reminders
+    assert "google-prep" in reminders and " reminder" in reminders
     assert runner.invoke(app, ["remind", "--morning", "7am"]).exit_code == 2
     assert google_prep.__version__ in run("--version").output
     assert "Run: google-prep sync" in run("hot").output
@@ -213,8 +213,11 @@ def test_remind_commands_per_platform():
     from google_prep.modules import remind
     win = remind.commands("07:30", "19:30", "windows")
     assert win[0].startswith('schtasks /Create /F /SC DAILY /TN "GooglePrep Morning" /ST 07:30')
-    assert remind.commands("07:05", "19:30", "mac")[0].startswith("5 7 * * * osascript")
+    assert remind.commands("07:05", "19:30", "mac")[0].startswith("5 7 * * * ")
+    assert 'osascript' not in remind.commands('07:05', '19:30', 'mac')[0]
     assert remind.commands("07:30", "21:15", "linux")[1].startswith("15 21 * * *")
+    assert all(' reminder' in line for platform in ('windows','mac','linux')
+               for line in remind.commands('07:30','19:30',platform))
 
 
 def test_no_manual_log_command():

@@ -434,6 +434,13 @@ def add(problem: str = typer.Argument(..., help="LeetCode slug or URL from `hot`
 
 
 @app.command()
+def reminder():
+    """Scheduled reminder: stay quiet during planned breaks, otherwise open the app."""
+    from google_prep.gui.launcher import main as open_app
+    open_app(['--reminder'])
+
+
+@app.command()
 def remind(morning: str = typer.Option("07:30", "--morning", help="HH:MM, 24h."),
            evening: str = typer.Option("19:30", "--evening", help="HH:MM, 24h.")):
     """Print commands that open today's plan automatically at your anchor times."""

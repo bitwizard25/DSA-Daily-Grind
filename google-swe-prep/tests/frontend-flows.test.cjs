@@ -54,6 +54,31 @@ test('only an accepted page close reports closure, and restored documents get a 
 const routeSource=source('ROUTES.today = async (ctx) => {', '\n};')+'\n};';
 const context={query:new URLSearchParams(), alive:()=>true};
 
+test('planned break replaces the Today workload before either prep mode is loaded',async()=>{
+  const state=env({refreshState:async()=>({study_break:{active:true,scheduled:{resume:'2026-10-26'}}}),
+    openStudyBreak:()=>{}, Support:{today:()=>assert.fail('Break should not show a workload')}});
+  vm.runInContext(routeSource,state);
+  await state.ROUTES.today(context);
+  assert.match(state.root.textContent,/planned break/);
+  assert.match(state.root.textContent,/2026-10-26/);
+  assert.ok(find(state.root,n=>n.attrs['data-test']==='break-card'));
+});
+
+test('failed break save keeps its dates and error visible without claiming success',async()=>{
+  let body, closed=false;
+  const state=env({current:null, modalState:{close:()=>{closed=true;}},
+    refreshState:async()=>({now:'2026-10-23T10:00:00',study_break:{scheduled:null}}),
+    api:async()=>{throw Error('offline');},openModal:async(_,node)=>{body=node;}});
+  vm.runInContext(source('async function openStudyBreak()', '\nasync function openSettings()'),state);
+  await state.openStudyBreak();
+  const button=find(body,n=>n.attrs['data-test']==='save-break');
+  await button.attrs.onclick({currentTarget:button});
+  assert.equal(closed,false);
+  assert.equal(button.disabled,false);
+  assert.match(body.textContent,/Break not saved: offline/);
+  assert.equal(find(body,n=>n.attrs.id==='break-resume').value,'2026-10-24');
+});
+
 async function today(session, confirmed=true) {
   const calls=[];
   const state=env({api:async name=>{calls.push(name);return {kind:'deep', title:'Contains Duplicate', bullets:['Solve Contains Duplicate'], status:[], action:'mock'};},

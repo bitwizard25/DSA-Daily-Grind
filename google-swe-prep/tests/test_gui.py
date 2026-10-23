@@ -370,6 +370,7 @@ def test_reminders_open_the_window_when_installed(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "executable", str(cli))
     line = remind.commands("07:30", "19:30", "windows")[0]
     assert str(gui) in line and "cmd /k" not in line
+    assert '--reminder' in line
 
 
 # ---- second review round ---------------------------------------------------------------------------

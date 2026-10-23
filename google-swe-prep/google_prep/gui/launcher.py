@@ -206,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-browser", action="store_true", help="only serve; print the URL")
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--version", action="store_true")
+    parser.add_argument('--reminder', action='store_true', help='Open only when no planned break is active.')
     args, extra = parser.parse_known_args(argv)
     if args.version:
         from google_prep import __version__
@@ -217,6 +218,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.selftest:
         return selftest()
+    if args.reminder:
+        from google_prep.core import breaks, clock
+        with db.get_session() as session:
+            if breaks.is_break(session, clock.now().date()): return 0
     if extra or args.screen not in ROUTES:
         parser.error(f"unknown command: {' '.join([args.screen, *extra]).strip()}")
     if args.no_browser and _windowed():

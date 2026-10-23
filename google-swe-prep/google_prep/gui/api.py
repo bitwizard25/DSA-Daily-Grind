@@ -88,6 +88,7 @@ class Api:
                           "short": f"{fasttrack.CODING_LANGUAGES[fasttrack.coding_language(s)]} Fast-Track" if phase == 0 else PHASE_SHORT[phase],
                           "last_day": scheduler.PHASES[phase][2]},
                 "streak": scheduler.streak(s, t.date()),
+                "study_break": scheduler.breaks.state(s, t.date()),
                 "readiness": round(r.index, 1), "readiness_evidence": r.evidence,
                 "readiness_provisional": r.is_provisional, "weekly_change": None if change is None else round(change, 1),
                 "interview_date": scheduler.interview_date(s).isoformat(),
@@ -258,6 +259,22 @@ class Api:
             d["status"] = [{"tag": tag, "text": text} for tag, text in d["status"]]
             d["crumbs"] = _crumbs(s, t.date(), "Today")
             return d
+
+    def break_schedule(self, start: str, resume_on: str) -> dict:
+        with get_session() as s:
+            try:
+                result = scheduler.breaks.schedule(s, self.now().date(), start, resume_on)
+            except (ValueError, TypeError) as exc:
+                raise ApiError(str(exc)) from exc
+            if result['active']:
+                active = support.state(s, self.now())['active']
+                if active and active['status'] == 'active':
+                    support.transition(s, self.now(), active['id'], 'pause', active['note'])
+            return result
+
+    def break_resume(self) -> dict:
+        with get_session() as s:
+            return scheduler.breaks.resume(s, self.now().date())
 
     def worked(self, hours: float) -> dict:
         """Log a long workday: 10+ hours switches today to Micro-Mode (Never Zero)."""
