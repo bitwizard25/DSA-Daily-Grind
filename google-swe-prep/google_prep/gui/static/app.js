@@ -252,6 +252,7 @@ const ICONS = {
   star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
   vault: "M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h10",
   role: "M4 8h16v11H4z M9 8V5h6v3 M4 13h16",
+  queue: "M4 6h16 M4 12h9 M4 18h6 M15 15a4 4 0 1 0 1.2-2.8 M15 10.5v2.2h2.2",
 };
 const SECTIONS = [
   { name: "today", label: "Today", key: "t" },
@@ -266,9 +267,15 @@ const SECTIONS = [
 const NAV_KEYS = Object.fromEntries(SECTIONS.map((x) => [x.key, x.name]));
 NAV_KEYS.h = 'training';
 NAV_KEYS.c = 'support';
+NAV_KEYS.q = 'queue';
+const modeOf = () => (S.state && S.state.settings.preparation_mode) || 'google';
+const isCodeRed = () => modeOf() === 'code_red';
+const MODE_LABEL = {google:'Google mode', general:'General mode', code_red:'Code Red'};
+const APP_TITLE = {google:'Google SWE II OS', general:'Interview Prep', code_red:'Code Red'};
 const MAIN_SECTIONS = [
   { name: 'today', label: 'Today', key: 't' },
   { name: 'support', label: 'Confidence & consistency', key: 'c' },
+  { name: 'queue', label: 'Re-Solve Queue', key: 'q' },
   { name: 'mock', label: 'Practice', key: 'w' },
   { name: 'fasttrack', label: 'Learn', key: 'f' },
   { name: 'role', label: 'Interview prep', key: 'j' },
@@ -310,36 +317,51 @@ function setCrumbs(parts, ctx) {
     nodes.push(h("span", { class: cls || null, "aria-current": i === parts.length - 1 ? "location" : null }, p));
   });
   $("#crumbs").replaceChildren(...nodes);
-  const appTitle = S.state && S.state.settings.preparation_mode === 'general' ? 'Interview Prep' : 'Google SWE II OS';
+  const appTitle = APP_TITLE[modeOf()] || APP_TITLE.google;
   document.title = parts && parts.length > 1 ? `${parts[parts.length - 1]} · ${appTitle}` : appTitle;
 }
 async function refreshState() {
   const st = await api("state");
   S.state = st;
-  const general = st.settings.preparation_mode === 'general';
+  const mode = st.settings.preparation_mode || 'google';
+  const general = mode === 'general';
+  const codeRed = mode === 'code_red';
   if (!general) delete document.documentElement.dataset.readingSize;
-  const supportNav = $('#nav button[data-section="support"]');
-  if (supportNav) supportNav.hidden = !general;
+  if (codeRed) document.documentElement.dataset.mode = 'code_red';
+  else delete document.documentElement.dataset.mode;
+  const showNav = (name, visible) => { const b = $(`#nav button[data-section="${name}"]`); if (b) b.hidden = !visible; };
+  showNav('support', general);
+  showNav('queue', codeRed);
+  showNav('fasttrack', !codeRed);
+  const roleLabel = $('#nav button[data-section="role"] span');
+  if (roleLabel) roleLabel.textContent = codeRed ? 'Recruiter & STAR' : 'Interview prep';
   const breakNav = $('#nav [data-test="plan-break"] span');
   if (breakNav) breakNav.textContent = st.study_break && st.study_break.active ? 'On break' :
     st.study_break && st.study_break.scheduled ? 'Break planned' : 'Planned break';
-  $('#preparation-mode-btn').textContent = general ? 'General mode · switch' : 'Google mode · switch';
+  $('#preparation-mode-btn').textContent = `${MODE_LABEL[mode] || MODE_LABEL.google} · switch`;
   const brand = $('.brand b');
-  if (brand) brand.textContent = general ? 'Interview Prep' : 'Google SWE II OS';
+  if (brand) brand.textContent = APP_TITLE[mode] || APP_TITLE.google;
   S.lang = st.settings.language || "standard";
   const ready = st.readiness / 100;
-  $("#mini").replaceChildren(...(general ? [] : [
+  $("#mini").replaceChildren(...(general || codeRed ? [] : [
     ring(ready, { size: 54, stroke: 6, label: `${Math.round(st.readiness)}`, color: COLORS.blue }),
     h("div", { class: "mini-lines" },
       h("b", null, `Day ${st.day} of ${st.plan_days}`), h("br"),
       `Phase ${st.phase.number} · ${st.phase.short}`, h("br"),
       `Readiness ${Math.round(st.readiness)}%`)]));
-  $("#brand-sub").textContent = general ? 'General skills · your next role' : st.settings.target || "Interview prep";
+  $("#brand-sub").textContent = general ? 'General skills · your next role'
+    : codeRed ? 'Final sprint · strict interview rules' : st.settings.target || "Interview prep";
   const pills = [h("span", { class: "pill", "data-test": "streak" }, `Streak ${plural(st.streak, "day")}`)];
   pills.push(h("span", { class: `pill ${st.days_left <= 14 ? "warn" : ""}`.trim() },
     st.days_left >= 0 ? `${plural(st.days_left, "day")} to target` : "Target date passed"));
-  $("#meta").replaceChildren(...(general ? [] : pills),
-    btn(general ? 'General mode' : 'Google mode', openPreparationMode, {cls:'ghost small',test:'preparation-mode'}));
+  const redPills = codeRed ? [
+    h('span', {class:'cr-banner', 'data-test':'code-red-banner'},
+      st.days_left >= 0 ? `[CODE RED // T-MINUS ${st.days_left} ${st.days_left === 1 ? 'DAY' : 'DAYS'}]` : '[CODE RED // TARGET DATE PASSED]'),
+    h('span', {class:'pill', title:'Practice estimate, not a prediction of an offer'}, `Readiness estimate ${Math.round(st.readiness)}%`),
+    h('button', {type:'button', class:'pill pill-link', onclick:() => go('#/queue'), 'data-test':'code-red-queue-pill'},
+      `Re-solves due ${st.code_red ? st.code_red.queue_due : 0}`)] : [];
+  $("#meta").replaceChildren(...(general ? [] : codeRed ? redPills : pills),
+    btn(codeRed ? 'Exit Code Red' : MODE_LABEL[mode] || MODE_LABEL.google, openPreparationMode, {cls:'ghost small',test:'preparation-mode'}));
   const ftBadge = $('#nav button[data-section="fasttrack"] .badge');
   const pending = st.fasttrack.pending;
   ftBadge.hidden = !pending;
@@ -347,13 +369,23 @@ async function refreshState() {
   return st;
 }
 async function openPreparationMode() {
+  const before = modeOf();
   const choice = await openModal('Choose your preparation mode', h('div', null,
     h('p', null, 'General mode: build reusable skills, confidence and consistency for your next role.'),
     h('p', null, 'Google mode: keep your Google plan, problem schedule, target date and mock interview flow.'),
+    h('p', null, 'Code Red: the last 2–3 weeks before your interview. Medium and Hard Google problems only, 45-minute mocks, a re-solve queue and no lessons.'),
     h('p', {class:'muted small'}, 'Switching modes preserves saved work and recorded practice.')),
     [{label:'Cancel',value:null}, {label:'General mode',value:'general',test:'choose-general'},
-      {label:'Google mode',value:'google',test:'choose-google'}]);
-  if (!choice || choice === S.state.settings.preparation_mode) return;
+      {label:'Google mode',value:'google',test:'choose-google'},
+      {label:'Code Red',value:'code_red',test:'choose-code-red'}]);
+  if (!choice || choice === before) return;
+  if (choice === 'code_red' && !(await openModal('Enter Code Red?', h('div', null,
+    h('p', null, 'This mode assumes you can solve Medium problems on your own.'),
+    h('p', {class:'muted'}, 'It skips Foundations, Easy problems and lessons. If most Mediums still beat you, Google mode builds the base first.'),
+    h('p', {class:'muted small'}, 'You can switch back at any time. Nothing is lost.')),
+    [{label:'Not yet', value:false}, {label:'Enter Code Red', value:true, primary:true, test:'confirm-code-red'}]))) return;
+  if (before === 'code_red' && !(await confirmBox('Leave Code Red?',
+    'Your Code Red progress, re-solve queue and today’s plan are kept.', 'Leave Code Red', 'Stay'))) return;
   if (current && current.beforeLeave && !(await current.beforeLeave())) return;
   try {
     await api('preparation_mode', {mode:choice});
@@ -416,7 +448,7 @@ function askAboutUnfinished(conflict) {
 
 function openHelp() {
   const rows = [
-    ["Enter", "Do the highlighted main action"], ["t f d w r s j v", "Today · Fast-Track · Drills · Mock · Roadmap · STAR · Role prep · Vault"],
+    ["Enter", "Do the highlighted main action"], ["t f d w r s j v", "Today · Fast-Track · Drills · Mock · Roadmap · STAR · Role prep · Vault"], ["q", "Re-Solve Queue (Code Red)"],
     ["m", "Micro-Mode (on Today)"], ["Space", "Reveal a drill answer"], ["1 2 3", "Missed · Effort · Instant (also answers lesson exercises)"],
     ["y / n", "Yes / No on the scorecard"], ["Ctrl+S", "Save now (whiteboard) · save a STAR story"], ["Ctrl+Enter", "Submit the whiteboard and grade it"],
     ["Alt+1…4", "Tick the live checklist while coding"], ["Alt+H", "I'm stuck: what to try, then a hint (after the struggle time)"], ["Tab", "Indent 4 spaces in the code pad"],
@@ -549,7 +581,7 @@ function codingLanguageChoice(st = S.state) {
   return h('fieldset', {class:'language-choice', 'data-test':'coding-language-choice'},
     h('legend', null, 'Practice language'),
     h('div', {class:'row'}, h('span', {class:'muted small'},
-      st.settings.preparation_mode === 'general' ? 'General mode' : 'Google mode'), ...buttons), feedback);
+      ({general:'General mode', code_red:'Code Red'})[st.settings.preparation_mode] || 'Google mode'), ...buttons), feedback);
 }
 
 async function openStudyBreak() {
@@ -766,6 +798,7 @@ ROUTES.today = async (ctx) => {
   if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
     return Support.today(ctx);
   }
+  if (S.state && S.state.settings.preparation_mode === 'code_red' && typeof CodeRed !== 'undefined') return CodeRed.today(ctx);
   const mode = ctx.query.get('mode') || 'normal';
   const [d, st, training] = await Promise.all([api('today', {mode}), restState, optionalTraining()]);
   setCrumbs(['Google SWE II OS', 'Today'], ctx);
@@ -1157,7 +1190,7 @@ ROUTES.recall = async (ctx) => {
     data = await api("recall_start", { ...request, discard: true });
   }
   setCrumbs(data.crumbs, ctx);
-  const title = data.mode === "micro" ? "Micro-Mode drills" : "Morning warmup";
+  const title = data.mode === "micro" ? "Micro-Mode drills" : data.mode === "code_red" ? "Mistake warmup" : "Morning warmup";
   if (!data.drills.length) {
     mount(ctx, h("div", { class: "page" }, pageTitle(title),
       h("div", { class: "empty" }, h("p", null, "No drills are due right now."), btn("Back to Today", () => go("#/today"), { cls: "primary", primary: true, key: "Enter" }))));
@@ -1285,8 +1318,13 @@ ROUTES.recall = async (ctx) => {
 // ---------------------------------------------------------------- Mock: pick a problem
 ROUTES.mock = async (ctx) => {
   const topic = ctx.query.get("topic") || "all";
+  const codeRed = isCodeRed();
   const [target, list] = await Promise.all([api("mock_target", { topic }), api("problems")]);
-  setCrumbs(target.crumbs, ctx);
+  if (codeRed) { // Code Red: the Medium/Hard pool only, every round on the 45-minute clock
+    list.problems = list.problems.filter((p) => p.code_red);
+    list.categories = list.categories.filter((c) => (list.code_red_categories || []).includes(c.key));
+  }
+  setCrumbs(codeRed ? ['Code Red', 'Practice'] : target.crumbs, ctx);
   let chosen = target.problem;
   let filter = ctx.query.get("show") || "all";
   let search = "";
@@ -1296,7 +1334,8 @@ ROUTES.mock = async (ctx) => {
   function renderHero() {
     const p = chosen;
     heroSlot.replaceChildren(h("section", { class: "hero", "data-test": "mock-target" },
-      h("div", { class: "kicker" }, p.id === target.problem.id ? `Recommended · weakest topic${topic === "all" ? "" : " in this filter"}` : "Your pick"),
+      h("div", { class: "kicker" }, p.id === target.problem.id ? (codeRed ? `Recommended · due re-solve or weakest topic${topic === "all" ? "" : " in this filter"}`
+        : `Recommended · weakest topic${topic === "all" ? "" : " in this filter"}`) : "Your pick"),
       h("h2", null, `${p.title}`),
       h("div", { class: "row" }, h("span", { class: `chip ${p.difficulty.toLowerCase()}` }, p.difficulty), h("span", { class: "chip blue" }, p.category_name),
         p.recency_label ? h("span", { class: "chip" }, p.recency_label) : null, h("span", { class: "muted small" }, `${p.id} · LeetCode ${p.leetcode_id}`)),
@@ -1304,7 +1343,7 @@ ROUTES.mock = async (ctx) => {
       p.time_target ? h("p", { class: "muted" }, "Aim for ", h("b", null, p.time_target), " time and ", h("b", null, p.space_target), " space.") : null,
       h("div", { class: "actions" },
         btn("Start 45-min mock", () => start(false), { cls: "primary big", primary: true, key: "Enter", test: "start-mock" }),
-        btn("60-min timed solve", () => start(true), { key: "p", test: "start-solve" }))));
+        codeRed ? null : btn("60-min timed solve", () => start(true), { key: "p", test: "start-solve" }))));
   }
   function start(practice) {
     S.boardStart = { problem_id: chosen.id, practice };
@@ -1350,13 +1389,15 @@ ROUTES.mock = async (ctx) => {
   renderHero();
   renderRows();
   mount(ctx, h("div", { class: "page" },
-    pageTitle("Mock & timed solves", "Press Enter for the recommended problem, or pick any problem below."),
+    pageTitle(codeRed ? "Code Red practice" : "Mock & timed solves",
+      codeRed ? "Medium and Hard problems asked at Google in the last 3 months. Every round runs on the 45-minute clock."
+        : "Press Enter for the recommended problem, or pick any problem below."),
     heroSlot, topicChips,
-    h("section", { class: "card" }, h("div", { class: "row" }, h("h2", null, `Google problem bank · ${list.problems.length}`), h("div", { class: "spacer" }), showChips, searchBox),
+    h("section", { class: "card" }, h("div", { class: "row" }, h("h2", null, `${codeRed ? "Code Red pool" : "Google problem bank"} · ${list.problems.length}`), h("div", { class: "spacer" }), showChips, searchBox),
       h("table", { class: "table" }, h("thead", null, h("tr", null, ["ID", "Problem", "Level", "Topic", "Asked", "Status"].map((x) => h("th", null, x)))), tbody))));
   return {
     onKey(e, typing) {
-      if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === "p") { start(true); return true; }
+      if (!codeRed && !typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === "p") { start(true); return true; }
       return false;
     },
   };
@@ -1879,6 +1920,7 @@ function showResult(ctx, res, B, data) {
 
 // ---------------------------------------------------------------- Roadmap
 ROUTES.roadmap = async (ctx) => {
+  if (isCodeRed() && typeof CodeRed !== 'undefined') return CodeRed.progress(ctx);
   const r = await api("roadmap");
   setCrumbs(r.crumbs, ctx);
   const comps = h("div", null, r.components.map((c) => [h("div", { class: "meter" },
@@ -2033,7 +2075,8 @@ ROUTES.star = async (ctx) => {
 // ---------------------------------------------------------------- Role prep
 ROUTES.role = async (ctx) => {
   const [data, design] = await Promise.all([api('role_prep'), api('design_prep', {}, {timeoutMs:4000}).catch(() => null)]);
-  setCrumbs(['Google SWE II OS', 'Interview prep'], ctx);
+  const codeRed = isCodeRed();
+  setCrumbs([codeRed ? 'Code Red' : 'Google SWE II OS', codeRed ? 'Recruiter & STAR' : 'Interview prep'], ctx);
   const designHub = h('section', {class:'design-hub'}, h('h2', null, 'What to learn for design interviews'),
     h('p', {class:'muted'}, 'Choose a track. Learn one topic, explain it in your own words, then check it off.'),
     h('div', {class:'design-track-list'}, (design ? design.tracks : [
@@ -2077,8 +2120,10 @@ ROUTES.role = async (ctx) => {
       item.star ? h("div", { class: "row" }, btn("Write it as a STAR story", () => go("#/star"), { cls: "ghost small" })) : null);
   });
   paintMeter();
-  mount(ctx, h("div", { class: "page" }, pageTitle("Interview prep", data.intro, btn('STAR stories', () => go('#/star'), {cls:'ghost'})),
-    designHub, h('div', {class:'section-heading'}, h('h2', null, 'Resume, role and recruiter preparation')),
+  mount(ctx, h("div", { class: "page" }, pageTitle(codeRed ? "Recruiter & behavioral pocket" : "Interview prep",
+      codeRed ? "Your recruiter battle-card and STAR stories. Design checklists stay in Google mode." : data.intro,
+      btn('STAR stories', () => go('#/star'), {cls:'ghost'})),
+    codeRed ? null : designHub, h('div', {class:'section-heading'}, h('h2', null, codeRed ? 'Recruiter call battle-card' : 'Resume, role and recruiter preparation')),
     h("section", { class: "card" }, meter), h("div", { class: "role-list" }, cards)));
   return { cleanup: flush, beforeLeave: async () => { flush(); return true; }, isDirty: () => pending.size > 0 };
 };

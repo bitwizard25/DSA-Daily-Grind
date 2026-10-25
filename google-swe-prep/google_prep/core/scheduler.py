@@ -310,14 +310,18 @@ def attempts_on(session: Session, day: date) -> list[Problem]:
 
 # ---- recall drill selection ------------------------------------------------
 
-def pick_drills(session: Session, now: datetime, count: int, kind: str | None = None) -> list[RecallDrill]:
-    """Due drills first (oldest due first), then unseen drills round-robin across categories."""
-    drills = [d for d in session.exec(select(RecallDrill)).all() if kind is None or d.type == kind]
+def pick_drills(session: Session, now: datetime, count: int, kind: str | None = None,
+                categories: set[str] | None = None, basics_first: bool | None = None) -> list[RecallDrill]:
+    """Due drills first (oldest due first), then unseen drills round-robin across categories.
+    `categories` limits the drills; `basics_first=False` skips the Foundations-first rule (Code Red)."""
+    drills = [d for d in session.exec(select(RecallDrill)).all()
+              if (kind is None or d.type == kind) and (categories is None or d.category in categories)]
     progress = {p.drill_id: p for p in session.exec(select(DrillProgress)).all()}
     due = sorted((d for d in drills if d.id in progress and progress[d.id].next_review_date <= now),
                  key=lambda d: progress[d.id].next_review_date)
     order = list(CATEGORIES)
-    basics_first = foundations_open(session)  # no drills on patterns you have not met yet
+    if basics_first is None:
+        basics_first = foundations_open(session)  # no drills on patterns you have not met yet
     seen_in_cat: dict[str, int] = {}
     unseen = []
     for d in sorted((d for d in drills if d.id not in progress), key=lambda d: d.id):
@@ -344,13 +348,14 @@ def dominant_mistake(session: Session) -> str | None:
     return top if counts[top] >= 2 else None
 
 
-def pick_warmup(session: Session, now: datetime, count: int = 5) -> list[RecallDrill]:
+def pick_warmup(session: Session, now: datetime, count: int = 5, categories: set[str] | None = None,
+                basics_first: bool | None = None) -> list[RecallDrill]:
     """Morning drills shaped by your recent mistakes: bugs and missed edge cases get more
     bug-hunts, missed patterns get only pattern drills, otherwise one bug-hunt a day."""
     mistake = dominant_mistake(session)
     bugs_wanted = {"bug_edge": 2, "pattern": 0}.get(mistake or "", 1)
-    bugs = pick_drills(session, now, bugs_wanted, "bug_hunt") if bugs_wanted else []
-    patterns = pick_drills(session, now, count - len(bugs), "pattern")
+    bugs = pick_drills(session, now, bugs_wanted, "bug_hunt", categories, basics_first) if bugs_wanted else []
+    patterns = pick_drills(session, now, count - len(bugs), "pattern", categories, basics_first)
     return patterns + bugs
 
 
