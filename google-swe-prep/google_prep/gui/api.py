@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import select
 
 from google_prep import __version__, db
-from google_prep.core import clock, readiness, rubric, scheduler, session_store, support, training
+from google_prep.core import clock, code_red, readiness, rubric, scheduler, session_store, support, training
 from google_prep.db import get_session
 from google_prep.models import LessonProgress, Problem, RecallDrill, StarStory, UserProgress
 from google_prep.modules import fasttrack, mock, recall, star, today
@@ -108,6 +108,7 @@ class Api:
                 },
                 "fasttrack": {"unfinished": fasttrack.unfinished(s),
                               "pending": fasttrack.pending_day(s, day)},
+                "code_red": {"queue_due": len(code_red.due(s, t))} if code_red.active(s) else None,
             }
 
     def crumbs(self, parts: list[str]) -> list[str]:
@@ -119,15 +120,34 @@ class Api:
 
     # ---- interview habits ----------------------------------------------------------
     def preparation_mode(self, mode: str) -> dict:
-        if not isinstance(mode, str) or mode not in ('general', 'google'):
-            raise ApiError('Choose General mode or Google mode.')
+        if not isinstance(mode, str) or mode not in ('general', 'google', code_red.MODE):
+            raise ApiError('Choose General mode, Google mode or Code Red.')
         with get_session() as s:
-            if mode == 'google':
+            if mode != 'general':  # leaving General pauses an active support focus block
                 active = support.state(s, self.now())['active']
                 if active and active['status'] == 'active':
                     support.transition(s, self.now(), active['id'], 'pause', active['note'])
             scheduler.set_setting(s, 'preparation_mode', mode)
         return self.state()
+
+    # ---- Code Red -------------------------------------------------------------------------
+    def code_red_today(self) -> dict:
+        with get_session() as s:
+            return code_red.today(s, self.now())
+
+    def code_red_queue(self) -> dict:
+        with get_session() as s:
+            return code_red.queue(s, self.now())
+
+    def code_red_progress(self) -> dict:
+        with get_session() as s:
+            return code_red.progress(s, self.now())
+
+    def code_red_behavioral_done(self) -> dict:
+        t = self.now()
+        with get_session() as s:
+            code_red.mark_behavioral(s, t.date())
+            return code_red.today(s, t)
 
     def support_state(self) -> dict:
         with get_session() as s:
@@ -305,6 +325,7 @@ class Api:
                 mode = state.get("mode", mode)
             else:
                 drills = (today.plan(s, t, "micro")["micro"] if mode == "micro"
+                          else code_red.warmup(s, t, int(count)) if mode == code_red.MODE
                           else scheduler.pick_warmup(s, t, int(count)))
                 index, counts, seconds = 0, {"1": 0, "2": 0, "3": 0}, 0.0
             ids = [d.id for d in drills]
@@ -372,21 +393,28 @@ class Api:
         with get_session() as s:
             progress = {p.problem_id: p for p in s.exec(select(UserProgress)).all()}
             overrides = scheduler.recency_overrides(s)
+            pool = {p.id for p in code_red.pool(s)}
             rows = []
             for p in s.exec(select(Problem).order_by(Problem.category, Problem.phase, Problem.id)).all():
                 window, _ = scheduler.recency(p, overrides)
                 prog = progress.get(p.id)
                 rows.append({"id": p.id, "title": p.title, "difficulty": p.difficulty, "category": p.category,
                              "category_name": scheduler.CATEGORIES[p.category], "recency": window,
-                             "status": prog.status if prog else "unseen",
+                             "status": prog.status if prog else "unseen", "code_red": p.id in pool,
                              "due": bool(prog and prog.next_review_date <= self.now())})
-            return {"categories": [{"key": k, "name": v} for k, v in scheduler.CATEGORIES.items()], "problems": rows}
+            return {"categories": [{"key": k, "name": v} for k, v in scheduler.CATEGORIES.items()], "problems": rows,
+                    "code_red_categories": code_red.pool_categories(s)}
 
     def mock_target(self, topic: str = "all") -> dict:
         t = self.now()
         with get_session() as s:
             phase = scheduler.phase_for_day(scheduler.day_number(s, t.date()))
-            p = scheduler.pick_target_problem(s, max(phase, 1), t, None if topic == "all" else [topic])
+            if code_red.active(s):
+                p = code_red.pick(s, t, categories=None if topic == "all" else [topic])
+                if p is None:
+                    raise ApiError("No Code Red problem left in this topic. Clear the Re-Solve Queue or pick another topic.")
+            else:
+                p = scheduler.pick_target_problem(s, max(phase, 1), t, None if topic == "all" else [topic])
             return {"problem": self._problem_card(p), "phase": phase,
                     "crumbs": _crumbs(s, t.date(), "Mock")}
 
@@ -408,7 +436,8 @@ class Api:
         with get_session() as s:
             if problem_id is None:
                 phase = scheduler.phase_for_day(scheduler.day_number(s, t.date()))
-                problem_id = scheduler.pick_target_problem(s, max(phase, 1), t).id
+                chosen = code_red.pick(s, t) if code_red.active(s) else None
+                problem_id = (chosen or scheduler.pick_target_problem(s, max(phase, 1), t)).id
             p = s.get(Problem, problem_id)
             if p is None:
                 raise ApiError(f"Unknown problem {problem_id}")
