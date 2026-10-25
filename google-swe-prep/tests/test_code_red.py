@@ -158,3 +158,25 @@ def test_practice_never_runs_dry_once_every_pool_problem_was_tried(session):
         _solve(session, p.id, NOW - timedelta(days=1, minutes=i))
     assert code_red.pick_new(session, NOW) is None
     assert code_red.pick(session, NOW).id in {p.id for p in pool}
+
+
+def test_switching_to_code_red_and_back_keeps_history_notes_and_the_google_plan():
+    from google_prep.db import get_session
+    from google_prep.gui.api import Api
+    api = Api(now=lambda: NOW)
+    api.settings_save(target="Google SWE II", daily_problems="3", interview_date="2026-11-30")
+    with get_session() as s:
+        _fail(s, code_red.pool(s)[0].id, NOW - timedelta(days=1))
+    api.star_save("Ownership", "Outage", "s", "t", "I fixed it", "p99 -40%")
+    api.role_prep_save("recruiter", done=True, notes="Ask about the ML round")
+    before = api.state()
+    api.preparation_mode("code_red")
+    assert api.code_red_queue()["due_count"] == 1  # Google-mode history feeds the Code Red queue
+    after = api.preparation_mode("google")
+    for key in ("day", "week", "plan_days", "streak", "interview_date", "days_left"):
+        assert after[key] == before[key], key
+    assert after["settings"] == {**before["settings"], "preparation_mode": "google"}
+    assert after["code_red"] is None
+    assert [x["title"] for x in api.star_list()["stories"]] == ["Outage"]
+    item = next(x for x in api.role_prep()["items"] if x["id"] == "recruiter")
+    assert item["done"] is True and item["notes"] == "Ask about the ML round"
