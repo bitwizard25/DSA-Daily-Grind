@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import select
 
 from google_prep import __version__, db
-from google_prep.core import clock, code_red, readiness, rubric, scheduler, session_store, support, training
+from google_prep.core import clock, code_red, engineering, readiness, rubric, scheduler, session_store, support, training
 from google_prep.db import get_session
 from google_prep.models import LessonProgress, Problem, RecallDrill, StarStory, UserProgress
 from google_prep.modules import fasttrack, mock, recall, star, today
@@ -204,6 +204,32 @@ class Api:
     def training_state(self) -> dict:
         with get_session() as s:
             return training.state(s, self.now())
+
+    def engineering_state(self) -> dict:
+        with get_session() as s:
+            return engineering.overview(s, self.now())
+
+    def engineering_open(self, exercise_id: str, language: str, restart: bool = False) -> dict:
+        with get_session() as s:
+            try:
+                return engineering.open_attempt(s, self.now(), exercise_id, language, restart)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+
+    def engineering_save(self, attempt_id: str, revision: int, notes: dict, code: str,
+                         help: str, complete: bool = False) -> dict:
+        with get_session() as s:
+            try:
+                return engineering.save(s, self.now(), attempt_id, revision, notes, code, help, complete)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
+
+    def engineering_reference(self, attempt_id: str, revision: int) -> dict:
+        with get_session() as s:
+            try:
+                return engineering.reference(s, self.now(), attempt_id, revision)
+            except ValueError as exc:
+                raise ApiError(str(exc)) from exc
 
     def training_checkin(self, date: str, habit_id: str, intention: str | None = None,
                          reflection: str | None = None, confidence_before: int | None = None,
@@ -419,10 +445,12 @@ class Api:
                     "crumbs": _crumbs(s, t.date(), "Mock")}
 
     def mock_start(self, problem_id: str | None = None, practice: bool = False, minutes: int | None = None,
-                   resume: bool = False, discard: bool = False) -> dict:
+                   resume: bool = False, discard: bool = False, fresh: bool = False) -> dict:
+        if type(fresh) is not bool or (fresh and (not practice or resume)):
+            raise ApiError('A fresh retry must start a new practice attempt.')
         t = self.now()
         stored = session_store.load()
-        mine = bool(stored and stored.get("kind") == "mock" and (resume or (
+        mine = bool(not fresh and stored and stored.get("kind") == "mock" and (resume or (
             stored.get("problem_id") == problem_id and bool(stored.get("practice")) == bool(practice))))
         if stored and not mine:
             with get_session() as s:
@@ -448,6 +476,8 @@ class Api:
             started = (state or {}).get("started") or t.isoformat()
             used_hints = int((state or {}).get("hints", 0))
             coding_language = state.get("coding_language", "python") if state else fasttrack.coding_language(s)
+            if fresh and state is None:
+                mock.fresh_scratchpads(p, coding_language)
             session_store.save({"kind": "mock", "problem_id": p.id, "minutes": minutes, "practice": bool(practice),
                                 "coding_language": coding_language,
                                 "elapsed": elapsed, "ticks": ticks, "shown": shown, "submitted": submitted,

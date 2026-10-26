@@ -81,15 +81,15 @@ def selftest() -> int:
     try:
         page = urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10).read().decode()
         assert "<title>Google SWE II OS</title>" in page, "index.html missing"
-        for asset in ("app.js", "app.css", "icon.png"):
+        for asset in ("app.js", "app.css", "icon.png", "engineering.js", "engineering.css"):
             res = urllib.request.urlopen(f"http://127.0.0.1:{port}/{asset}", timeout=10)
             assert res.status == 200 and res.read(), asset
-        for name in ("state", "today", "roadmap", "problems", "star_list", "fasttrack", "vault_list"):
+        for name in ("state", "today", "roadmap", "problems", "star_list", "fasttrack", "vault_list", "engineering_state"):
             req = urllib.request.Request(f"http://127.0.0.1:{port}/api/{name}", data=b"{}", method="POST",
                                          headers={"X-Prep-Token": server.token, "Content-Type": "application/json"})
             data = json.loads(urllib.request.urlopen(req, timeout=10).read())
             assert "error" not in data, (name, data)
-        _say(f"selftest ok: page + 3 assets + 7 actions on port {port}")
+        _say(f"selftest ok: page + 5 assets + 8 actions on port {port}")
         return 0
     except Exception:  # noqa: BLE001
         return _selftest_failed()

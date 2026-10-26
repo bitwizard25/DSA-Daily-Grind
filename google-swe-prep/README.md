@@ -33,6 +33,21 @@ General mode offers a small start, pause/resume/park, optional learning notes, s
 
 The coding catalogue is the existing shared bank, originally curated for Google. Native reminders, the broader weekly planner and the separately planned code runner are not part of this support increment.
 
+### Read, debug and improve
+
+In Google mode, open **Interview prep → Read · debug · improve**, or use the optional card on Today.
+Three original exercises cover duplicate events, cache expiry and dependency cycles, each in Python and C++.
+Explain the code, identify the bug, edit your working copy and record your test evidence. Code is not executed in this workspace; verify by hand or in your own editor. These are learning exercises, not an official Google interview format.
+
+Drafts autosave separately per exercise and language. A stale window cannot overwrite newer saved work.
+Record hints, AI assistance or solution review honestly; revealing a reference records solution help for that attempt.
+Finished exercises are self-reported practice, separate from DSA grades, streak credit and readiness. Start a fresh attempt to practise again.
+
+**Try it independently** lists failed, assisted or unknown-help DSA attempts from the next calendar day.
+A later solve graded without help clears the item. The recovery count uses different-day attempts and remains based on your saved self-assessments. Planned breaks still take precedence on Today.
+The retry button opens a clean code pad and trace; previous copies are preserved under `~/.google_prep/retry_backups/`. Any open session must be resumed or explicitly discarded first.
+Google's whiteboard **Regroup** now offers specific recovery steps for worry, logic, syntax and wanting to stop; the existing hint and mock-clock rules still apply.
+
 | | Launch | For |
 |---|---|---|
 | **Desktop app** | double-click `google-prep.exe` (or `google-prep ui`) | Today, Python/C++ foundations, drills, whiteboard, progress, interview habits, design learning checklists, STAR stories and the concept vault |

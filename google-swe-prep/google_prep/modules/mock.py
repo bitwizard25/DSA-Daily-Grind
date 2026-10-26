@@ -123,6 +123,22 @@ def trace_pad(problem: Problem, language: str | None = None) -> Path:
     return path
 
 
+def fresh_scratchpads(problem: Problem, language: str) -> None:
+    """Back up both previous pads before clearing them for an independent retry."""
+    from uuid import uuid4
+    pad, trace = scratchpad(problem, language), trace_pad(problem, language)
+    backup = db.home_dir() / 'retry_backups' / uuid4().hex
+    backup.mkdir(parents=True)
+    for source in (pad, trace):
+        shutil.copy2(source, backup/source.name)
+    prefix = '//' if language == 'cpp' else '#'
+    for path, text in ((pad, f'{prefix} Fresh attempt: explain your approach, then write your solution.\n'),
+                       (trace, TRACE_TEMPLATE)):
+        temporary = path.with_name(path.name + '.retry.tmp')
+        temporary.write_text(text, encoding='utf-8')
+        temporary.replace(path)
+
+
 def trace_rows(text: str) -> int:
     """Filled rows of the hand trace table: evidence for Verification & Rigor."""
     rows = 0
