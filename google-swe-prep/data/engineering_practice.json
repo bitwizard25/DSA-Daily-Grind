@@ -1,0 +1,100 @@
+{
+  "exercises": [
+    {
+      "id": "events",
+      "title": "Stop duplicate events",
+      "level": "Start here",
+      "minutes": 20,
+      "brief": "A webhook can deliver the same event more than once. Keep only the first occurrence of each ID and preserve arrival order. IDs are strings; the input may be empty.",
+      "example": "Input [\"a\", \"b\", \"a\"] should return [\"a\", \"b\"]. The starter returns [\"a\", \"b\", \"a\"].",
+      "extension": "How would you bound memory if the service ran for months? Explain what happens when an old ID returns.",
+      "test_checklist": [
+        "Empty input",
+        "One event",
+        "Same ID repeated",
+        "Different IDs in arrival order"
+      ],
+      "languages": {
+        "python": {
+          "starter": "def accept_events(events):\n    \"\"\"Return each event ID once, in first-arrival order.\"\"\"\n    seen = set()\n    accepted = []\n    for event_id in events:\n        if event_id in seen:\n            continue\n        accepted.append(event_id)\n    return accepted\n",
+          "reference": {
+            "code": "def accept_events(events):\n    \"\"\"Return each event ID once, in first-arrival order.\"\"\"\n    seen = set()\n    accepted = []\n    for event_id in events:\n        if event_id in seen:\n            continue\n        seen.add(event_id)\n        accepted.append(event_id)\n    return accepted\n",
+            "explanation": "The seen set was never updated. Add each accepted ID to it. Average time O(n), extra space O(u) for u unique IDs."
+          }
+        },
+        "cpp": {
+          "starter": "#include <string>\n#include <vector>\n#include <unordered_set>\nusing namespace std;\n\nvector<string> accept_events(const vector<string>& events) {\n    unordered_set<string> seen;\n    vector<string> accepted;\n    for (const auto& event_id : events) {\n        if (seen.count(event_id)) continue;\n        accepted.push_back(event_id);\n    }\n    return accepted;\n}\n",
+          "reference": {
+            "code": "#include <string>\n#include <vector>\n#include <unordered_set>\nusing namespace std;\n\nvector<string> accept_events(const vector<string>& events) {\n    unordered_set<string> seen;\n    vector<string> accepted;\n    for (const auto& event_id : events) {\n        if (seen.count(event_id)) continue;\n        seen.insert(event_id);\n        accepted.push_back(event_id);\n    }\n    return accepted;\n}\n",
+            "explanation": "Insert each accepted ID into seen. The set was only read, so no duplicate was recognized. Average time O(n), extra space O(u)."
+          }
+        }
+      }
+    },
+    {
+      "id": "cache",
+      "title": "Fix an expiring cache",
+      "level": "Boundary cases",
+      "minutes": 25,
+      "brief": "A value stored at time 10 with ttl 5 is valid before time 15 and missing at time 15. A missing key returns None in Python or nullopt in C++. Time increases, ttl is non-negative, and timestamp sums fit in the chosen integer type.",
+      "example": "put(\"a\", \"value\", 10, 5); get(\"a\", 15) should be missing. The starter returns \"value\".",
+      "extension": "Expired keys that are never read still occupy memory. Describe a cleanup strategy and its cost.",
+      "test_checklist": [
+        "Missing key",
+        "Just before expiry",
+        "Exactly at expiry",
+        "Zero TTL",
+        "Overwrite existing key"
+      ],
+      "languages": {
+        "python": {
+          "starter": "class Cache:\n    \"\"\"Values expire at now + ttl. Expiry time is exclusive.\"\"\"\n    def __init__(self):\n        self.items = {}\n\n    def put(self, key, value, now, ttl):\n        self.items[key] = (value, now + ttl)\n\n    def get(self, key, now):\n        if key not in self.items:\n            return None\n        value, expires = self.items[key]\n        if now > expires:\n            del self.items[key]\n            return None\n        return value\n",
+          "reference": {
+            "code": "class Cache:\n    \"\"\"Values expire at now + ttl. Expiry time is exclusive.\"\"\"\n    def __init__(self):\n        self.items = {}\n\n    def put(self, key, value, now, ttl):\n        self.items[key] = (value, now + ttl)\n\n    def get(self, key, now):\n        if key not in self.items:\n            return None\n        value, expires = self.items[key]\n        if now >= expires:\n            del self.items[key]\n            return None\n        return value\n",
+            "explanation": "Expiry is exclusive. Use >= so the exact boundary and zero TTL expire correctly. Lookup and insertion are average O(1). Lazy expiry alone does not bound memory."
+          }
+        },
+        "cpp": {
+          "starter": "#include <string>\n#include <unordered_map>\n#include <optional>\nusing namespace std;\n\nclass Cache {\n    struct Entry { string value; long long expires; };\n    unordered_map<string, Entry> items;\npublic:\n    void put(const string& key, const string& value, long long now, long long ttl) {\n        items[key] = {value, now + ttl};\n    }\n    optional<string> get(const string& key, long long now) {\n        auto it = items.find(key);\n        if (it == items.end()) return nullopt;\n        if (now > it->second.expires) {\n            items.erase(it);\n            return nullopt;\n        }\n        return it->second.value;\n    }\n};\n",
+          "reference": {
+            "code": "#include <string>\n#include <unordered_map>\n#include <optional>\nusing namespace std;\n\nclass Cache {\n    struct Entry { string value; long long expires; };\n    unordered_map<string, Entry> items;\npublic:\n    void put(const string& key, const string& value, long long now, long long ttl) {\n        items[key] = {value, now + ttl};\n    }\n    optional<string> get(const string& key, long long now) {\n        auto it = items.find(key);\n        if (it == items.end()) return nullopt;\n        if (now >= it->second.expires) {\n            items.erase(it);\n            return nullopt;\n        }\n        return it->second.value;\n    }\n};\n",
+            "explanation": "Use >= for the exclusive expiry boundary. Return nullopt and erase the expired entry. Lookup is average O(1); explain cleanup for unread expired entries."
+          }
+        }
+      }
+    },
+    {
+      "id": "tasks",
+      "title": "Reject a cyclic task plan",
+      "level": "Graphs and invariants",
+      "minutes": 30,
+      "brief": "Tasks depend on other tasks. Return any order where each dependency comes first. A cyclic plan must be rejected, rather than returning a partial result. Task IDs are unique and every dependency refers to a known task.",
+      "example": "Tasks 0,1,2 with dependencies 0->1 and 1->0 must be rejected. The starter returns only task 2.",
+      "extension": "An order can be valid without being unique. How would you choose a stable order, and what would it cost?",
+      "test_checklist": [
+        "No tasks",
+        "Disconnected tasks",
+        "A chain",
+        "A self-cycle",
+        "Cycle plus an independent task",
+        "Repeated dependency edge"
+      ],
+      "languages": {
+        "python": {
+          "starter": "from collections import deque\n\n\ndef dependency_order(tasks, dependencies):\n    \"\"\"Each (before, after) pair uses known tasks. Return an order or reject cycles.\"\"\"\n    outgoing = {task: [] for task in tasks}\n    degree = {task: 0 for task in tasks}\n    for before, after in dependencies:\n        outgoing[before].append(after)\n        degree[after] += 1\n    ready = deque(task for task in tasks if degree[task] == 0)\n    order = []\n    while ready:\n        task = ready.popleft()\n        order.append(task)\n        for child in outgoing[task]:\n            degree[child] -= 1\n            if degree[child] == 0:\n                ready.append(child)\n    return order\n",
+          "reference": {
+            "code": "from collections import deque\n\n\ndef dependency_order(tasks, dependencies):\n    \"\"\"Each (before, after) pair uses known tasks. Return an order or reject cycles.\"\"\"\n    outgoing = {task: [] for task in tasks}\n    degree = {task: 0 for task in tasks}\n    for before, after in dependencies:\n        outgoing[before].append(after)\n        degree[after] += 1\n    ready = deque(task for task in tasks if degree[task] == 0)\n    order = []\n    while ready:\n        task = ready.popleft()\n        order.append(task)\n        for child in outgoing[task]:\n            degree[child] -= 1\n            if degree[child] == 0:\n                ready.append(child)\n    if len(order) != len(tasks):\n        raise ValueError(\"cycle\")\n    return order\n",
+            "explanation": "Kahn’s algorithm processes only tasks whose remaining dependency count is zero. If fewer than all tasks are emitted, a cycle remains. Reject that partial result. Time and space O(V + E)."
+          }
+        },
+        "cpp": {
+          "starter": "#include <vector>\n#include <queue>\n#include <stdexcept>\nusing namespace std;\n\n// Tasks are 0..count-1. Dependencies are valid (before, after) pairs.\nvector<int> dependency_order(int count, const vector<pair<int,int>>& dependencies) {\n    vector<vector<int>> outgoing(count);\n    vector<int> degree(count, 0), order;\n    for (auto [before, after] : dependencies) {\n        outgoing[before].push_back(after);\n        ++degree[after];\n    }\n    queue<int> ready;\n    for (int task = 0; task < count; ++task)\n        if (degree[task] == 0) ready.push(task);\n    while (!ready.empty()) {\n        int task = ready.front(); ready.pop();\n        order.push_back(task);\n        for (int child : outgoing[task])\n            if (--degree[child] == 0) ready.push(child);\n    }\n    return order;\n}\n",
+          "reference": {
+            "code": "#include <vector>\n#include <queue>\n#include <stdexcept>\nusing namespace std;\n\n// Tasks are 0..count-1. Dependencies are valid (before, after) pairs.\nvector<int> dependency_order(int count, const vector<pair<int,int>>& dependencies) {\n    vector<vector<int>> outgoing(count);\n    vector<int> degree(count, 0), order;\n    for (auto [before, after] : dependencies) {\n        outgoing[before].push_back(after);\n        ++degree[after];\n    }\n    queue<int> ready;\n    for (int task = 0; task < count; ++task)\n        if (degree[task] == 0) ready.push(task);\n    while (!ready.empty()) {\n        int task = ready.front(); ready.pop();\n        order.push_back(task);\n        for (int child : outgoing[task])\n            if (--degree[child] == 0) ready.push(child);\n    }\n    if (order.size() != static_cast<size_t>(count))\n        throw invalid_argument(\"cycle\");\n    return order;\n}\n",
+            "explanation": "A cycle prevents some tasks from becoming ready. Compare emitted tasks with count and reject incomplete plans. Time and space O(V + E)."
+          }
+        }
+      }
+    }
+  ]
+}

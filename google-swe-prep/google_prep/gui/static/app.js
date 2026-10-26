@@ -807,7 +807,9 @@ ROUTES.today = async (ctx) => {
     btn('View progress', () => go('#/roadmap'), {cls:'ghost small'}));
   mount(ctx, h('div', {class:'page today-page'}, pageTitle(mode === 'micro' ? 'A small session still counts.' : 'Build the habit. Do the work.',
     `${new Date(st.now).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'})} · Day ${st.day} · ${st.phase.short}`),
-    codingLanguageChoice(st), h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary, habitPreview(training), progressMilestones(training), status));
+    codingLanguageChoice(st), h('div', {class:'today-workspace'}, hero, dailyChecklist(training, mode === 'micro' || d.kind === 'micro')), summary,
+    typeof Engineering !== 'undefined' && mode !== 'micro' ? Engineering.preview(ctx) : null,
+    habitPreview(training), progressMilestones(training), status));
   return {onKey(e, typing) {
     if (!typing && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'm' && mode !== 'micro' && d.kind !== 'fasttrack') {
       go('#/today?mode=micro'); return true;
@@ -1451,11 +1453,17 @@ ROUTES.board = async (ctx) => {
     let res;
     try { res = await api("mock_hint", { problem_id: B.problem_id, elapsed: B.elapsed }); } catch (err) { toast(err.message, true); return; }
     if (res.locked) {
-      await openModal("Struggle a little longer", h("div", null,
+      const recovery = await openModal("Try one small step", h("div", null,
         h("p", null, "Hints open in ", h("b", null, mmss(res.wait)), ". Use this time to try a small example or explain exactly where you are stuck."),
-        h("p", { class: "q" }, "Try these first:"),
-        h("ol", { class: "bullets" }, res.tips.map((t) => h("li", null, rich(t))))),
-      [{ label: "Back to it", value: true, primary: true, key: "Enter" }]);
+        h("p", { class: "q" }, "For the next two minutes: trace one tiny input and name the first step you cannot explain."),
+        h("details", null, h('summary', null, 'Other ways to get moving'),
+          h("ol", { class: "bullets" }, res.tips.map((t) => h("li", null, rich(t)))))),
+      [{ label: "Try one example", value:'try', primary: true, key: "Enter" },
+       { label: "Pause and save", value:'pause' }]);
+      if (recovery === 'pause') {
+        if (!B.paused) togglePause();
+        await save(true);
+      }
       code.focus();
       return;
     }
@@ -1641,7 +1649,7 @@ ROUTES.board = async (ctx) => {
       h("div", { class: "phases" }, segs.map((x) => x.seg)),
       h("div", { class: "row" }, btn("I'm stuck", stuck, { cls: "ghost", key: "Alt+H", test: "stuck", title: `Hints open after ${Math.round(data.hint_unlock / 60)} minutes of trying` }),
         pauseBtn, btn(generalMode ? 'Rescue step' : 'Regroup', () => {
-          if (S.state && S.state.settings.preparation_mode === 'general' && typeof Support !== 'undefined') {
+          if (typeof Support !== 'undefined') {
             generalRescue();
             return;
           }
@@ -2077,7 +2085,8 @@ ROUTES.role = async (ctx) => {
       item.star ? h("div", { class: "row" }, btn("Write it as a STAR story", () => go("#/star"), { cls: "ghost small" })) : null);
   });
   paintMeter();
-  mount(ctx, h("div", { class: "page" }, pageTitle("Interview prep", data.intro, btn('STAR stories', () => go('#/star'), {cls:'ghost'})),
+  mount(ctx, h("div", { class: "page" }, pageTitle("Interview prep", data.intro,
+    btn('Read · debug · improve', () => go('#/engineering'), {cls:'ghost'}), btn('STAR stories', () => go('#/star'), {cls:'ghost'})),
     designHub, h('div', {class:'section-heading'}, h('h2', null, 'Resume, role and recruiter preparation')),
     h("section", { class: "card" }, meter), h("div", { class: "role-list" }, cards)));
   return { cleanup: flush, beforeLeave: async () => { flush(); return true; }, isDirty: () => pending.size > 0 };

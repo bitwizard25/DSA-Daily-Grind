@@ -183,3 +183,18 @@ class SupportRescue(SQLModel, table=True):
     blocker: str
     helpful: bool = False
     created_at: NaiveDatetime = Field(default_factory=now)
+
+
+class ComprehensionAttempt(SQLModel, table=True):
+    """Saved learning work, explicitly self-reported; never a DSA grade."""
+    id: str = Field(primary_key=True)
+    exercise_id: str = Field(index=True)
+    language: str
+    active_slot: Optional[str] = Field(default=None, unique=True)
+    status: str = 'draft'
+    revision: int = 0
+    notes: str = '{}'
+    code: str = ''
+    help: str = 'none'
+    created_at: NaiveDatetime = Field(default_factory=now)
+    updated_at: NaiveDatetime = Field(default_factory=now)
