@@ -17,10 +17,19 @@ Use the mode button in the top bar or sidebar to switch:
 
 - **Google mode** keeps the existing Google schedule, interview target, Today flow and timed mocks. Existing profiles start here.
 - **General mode** supports reusable coding, design, AI and communication skills. Choose its own role target, starting cue, small daily minimum and focus duration under **Confidence & consistency**.
+- **Code Red** is the exam-condition sprint for the last 2–3 weeks before the interview (desktop app only). Switching in shows a warning: it assumes you can solve Medium problems on your own.
+
+Code Red uses only the Medium and Hard problems asked at Google in the last 3 months (80 in the bundled data; no Foundations, no Easy). Today is a fixed daily checklist:
+- a 5-card mistake warmup;
+- a Re-Solve Strike (a due problem that beat you, or a new one when nothing is due);
+- two 45-minute live mocks from different topics;
+- a behavioral block. Until 8 STAR stories exist this asks you to write one; after that it is a 2-minute spoken prompt.
+
+When 4 or more re-solves are due, the second mock becomes another re-solve. In the last 2 days before the interview no new problems are served, and interview day is warmup only. The sidebar adds a **Re-Solve Queue** (every problem that beat you, most urgent first) and a **Recruiter & STAR** pocket (the recruiter sheet and STAR stories, without the design checklists). Progress shows only pool problems solved solo (no hint, no answer), the 7-day mock score trend and what costs you points. The readiness number is labelled an estimate, not a prediction of an offer. The stricter whiteboard rules and the low-battery override come in later updates.
 
 General mode offers a small start, pause/resume/park, optional learning notes, seven-day activity and practical rescue steps when stuck. Focus time, outside practice and helpful rescues are labeled self-reports; they never create a graded solve. Changing company or mode preserves recorded work. Switching back to Google pauses an active General focus block.
 
-**Choose Python or C++ from Day 1** on Today or Learn. General and Google mode each remember their own choice; it is also editable in Settings. Each language keeps separate lesson progress, code pads and dry-run traces. Existing profiles retain their Python work, and an unfinished session keeps the language it started with. C++ has two foundation days covering syntax, vectors, functions, containers and sorted search, plus a short reference checklist. Its quick checks show expected output from bundled C++17 examples. Running learner-written code remains a separate planned editor feature. Existing pattern-vault templates and bug-hunt examples are still primarily Python references.
+**Choose Python or C++ from Day 1** on Today or Learn. Each mode remembers its own choice; it is also editable in Settings. Each language keeps separate lesson progress, code pads and dry-run traces. Existing profiles retain their Python work, and an unfinished session keeps the language it started with. C++ has two foundation days covering syntax, vectors, functions, containers and sorted search, plus a short reference checklist. Its quick checks show expected output from bundled C++17 examples. Running learner-written code remains a separate planned editor feature. Existing pattern-vault templates and bug-hunt examples are still primarily Python references.
 
 The coding catalogue is the existing shared bank, originally curated for Google. Native reminders, the broader weekly planner and the separately planned code runner are not part of this support increment.
 
