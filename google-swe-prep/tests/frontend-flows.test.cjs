@@ -64,6 +64,17 @@ test('planned break replaces the Today workload before either prep mode is loade
   assert.ok(find(state.root,n=>n.attrs['data-test']==='break-card'));
 });
 
+test('Code Red Today keeps its own mission without loading the optional engineering card',async()=>{
+  let opened=false;
+  const st={settings:{preparation_mode:'code_red'}};
+  const state=env({S:{state:st},refreshState:async()=>st,
+    CodeRed:{today:async()=>{opened=true;return {mode:'code_red'};}},
+    Engineering:{preview:()=>assert.fail('Google practice card must not replace Code Red')}});
+  vm.runInContext(routeSource,state);
+  const handle=await state.ROUTES.today(context);
+  assert.equal(opened,true);assert.equal(handle.mode,'code_red');
+});
+
 test('failed break save keeps its dates and error visible without claiming success',async()=>{
   let body, closed=false;
   const state=env({current:null, modalState:{close:()=>{closed=true;}},

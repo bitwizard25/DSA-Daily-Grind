@@ -26,3 +26,10 @@ Approved direction: add comprehension, independent retries and practical recover
 
 ## Execution ledger
 - Existing worktree verified. Unfinished CI visibility changes safely stashed separately before branching from fetched main.
+- Backend and frontend regressions observed failing before implementation; drafts, stale revisions, sticky assistance and duplicate completion verified afterward.
+- All three Python and C++ starter/reference pairs validated. C++17 examples compiled locally; starters expose the intended bug and references pass the edge cases.
+- Independent retries archive previous code and traces, start a clean pad and preserve the active-session conflict flow. Added regression coverage after discovering the default whiteboard restored previous code.
+- Fresh reviewer found an assistance-selector mismatch; fixed with a failing regression. Follow-up review of the main integration found no blocking issues.
+- 2026-10-26: merged main 181ea25 (Code Red) into the feature branch; retained both script sets and all CI frontend suites. Code Red Today and recruiter pocket keep their existing flow.
+- Final verification after merging: 424 backend tests passed, 35 frontend tests passed, syntax and whitespace checks passed. Source selftest checks 5 assets and 8 RPCs.
+- Isolated browser profile verified Python/C++ draft separation, reload recovery, recorded solution help, completion, a clean DSA retry, Google worry rescue and save/park back to Today. Installed app and real study profile were not modified.
